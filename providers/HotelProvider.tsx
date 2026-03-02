@@ -1,0 +1,758 @@
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import createContextHook from '@nkzw/create-context-hook';
+import {
+  Room,
+  StaffMember,
+  PMSSyncState,
+  RoomStatus,
+  ClientBadge,
+  RoomType,
+  RoomHistoryEntry,
+  MaintenanceTask,
+  BreakfastOrder,
+  Inspection,
+  InventoryItem,
+  LostFoundItem,
+  InspectionStatus,
+  ConsumableProduct,
+  ConsumptionLog,
+  StockMovement,
+} from '@/constants/types';
+import { INITIAL_ROOMS, INITIAL_STAFF } from '@/mocks/rooms';
+import { INITIAL_MAINTENANCE } from '@/mocks/maintenance';
+import { INITIAL_BREAKFAST_ORDERS } from '@/mocks/breakfast';
+import { INITIAL_INSPECTIONS, INITIAL_INVENTORY, INITIAL_LOST_FOUND } from '@/mocks/inventory';
+import { INITIAL_CONSUMABLE_PRODUCTS, INITIAL_CONSUMPTION_LOGS, INITIAL_STOCK_MOVEMENTS } from '@/mocks/consumables';
+
+const ROOMS_KEY = 'hotel_rooms_v2';
+const STAFF_KEY = 'hotel_staff_v2';
+const PMS_KEY = 'pms_sync_state';
+const MAINTENANCE_KEY = 'hotel_maintenance';
+const BREAKFAST_KEY = 'hotel_breakfast';
+const INSPECTIONS_KEY = 'hotel_inspections';
+const INVENTORY_KEY = 'hotel_inventory';
+const LOST_FOUND_KEY = 'hotel_lost_found';
+const CONSUMABLE_PRODUCTS_KEY = 'hotel_consumable_products';
+const CONSUMPTION_LOGS_KEY = 'hotel_consumption_logs';
+const STOCK_MOVEMENTS_KEY = 'hotel_stock_movements';
+
+export const [HotelProvider, useHotel] = createContextHook(() => {
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [selectedRoomIds, setSelectedRoomIds] = useState<Set<string>>(new Set());
+  const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>([]);
+  const [breakfastOrders, setBreakfastOrders] = useState<BreakfastOrder[]>([]);
+  const [inspections, setInspections] = useState<Inspection[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [lostFoundItems, setLostFoundItems] = useState<LostFoundItem[]>([]);
+  const [consumableProducts, setConsumableProducts] = useState<ConsumableProduct[]>([]);
+  const [consumptionLogs, setConsumptionLogs] = useState<ConsumptionLog[]>([]);
+  const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+  const [pmsSync, setPmsSync] = useState<PMSSyncState>({
+    status: 'idle',
+    lastSyncTime: null,
+    recordsUpdated: 0,
+    errorMessage: null,
+  });
+
+  const roomsQuery = useQuery({
+    queryKey: ['rooms'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(ROOMS_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as Room[];
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) {
+        console.log('[HotelProvider] Error reading rooms, resetting:', e);
+        await AsyncStorage.removeItem(ROOMS_KEY);
+      }
+      await AsyncStorage.setItem(ROOMS_KEY, JSON.stringify(INITIAL_ROOMS));
+      return INITIAL_ROOMS;
+    },
+  });
+
+  const staffQuery = useQuery({
+    queryKey: ['staff'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(STAFF_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as StaffMember[];
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) {
+        console.log('[HotelProvider] Error reading staff, resetting:', e);
+        await AsyncStorage.removeItem(STAFF_KEY);
+      }
+      await AsyncStorage.setItem(STAFF_KEY, JSON.stringify(INITIAL_STAFF));
+      return INITIAL_STAFF;
+    },
+  });
+
+  const pmsQuery = useQuery({
+    queryKey: ['pmsSync'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(PMS_KEY);
+        if (stored) return JSON.parse(stored) as PMSSyncState;
+      } catch (e) {
+        console.log('[HotelProvider] Error reading PMS state, resetting:', e);
+        await AsyncStorage.removeItem(PMS_KEY);
+      }
+      return { status: 'idle' as const, lastSyncTime: null, recordsUpdated: 0, errorMessage: null };
+    },
+  });
+
+  const maintenanceQuery = useQuery({
+    queryKey: ['maintenance'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(MAINTENANCE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as MaintenanceTask[];
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) {
+        console.log('[HotelProvider] Error reading maintenance, resetting:', e);
+        await AsyncStorage.removeItem(MAINTENANCE_KEY);
+      }
+      await AsyncStorage.setItem(MAINTENANCE_KEY, JSON.stringify(INITIAL_MAINTENANCE));
+      return INITIAL_MAINTENANCE;
+    },
+  });
+
+  const breakfastQuery = useQuery({
+    queryKey: ['breakfast'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(BREAKFAST_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as BreakfastOrder[];
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) {
+        console.log('[HotelProvider] Error reading breakfast, resetting:', e);
+        await AsyncStorage.removeItem(BREAKFAST_KEY);
+      }
+      await AsyncStorage.setItem(BREAKFAST_KEY, JSON.stringify(INITIAL_BREAKFAST_ORDERS));
+      return INITIAL_BREAKFAST_ORDERS;
+    },
+  });
+
+  const inspectionsQuery = useQuery({
+    queryKey: ['inspections'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(INSPECTIONS_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as Inspection[];
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) {
+        console.log('[HotelProvider] Error reading inspections, resetting:', e);
+        await AsyncStorage.removeItem(INSPECTIONS_KEY);
+      }
+      await AsyncStorage.setItem(INSPECTIONS_KEY, JSON.stringify(INITIAL_INSPECTIONS));
+      return INITIAL_INSPECTIONS;
+    },
+  });
+
+  const inventoryQuery = useQuery({
+    queryKey: ['inventory'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(INVENTORY_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as InventoryItem[];
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) {
+        console.log('[HotelProvider] Error reading inventory, resetting:', e);
+        await AsyncStorage.removeItem(INVENTORY_KEY);
+      }
+      await AsyncStorage.setItem(INVENTORY_KEY, JSON.stringify(INITIAL_INVENTORY));
+      return INITIAL_INVENTORY;
+    },
+  });
+
+  const lostFoundQuery = useQuery({
+    queryKey: ['lostFound'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(LOST_FOUND_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as LostFoundItem[];
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) {
+        console.log('[HotelProvider] Error reading lostFound, resetting:', e);
+        await AsyncStorage.removeItem(LOST_FOUND_KEY);
+      }
+      await AsyncStorage.setItem(LOST_FOUND_KEY, JSON.stringify(INITIAL_LOST_FOUND));
+      return INITIAL_LOST_FOUND;
+    },
+  });
+
+  const consumableProductsQuery = useQuery({
+    queryKey: ['consumableProducts'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(CONSUMABLE_PRODUCTS_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as ConsumableProduct[];
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) {
+        console.log('[HotelProvider] Error reading consumable products:', e);
+        await AsyncStorage.removeItem(CONSUMABLE_PRODUCTS_KEY);
+      }
+      await AsyncStorage.setItem(CONSUMABLE_PRODUCTS_KEY, JSON.stringify(INITIAL_CONSUMABLE_PRODUCTS));
+      return INITIAL_CONSUMABLE_PRODUCTS;
+    },
+  });
+
+  const consumptionLogsQuery = useQuery({
+    queryKey: ['consumptionLogs'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(CONSUMPTION_LOGS_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as ConsumptionLog[];
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) {
+        console.log('[HotelProvider] Error reading consumption logs:', e);
+        await AsyncStorage.removeItem(CONSUMPTION_LOGS_KEY);
+      }
+      await AsyncStorage.setItem(CONSUMPTION_LOGS_KEY, JSON.stringify(INITIAL_CONSUMPTION_LOGS));
+      return INITIAL_CONSUMPTION_LOGS;
+    },
+  });
+
+  const stockMovementsQuery = useQuery({
+    queryKey: ['stockMovements'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(STOCK_MOVEMENTS_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as StockMovement[];
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) {
+        console.log('[HotelProvider] Error reading stock movements:', e);
+        await AsyncStorage.removeItem(STOCK_MOVEMENTS_KEY);
+      }
+      await AsyncStorage.setItem(STOCK_MOVEMENTS_KEY, JSON.stringify(INITIAL_STOCK_MOVEMENTS));
+      return INITIAL_STOCK_MOVEMENTS;
+    },
+  });
+
+  useEffect(() => { if (roomsQuery.data) setRooms(roomsQuery.data); }, [roomsQuery.data]);
+  useEffect(() => { if (staffQuery.data) setStaff(staffQuery.data); }, [staffQuery.data]);
+  useEffect(() => { if (pmsQuery.data) setPmsSync(pmsQuery.data); }, [pmsQuery.data]);
+  useEffect(() => { if (maintenanceQuery.data) setMaintenanceTasks(maintenanceQuery.data); }, [maintenanceQuery.data]);
+  useEffect(() => { if (breakfastQuery.data) setBreakfastOrders(breakfastQuery.data); }, [breakfastQuery.data]);
+  useEffect(() => { if (inspectionsQuery.data) setInspections(inspectionsQuery.data); }, [inspectionsQuery.data]);
+  useEffect(() => { if (inventoryQuery.data) setInventoryItems(inventoryQuery.data); }, [inventoryQuery.data]);
+  useEffect(() => { if (lostFoundQuery.data) setLostFoundItems(lostFoundQuery.data); }, [lostFoundQuery.data]);
+  useEffect(() => { if (consumableProductsQuery.data) setConsumableProducts(consumableProductsQuery.data); }, [consumableProductsQuery.data]);
+  useEffect(() => { if (consumptionLogsQuery.data) setConsumptionLogs(consumptionLogsQuery.data); }, [consumptionLogsQuery.data]);
+  useEffect(() => { if (stockMovementsQuery.data) setStockMovements(stockMovementsQuery.data); }, [stockMovementsQuery.data]);
+
+  const persistRooms = useCallback(async (updated: Room[]) => {
+    setRooms(updated);
+    await AsyncStorage.setItem(ROOMS_KEY, JSON.stringify(updated));
+  }, []);
+
+  const persistStaff = useCallback(async (updated: StaffMember[]) => {
+    setStaff(updated);
+    await AsyncStorage.setItem(STAFF_KEY, JSON.stringify(updated));
+  }, []);
+
+  const persistPms = useCallback(async (updated: PMSSyncState) => {
+    setPmsSync(updated);
+    await AsyncStorage.setItem(PMS_KEY, JSON.stringify(updated));
+  }, []);
+
+  const persistMaintenance = useCallback(async (updated: MaintenanceTask[]) => {
+    setMaintenanceTasks(updated);
+    await AsyncStorage.setItem(MAINTENANCE_KEY, JSON.stringify(updated));
+  }, []);
+
+  const persistBreakfast = useCallback(async (updated: BreakfastOrder[]) => {
+    setBreakfastOrders(updated);
+    await AsyncStorage.setItem(BREAKFAST_KEY, JSON.stringify(updated));
+  }, []);
+
+  const persistInspections = useCallback(async (updated: Inspection[]) => {
+    setInspections(updated);
+    await AsyncStorage.setItem(INSPECTIONS_KEY, JSON.stringify(updated));
+  }, []);
+
+  const persistInventory = useCallback(async (updated: InventoryItem[]) => {
+    setInventoryItems(updated);
+    await AsyncStorage.setItem(INVENTORY_KEY, JSON.stringify(updated));
+  }, []);
+
+  const persistConsumableProducts = useCallback(async (updated: ConsumableProduct[]) => {
+    setConsumableProducts(updated);
+    await AsyncStorage.setItem(CONSUMABLE_PRODUCTS_KEY, JSON.stringify(updated));
+  }, []);
+
+  const persistConsumptionLogs = useCallback(async (updated: ConsumptionLog[]) => {
+    setConsumptionLogs(updated);
+    await AsyncStorage.setItem(CONSUMPTION_LOGS_KEY, JSON.stringify(updated));
+  }, []);
+
+  const persistStockMovements = useCallback(async (updated: StockMovement[]) => {
+    setStockMovements(updated);
+    await AsyncStorage.setItem(STOCK_MOVEMENTS_KEY, JSON.stringify(updated));
+  }, []);
+
+
+  const updateRoomMutation = useMutation({
+    mutationFn: async (params: { roomId: string; updates: Partial<Room> }) => {
+      const updated = rooms.map((r) =>
+        r.id === params.roomId ? { ...r, ...params.updates } : r
+      );
+      await persistRooms(updated);
+      return updated;
+    },
+  });
+
+  const addRoomMutation = useMutation({
+    mutationFn: async (params: { roomNumber: string; floor: number; roomType: RoomType; status: RoomStatus }) => {
+      const newRoom: Room = {
+        id: Date.now().toString(),
+        roomNumber: params.roomNumber,
+        floor: params.floor,
+        roomType: params.roomType,
+        status: params.status,
+        clientBadge: 'normal',
+        vipInstructions: '',
+        cleaningStatus: 'none',
+        cleaningAssignee: null,
+        assignedTo: null,
+        cleaningStartedAt: null,
+        cleaningCompletedAt: null,
+        breakfastIncluded: false,
+        currentReservation: null,
+        history: [{
+          id: `h-${Date.now()}`,
+          roomId: Date.now().toString(),
+          action: 'Création',
+          performedBy: 'Réception',
+          date: new Date().toISOString(),
+          details: 'Chambre ajoutée au système',
+        }],
+      };
+      const updated = [...rooms, newRoom];
+      await persistRooms(updated);
+      return newRoom;
+    },
+  });
+
+  const bulkDepartureMutation = useMutation({
+    mutationFn: async (roomIds: string[]) => {
+      const updated = rooms.map((r) => {
+        if (roomIds.includes(r.id) && r.status === 'occupe') {
+          const historyEntry: RoomHistoryEntry = {
+            id: `h-${Date.now()}-${r.id}`,
+            roomId: r.id,
+            action: 'Départ déclaré',
+            performedBy: 'Réception',
+            date: new Date().toISOString(),
+            details: `Départ de ${r.currentReservation?.guestName ?? 'client'}`,
+          };
+          return { ...r, status: 'depart' as RoomStatus, history: [...r.history, historyEntry] };
+        }
+        return r;
+      });
+      await persistRooms(updated);
+      setSelectedRoomIds(new Set());
+      return updated;
+    },
+  });
+
+  const bulkAssignMutation = useMutation({
+    mutationFn: async (params: { roomIds: string[]; staffId: string }) => {
+      const staffMember = staff.find((s) => s.id === params.staffId);
+      if (!staffMember) throw new Error('Staff member not found');
+      const assigneeName = `${staffMember.firstName} ${staffMember.lastName.charAt(0)}.`;
+      const updated = rooms.map((r) => {
+        if (params.roomIds.includes(r.id)) {
+          const historyEntry: RoomHistoryEntry = {
+            id: `h-${Date.now()}-${r.id}`,
+            roomId: r.id,
+            action: 'Assignation',
+            performedBy: 'Réception',
+            date: new Date().toISOString(),
+            details: `Assignée à ${assigneeName}`,
+          };
+          return {
+            ...r,
+            cleaningAssignee: assigneeName,
+            assignedTo: params.staffId,
+            cleaningStatus: r.cleaningStatus === 'none' ? ('en_cours' as const) : r.cleaningStatus,
+            history: [...r.history, historyEntry],
+          };
+        }
+        return r;
+      });
+      const updatedStaff = staff.map((s) =>
+        s.id === params.staffId ? { ...s, currentLoad: s.currentLoad + params.roomIds.length } : s
+      );
+      await persistRooms(updated);
+      await persistStaff(updatedStaff);
+      setSelectedRoomIds(new Set());
+      return updated;
+    },
+  });
+
+  const syncPmsMutation = useMutation({
+    mutationFn: async () => {
+      await persistPms({ ...pmsSync, status: 'syncing', errorMessage: null });
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const shouldFail = Math.random() < 0.1;
+      if (shouldFail) {
+        const errorState: PMSSyncState = { status: 'error', lastSyncTime: pmsSync.lastSyncTime, recordsUpdated: 0, errorMessage: 'Connexion au PMS échouée - timeout' };
+        await persistPms(errorState);
+        throw new Error('PMS sync failed');
+      }
+      const updatedCount = rooms.filter((r) => r.currentReservation !== null).length;
+      const successState: PMSSyncState = { status: 'success', lastSyncTime: new Date().toISOString(), recordsUpdated: updatedCount, errorMessage: null };
+      await persistPms(successState);
+      return successState;
+    },
+  });
+
+  const startCleaningMutation = useMutation({
+    mutationFn: async (roomId: string) => {
+      const updated = rooms.map((r) =>
+        r.id === roomId ? { ...r, cleaningStatus: 'en_cours' as const, cleaningStartedAt: new Date().toISOString() } : r
+      );
+      await persistRooms(updated);
+    },
+  });
+
+  const completeCleaningMutation = useMutation({
+    mutationFn: async (roomId: string) => {
+      const updated = rooms.map((r) =>
+        r.id === roomId ? { ...r, cleaningStatus: 'nettoyee' as const, cleaningCompletedAt: new Date().toISOString() } : r
+      );
+      await persistRooms(updated);
+      const room = rooms.find((r) => r.id === roomId);
+      if (room && !inspections.find((i) => i.roomId === roomId && i.status === 'en_attente')) {
+        const newInspection: Inspection = {
+          id: `insp-${Date.now()}`,
+          roomId,
+          roomNumber: room.roomNumber,
+          roomType: room.roomType,
+          floor: room.floor,
+          cleanedBy: room.cleaningAssignee ?? 'Inconnu',
+          completedAt: new Date().toISOString(),
+          status: 'en_attente',
+          checklistResults: {},
+          comments: '',
+          guestName: room.currentReservation?.guestName ?? null,
+        };
+        await persistInspections([...inspections, newInspection]);
+      }
+    },
+  });
+
+  const validateInspectionMutation = useMutation({
+    mutationFn: async (params: { inspectionId: string; status: InspectionStatus; checklist: Record<string, boolean>; comments: string }) => {
+      const updatedInspections = inspections.map((i) =>
+        i.id === params.inspectionId ? { ...i, status: params.status, checklistResults: params.checklist, comments: params.comments } : i
+      );
+      await persistInspections(updatedInspections);
+      const inspection = inspections.find((i) => i.id === params.inspectionId);
+      if (inspection) {
+        const newCleaningStatus = params.status === 'valide' ? 'validee' as const : 'refusee' as const;
+        const updatedRooms = rooms.map((r) =>
+          r.id === inspection.roomId ? { ...r, cleaningStatus: newCleaningStatus } : r
+        );
+        await persistRooms(updatedRooms);
+      }
+    },
+  });
+
+  const updateMaintenanceMutation = useMutation({
+    mutationFn: async (params: { taskId: string; updates: Partial<MaintenanceTask> }) => {
+      const updated = maintenanceTasks.map((t) =>
+        t.id === params.taskId ? { ...t, ...params.updates } : t
+      );
+      await persistMaintenance(updated);
+    },
+  });
+
+  const addMaintenanceMutation = useMutation({
+    mutationFn: async (task: Omit<MaintenanceTask, 'id'>) => {
+      const newTask: MaintenanceTask = { ...task, id: `m-${Date.now()}` };
+      await persistMaintenance([...maintenanceTasks, newTask]);
+      return newTask;
+    },
+  });
+
+  const updateBreakfastMutation = useMutation({
+    mutationFn: async (params: { orderId: string; updates: Partial<BreakfastOrder> }) => {
+      const updated = breakfastOrders.map((o) =>
+        o.id === params.orderId ? { ...o, ...params.updates } : o
+      );
+      await persistBreakfast(updated);
+    },
+  });
+
+  const addBreakfastMutation = useMutation({
+    mutationFn: async (order: Omit<BreakfastOrder, 'id'>) => {
+      const newOrder: BreakfastOrder = { ...order, id: `b-${Date.now()}` };
+      await persistBreakfast([...breakfastOrders, newOrder]);
+      return newOrder;
+    },
+  });
+
+  const updateInventoryMutation = useMutation({
+    mutationFn: async (params: { itemId: string; updates: Partial<InventoryItem> }) => {
+      const updated = inventoryItems.map((i) =>
+        i.id === params.itemId ? { ...i, ...params.updates } : i
+      );
+      await persistInventory(updated);
+    },
+  });
+
+  const reportProblemMutation = useMutation({
+    mutationFn: async (params: { roomId: string; roomNumber: string; title: string; description: string; priority: MaintenanceTask['priority']; reportedBy: string }) => {
+      const newTask: MaintenanceTask = {
+        id: `m-${Date.now()}`,
+        roomId: params.roomId,
+        roomNumber: params.roomNumber,
+        title: params.title,
+        description: params.description,
+        reportedBy: params.reportedBy,
+        reportedAt: new Date().toISOString(),
+        priority: params.priority,
+        status: 'en_attente',
+        assignedTo: null,
+        photos: [],
+        resolutionNotes: '',
+        resolvedAt: null,
+        comments: [],
+      };
+      await persistMaintenance([...maintenanceTasks, newTask]);
+    },
+  });
+
+  const addConsumptionsMutation = useMutation({
+    mutationFn: async (params: { roomId: string; roomNumber: string; items: { productId: string; quantity: number }[]; reportedBy: string }) => {
+      const now = new Date().toISOString();
+      const newLogs: ConsumptionLog[] = [];
+      const newMovements: StockMovement[] = [];
+      let updatedProducts = [...consumableProducts];
+
+      for (const item of params.items) {
+        const product = updatedProducts.find((p) => p.id === item.productId);
+        if (!product) continue;
+
+        const log: ConsumptionLog = {
+          id: `cl-${Date.now()}-${item.productId}`,
+          roomId: params.roomId,
+          roomNumber: params.roomNumber,
+          productId: item.productId,
+          productName: product.name,
+          productIcon: product.icon,
+          category: product.category,
+          quantity: item.quantity,
+          unitPrice: product.unitPrice,
+          totalPrice: item.quantity * product.unitPrice,
+          reportedBy: params.reportedBy,
+          reportedAt: now,
+          billed: false,
+        };
+        newLogs.push(log);
+
+        const movement: StockMovement = {
+          id: `sm-${Date.now()}-${item.productId}`,
+          productId: item.productId,
+          productName: product.name,
+          quantity: -item.quantity,
+          movementType: 'sortie_consommation',
+          unitPrice: product.unitPrice,
+          roomId: params.roomId,
+          roomNumber: params.roomNumber,
+          reportedBy: params.reportedBy,
+          createdAt: now,
+        };
+        newMovements.push(movement);
+
+        updatedProducts = updatedProducts.map((p) =>
+          p.id === item.productId ? { ...p, currentStock: Math.max(0, p.currentStock - item.quantity) } : p
+        );
+      }
+
+      await persistConsumableProducts(updatedProducts);
+      await persistConsumptionLogs([...consumptionLogs, ...newLogs]);
+      await persistStockMovements([...stockMovements, ...newMovements]);
+      return newLogs;
+    },
+  });
+
+  const addStockEntryMutation = useMutation({
+    mutationFn: async (params: { productId: string; quantity: number; unitPrice: number; reportedBy: string }) => {
+      const product = consumableProducts.find((p) => p.id === params.productId);
+      if (!product) throw new Error('Product not found');
+
+      const updatedProducts = consumableProducts.map((p) =>
+        p.id === params.productId ? { ...p, currentStock: p.currentStock + params.quantity } : p
+      );
+      const movement: StockMovement = {
+        id: `sm-${Date.now()}`,
+        productId: params.productId,
+        productName: product.name,
+        quantity: params.quantity,
+        movementType: 'entree',
+        unitPrice: params.unitPrice,
+        roomId: null,
+        roomNumber: null,
+        reportedBy: params.reportedBy,
+        createdAt: new Date().toISOString(),
+      };
+
+      await persistConsumableProducts(updatedProducts);
+      await persistStockMovements([...stockMovements, movement]);
+    },
+  });
+
+  const updateConsumableProductMutation = useMutation({
+    mutationFn: async (params: { productId: string; updates: Partial<ConsumableProduct> }) => {
+      const updated = consumableProducts.map((p) =>
+        p.id === params.productId ? { ...p, ...params.updates } : p
+      );
+      await persistConsumableProducts(updated);
+    },
+  });
+
+  const toggleRoomSelection = useCallback((roomId: string) => {
+    setSelectedRoomIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(roomId)) next.delete(roomId);
+      else next.add(roomId);
+      return next;
+    });
+  }, []);
+
+  const toggleFloorSelection = useCallback((floor: number) => {
+    const floorRoomIds = rooms.filter((r) => r.floor === floor).map((r) => r.id);
+    const allSelected = floorRoomIds.every((id) => selectedRoomIds.has(id));
+    setSelectedRoomIds((prev) => {
+      const next = new Set(prev);
+      floorRoomIds.forEach((id) => {
+        if (allSelected) next.delete(id);
+        else next.add(id);
+      });
+      return next;
+    });
+  }, [rooms, selectedRoomIds]);
+
+  const clearSelection = useCallback(() => { setSelectedRoomIds(new Set()); }, []);
+
+  const isLoading = roomsQuery.isLoading || staffQuery.isLoading;
+
+  const housekeepingRooms = useMemo(() =>
+    rooms.filter((r) => r.assignedTo !== null && (r.cleaningStatus === 'none' || r.cleaningStatus === 'en_cours' || r.cleaningStatus === 'refusee')),
+    [rooms]
+  );
+
+  const pendingInspections = useMemo(() =>
+    inspections.filter((i) => i.status === 'en_attente'),
+    [inspections]
+  );
+
+  const lowStockItems = useMemo(() =>
+    inventoryItems.filter((i) => i.currentStock <= i.minimumThreshold),
+    [inventoryItems]
+  );
+
+  const lowStockConsumables = useMemo(() =>
+    consumableProducts.filter((p) => p.currentStock <= p.lowStockThreshold),
+    [consumableProducts]
+  );
+
+  const todayConsumptionTotal = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return consumptionLogs
+      .filter((l) => l.reportedAt.startsWith(today))
+      .reduce((sum, l) => sum + l.totalPrice, 0);
+  }, [consumptionLogs]);
+
+  return {
+    rooms,
+    staff: staff.filter((s) => s.role === 'femme_de_chambre' && s.active),
+    allStaff: staff,
+    maintenanceStaff: staff.filter((s) => s.role === 'maintenance' && s.active),
+    selectedRoomIds,
+    pmsSync,
+    isLoading,
+    maintenanceTasks,
+    breakfastOrders,
+    inspections,
+    inventoryItems,
+    lostFoundItems,
+    housekeepingRooms,
+    pendingInspections,
+    lowStockItems,
+    consumableProducts,
+    consumptionLogs,
+    stockMovements,
+    lowStockConsumables,
+    todayConsumptionTotal,
+    updateRoom: updateRoomMutation.mutate,
+    addRoom: addRoomMutation.mutate,
+    bulkDeparture: bulkDepartureMutation.mutate,
+    bulkAssign: bulkAssignMutation.mutate,
+    syncPms: syncPmsMutation.mutate,
+    isSyncing: syncPmsMutation.isPending,
+    startCleaning: startCleaningMutation.mutate,
+    completeCleaning: completeCleaningMutation.mutate,
+    validateInspection: validateInspectionMutation.mutate,
+    updateMaintenance: updateMaintenanceMutation.mutate,
+    addMaintenance: addMaintenanceMutation.mutate,
+    updateBreakfast: updateBreakfastMutation.mutate,
+    addBreakfast: addBreakfastMutation.mutate,
+    updateInventory: updateInventoryMutation.mutate,
+    reportProblem: reportProblemMutation.mutate,
+    addConsumptions: addConsumptionsMutation.mutate,
+    addStockEntry: addStockEntryMutation.mutate,
+    updateConsumableProduct: updateConsumableProductMutation.mutate,
+    toggleRoomSelection,
+    toggleFloorSelection,
+    clearSelection,
+  };
+});
+
+export function useFilteredRooms(filters: {
+  status: RoomStatus | 'all';
+  floor: number | 'all';
+  badge: ClientBadge | 'all';
+  search: string;
+}) {
+  const { rooms } = useHotel();
+  const filtered = rooms.filter((room) => {
+    if (filters.status !== 'all' && room.status !== filters.status) return false;
+    if (filters.floor !== 'all' && room.floor !== filters.floor) return false;
+    if (filters.badge !== 'all' && room.clientBadge !== filters.badge) return false;
+    if (filters.search) {
+      const s = filters.search.toLowerCase();
+      const matchesNumber = room.roomNumber.toLowerCase().includes(s);
+      const matchesGuest = room.currentReservation?.guestName?.toLowerCase().includes(s);
+      if (!matchesNumber && !matchesGuest) return false;
+    }
+    return true;
+  });
+  const floors = [...new Set(rooms.map((r) => r.floor))].sort((a, b) => a - b);
+  return { filtered, floors, total: rooms.length };
+}

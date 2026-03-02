@@ -1,0 +1,122 @@
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { FT } from '@/constants/flowtym';
+
+interface DeskTeamCardProps {
+  name: string;
+  details: string;
+  metrics?: string;
+  loadPercent: number;
+  loadCurrent: number;
+  loadMax: number;
+  roomChips?: React.ReactNode;
+}
+
+export default React.memo(function DeskTeamCard({
+  name,
+  details,
+  metrics,
+  loadPercent,
+  loadCurrent,
+  loadMax,
+  roomChips,
+}: DeskTeamCardProps) {
+  const loadColor = loadPercent > 80 ? FT.danger : loadPercent > 50 ? FT.warning : FT.success;
+  const initials = name.split(' ').map((n) => n.charAt(0)).join('').slice(0, 2);
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.header}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initials}</Text>
+        </View>
+        <View style={styles.info}>
+          <Text style={styles.name}>{name}</Text>
+          <Text style={styles.details}>{details}</Text>
+          {metrics && <Text style={styles.metrics}>{metrics}</Text>}
+        </View>
+        <View style={styles.loadContainer}>
+          <View style={styles.loadBarBg}>
+            <View style={[styles.loadBarFill, { width: `${Math.min(100, loadPercent)}%`, backgroundColor: loadColor }]} />
+          </View>
+          <Text style={[styles.loadText, { color: loadColor }]}>{loadCurrent}/{loadMax}</Text>
+        </View>
+      </View>
+      {roomChips && <View style={styles.chipsRow}>{roomChips}</View>}
+    </View>
+  );
+});
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: FT.surface,
+    borderRadius: FT.cardRadius,
+    borderWidth: 1,
+    borderColor: FT.border,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 10,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: FT.brandSoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: FT.brand,
+  },
+  info: {
+    flex: 1,
+    gap: 1,
+  },
+  name: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: FT.text,
+  },
+  details: {
+    fontSize: 11,
+    color: FT.textMuted,
+  },
+  metrics: {
+    fontSize: 10,
+    color: FT.textSec,
+    fontWeight: '500' as const,
+  },
+  loadContainer: {
+    alignItems: 'flex-end',
+    gap: 4,
+    minWidth: 60,
+  },
+  loadBarBg: {
+    width: 50,
+    height: 4,
+    backgroundColor: FT.bg,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  loadBarFill: {
+    height: 4,
+    borderRadius: 2,
+  },
+  loadText: {
+    fontSize: 10,
+    fontWeight: '600' as const,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 12,
+    paddingBottom: 10,
+    gap: 4,
+  },
+});
