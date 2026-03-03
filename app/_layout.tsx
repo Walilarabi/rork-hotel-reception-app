@@ -91,6 +91,9 @@ function RootLayoutNav() {
       <Stack.Screen name="team" options={{ presentation: 'modal', title: 'Équipe' }} />
       <Stack.Screen name="breakfast-walkin" options={{ presentation: 'modal', title: 'PDJ Hors-forfait' }} />
       <Stack.Screen name="economat" options={{ title: 'Économat' }} />
+      <Stack.Screen name="maintenance-tracking" options={{ title: 'Suivi Maintenance' }} />
+      <Stack.Screen name="breakfast-config" options={{ presentation: 'modal', title: 'Config. PDJ' }} />
+      <Stack.Screen name="breakfast-stats" options={{ title: 'Stats PDJ' }} />
     </Stack>
   );
 }

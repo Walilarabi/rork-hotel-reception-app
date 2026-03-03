@@ -9,7 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { Coffee, Truck, CheckCircle, Plus } from 'lucide-react-native';
+import { Coffee, Truck, CheckCircle, Plus, BarChart3, Settings } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import * as Haptics from 'expo-haptics';
 import { useHotel } from '@/providers/HotelProvider';
@@ -203,13 +203,29 @@ export default function BreakfastScreen() {
         }
       />
 
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: theme.primary }]}
-        onPress={() => router.push('/breakfast-walkin')}
-        testID="breakfast-walkin-fab"
-      >
-        <Plus size={22} color="#FFF" />
-      </TouchableOpacity>
+      <View style={styles.fabContainer}>
+        <TouchableOpacity
+          style={[styles.fabSmall, { backgroundColor: '#6B5CE7' }]}
+          onPress={() => router.push('/breakfast-config')}
+          testID="breakfast-config-fab"
+        >
+          <Settings size={18} color="#FFF" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.fabSmall, { backgroundColor: '#3B82F6' }]}
+          onPress={() => router.push('/breakfast-stats')}
+          testID="breakfast-stats-fab"
+        >
+          <BarChart3 size={18} color="#FFF" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: theme.primary }]}
+          onPress={() => router.push('/breakfast-walkin')}
+          testID="breakfast-walkin-fab"
+        >
+          <Plus size={22} color="#FFF" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -244,10 +260,26 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingTop: 80, gap: 8 },
   emptyIcon: { fontSize: 48 },
   emptyTitle: { fontSize: 16, fontWeight: '600' as const, color: '#1A2B33' },
-  fab: {
+  fabContainer: {
     position: 'absolute',
     bottom: 24,
     right: 20,
+    alignItems: 'center',
+    gap: 10,
+  },
+  fabSmall: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  fab: {
     width: 52,
     height: 52,
     borderRadius: 16,

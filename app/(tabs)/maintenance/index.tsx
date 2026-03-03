@@ -8,7 +8,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { Search, AlertTriangle, Clock, CheckCircle, ChevronDown } from 'lucide-react-native';
+import { Search, AlertTriangle, Clock, CheckCircle, ChevronDown, BarChart3 } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import { useHotel } from '@/providers/HotelProvider';
 import { useTheme } from '@/providers/ThemeProvider';
@@ -148,6 +148,13 @@ export default function MaintenanceScreen() {
           </Text>
           <ChevronDown size={14} color="#5A6B78" />
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.trackingBtn, { backgroundColor: theme.primary }]}
+          onPress={() => router.push('/maintenance-tracking')}
+        >
+          <BarChart3 size={14} color="#FFF" />
+          <Text style={styles.trackingBtnText}>Suivi</Text>
+        </TouchableOpacity>
       </View>
 
       {showStatusDropdown && (
@@ -197,7 +204,9 @@ const styles = StyleSheet.create({
   statCount: { fontSize: 22, fontWeight: '800' as const },
   statLabel: { fontSize: 11, color: '#8A9AA8', fontWeight: '500' as const },
   statDivider: { width: 1, height: 30, backgroundColor: '#E4E8EC' },
-  filterRow: { flexDirection: 'row', paddingHorizontal: 14, paddingVertical: 10, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#E4E8EC' },
+  filterRow: { flexDirection: 'row', paddingHorizontal: 14, paddingVertical: 10, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#E4E8EC', gap: 8 },
+  trackingBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, gap: 6 },
+  trackingBtnText: { fontSize: 12, fontWeight: '600' as const, color: '#FFF' },
   filterDropdown: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFB', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, gap: 6, borderWidth: 1, borderColor: '#E4E8EC' },
   filterText: { fontSize: 12, color: '#5A6B78', fontWeight: '500' as const },
   dropdown: { position: 'absolute', top: 190, left: 14, right: 14, backgroundColor: '#FFF', borderRadius: 12, borderWidth: 1, borderColor: '#E4E8EC', zIndex: 100, elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12 },

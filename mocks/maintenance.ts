@@ -1,4 +1,4 @@
-import { MaintenanceTask } from '@/constants/types';
+import { MaintenanceTask, MaintenanceType, MaintenanceSchedule, BreakfastStaff, BreakfastService, BreakfastConfig, BreakfastProduct } from '@/constants/types';
 
 export const INITIAL_MAINTENANCE: MaintenanceTask[] = [
   {
@@ -18,6 +18,13 @@ export const INITIAL_MAINTENANCE: MaintenanceTask[] = [
     comments: [
       { id: 'c1', author: 'Pierre D.', text: 'Pièce commandée, livraison prévue demain', date: '2026-02-28T14:00:00Z' },
     ],
+    scheduleId: null,
+    isPeriodic: false,
+    costs: [
+      { id: 'mc1', maintenanceTaskId: 'm1', productName: 'Joint robinet', quantity: 1, unitPrice: 8.50, totalPrice: 8.50, supplier: 'Plombi Pro' },
+    ],
+    costTotal: 8.50,
+    category: 'Plomberie',
   },
   {
     id: 'm2',
@@ -34,6 +41,11 @@ export const INITIAL_MAINTENANCE: MaintenanceTask[] = [
     resolutionNotes: '',
     resolvedAt: null,
     comments: [],
+    scheduleId: null,
+    isPeriodic: false,
+    costs: [],
+    costTotal: 0,
+    category: 'Climatisation',
   },
   {
     id: 'm3',
@@ -50,6 +62,11 @@ export const INITIAL_MAINTENANCE: MaintenanceTask[] = [
     resolutionNotes: '',
     resolvedAt: null,
     comments: [],
+    scheduleId: null,
+    isPeriodic: false,
+    costs: [],
+    costTotal: 0,
+    category: 'Électricité',
   },
   {
     id: 'm4',
@@ -68,6 +85,14 @@ export const INITIAL_MAINTENANCE: MaintenanceTask[] = [
     comments: [
       { id: 'c4', author: 'Luc B.', text: 'Serrure changée, carte testée OK', date: '2026-02-28T11:00:00Z' },
     ],
+    scheduleId: null,
+    isPeriodic: false,
+    costs: [
+      { id: 'mc4', maintenanceTaskId: 'm4', productName: 'Serrure carte magnétique', quantity: 1, unitPrice: 145.00, totalPrice: 145.00, supplier: 'SecurHotel' },
+      { id: 'mc4b', maintenanceTaskId: 'm4', productName: 'Vis inox lot', quantity: 1, unitPrice: 4.50, totalPrice: 4.50, supplier: '' },
+    ],
+    costTotal: 149.50,
+    category: 'Serrurerie',
   },
   {
     id: 'm5',
@@ -84,5 +109,114 @@ export const INITIAL_MAINTENANCE: MaintenanceTask[] = [
     resolutionNotes: '',
     resolvedAt: null,
     comments: [],
+    scheduleId: null,
+    isPeriodic: false,
+    costs: [],
+    costTotal: 0,
+    category: 'Autre',
   },
+  {
+    id: 'm6',
+    roomId: '1',
+    roomNumber: '101',
+    title: '[Périodique] Filtres climatisation - Ch. 101',
+    description: 'Maintenance périodique : nettoyage/remplacement des filtres climatisation.',
+    reportedBy: 'Système',
+    reportedAt: '2026-03-02T06:00:00Z',
+    priority: 'basse',
+    status: 'en_attente',
+    assignedTo: null,
+    photos: [],
+    resolutionNotes: '',
+    resolvedAt: null,
+    comments: [],
+    scheduleId: 'ms1',
+    isPeriodic: true,
+    costs: [],
+    costTotal: 0,
+    category: 'Climatisation',
+  },
+  {
+    id: 'm7',
+    roomId: '',
+    roomNumber: 'Hall',
+    title: '[Périodique] Nettoyage moquette - Hall',
+    description: 'Maintenance périodique : nettoyage profond de la moquette du hall.',
+    reportedBy: 'Système',
+    reportedAt: '2026-03-01T06:00:00Z',
+    priority: 'basse',
+    status: 'resolu',
+    assignedTo: 'Pierre D.',
+    photos: [],
+    resolutionNotes: 'Moquette nettoyée à la shampouineuse professionnelle.',
+    resolvedAt: '2026-03-01T14:30:00Z',
+    comments: [],
+    scheduleId: 'ms5',
+    isPeriodic: true,
+    costs: [
+      { id: 'mc7', maintenanceTaskId: 'm7', productName: 'Shampoing moquette 5L', quantity: 1, unitPrice: 24.00, totalPrice: 24.00, supplier: 'CleanPro' },
+    ],
+    costTotal: 24.00,
+    category: 'Moquette / Sol',
+  },
+];
+
+export const INITIAL_MAINTENANCE_TYPES: MaintenanceType[] = [
+  { id: 'mt1', hotelId: 'h1', name: 'Filtres climatisation', category: 'chambre', frequencyValue: 3, frequencyUnit: 'month', active: true },
+  { id: 'mt2', hotelId: 'h1', name: 'Joints silicone SDB', category: 'chambre', frequencyValue: 1, frequencyUnit: 'year', active: true },
+  { id: 'mt3', hotelId: 'h1', name: 'Vérification serrures', category: 'chambre', frequencyValue: 6, frequencyUnit: 'month', active: true },
+  { id: 'mt4', hotelId: 'h1', name: 'Test coffre-fort', category: 'chambre', frequencyValue: 6, frequencyUnit: 'month', active: true },
+  { id: 'mt5', hotelId: 'h1', name: 'Nettoyage moquette profond', category: 'parties_communes', frequencyValue: 1, frequencyUnit: 'month', active: true },
+  { id: 'mt6', hotelId: 'h1', name: 'VMC - Vérification', category: 'parties_communes', frequencyValue: 6, frequencyUnit: 'month', active: true },
+  { id: 'mt7', hotelId: 'h1', name: 'Peinture retouche', category: 'chambre', frequencyValue: 2, frequencyUnit: 'year', active: true },
+];
+
+export const INITIAL_MAINTENANCE_SCHEDULES: MaintenanceSchedule[] = [
+  { id: 'ms1', hotelId: 'h1', maintenanceTypeId: 'mt1', roomId: '1', commonArea: null, lastDone: '2025-12-01', nextDue: '2026-03-01' },
+  { id: 'ms2', hotelId: 'h1', maintenanceTypeId: 'mt1', roomId: '7', commonArea: null, lastDone: '2026-01-15', nextDue: '2026-04-15' },
+  { id: 'ms3', hotelId: 'h1', maintenanceTypeId: 'mt2', roomId: '1', commonArea: null, lastDone: '2025-06-10', nextDue: '2026-06-10' },
+  { id: 'ms4', hotelId: 'h1', maintenanceTypeId: 'mt3', roomId: '6', commonArea: null, lastDone: '2025-10-01', nextDue: '2026-04-01' },
+  { id: 'ms5', hotelId: 'h1', maintenanceTypeId: 'mt5', roomId: null, commonArea: 'Hall', lastDone: '2026-03-01', nextDue: '2026-04-01' },
+  { id: 'ms6', hotelId: 'h1', maintenanceTypeId: 'mt5', roomId: null, commonArea: 'Restaurant', lastDone: '2026-02-15', nextDue: '2026-03-15' },
+  { id: 'ms7', hotelId: 'h1', maintenanceTypeId: 'mt6', roomId: null, commonArea: 'Salle PDJ', lastDone: '2025-09-01', nextDue: '2026-03-01' },
+];
+
+export const INITIAL_BREAKFAST_STAFF: BreakfastStaff[] = [
+  { id: 'bs1', hotelId: 'h1', firstName: 'Nathalie', lastName: 'Leroy', position: 'responsable', email: 'n.leroy@flowtym.com', phone: '06 12 34 56 78', hourlyRate: 18.50, active: true },
+  { id: 'bs2', hotelId: 'h1', firstName: 'Karim', lastName: 'Benzema', position: 'serveur', email: '', phone: '06 23 45 67 89', hourlyRate: 13.50, active: true },
+  { id: 'bs3', hotelId: 'h1', firstName: 'Lucia', lastName: 'Fernandez', position: 'serveur', email: '', phone: '06 34 56 78 90', hourlyRate: 13.50, active: true },
+  { id: 'bs4', hotelId: 'h1', firstName: 'Ahmed', lastName: 'Diallo', position: 'cuisinier', email: '', phone: '06 45 67 89 01', hourlyRate: 15.00, active: true },
+  { id: 'bs5', hotelId: 'h1', firstName: 'Marie', lastName: 'Petit', position: 'plongeur', email: '', phone: '', hourlyRate: 12.00, active: false },
+];
+
+export const INITIAL_BREAKFAST_SERVICES: BreakfastService[] = [
+  { id: 'bsv1', hotelId: 'h1', roomId: '1', roomNumber: '101', staffId: 'bs2', staffName: 'Karim B.', serviceDate: '2026-03-03', adults: 2, children: 0, location: 'salle', included: true, amount: 0, servedAt: '2026-03-03T07:45:00Z', recordedBy: 'Karim B.', notes: '', satisfactionScore: 4 },
+  { id: 'bsv2', hotelId: 'h1', roomId: '3', roomNumber: '103', staffId: 'bs3', staffName: 'Lucia F.', serviceDate: '2026-03-03', adults: 1, children: 0, location: 'salle', included: true, amount: 0, servedAt: '2026-03-03T08:10:00Z', recordedBy: 'Lucia F.', notes: 'Sans gluten', satisfactionScore: 5 },
+  { id: 'bsv3', hotelId: 'h1', roomId: '6', roomNumber: '201', staffId: 'bs2', staffName: 'Karim B.', serviceDate: '2026-03-03', adults: 2, children: 0, location: 'chambre', included: true, amount: 0, servedAt: '2026-03-03T08:30:00Z', recordedBy: 'Karim B.', notes: 'VIP - en chambre', satisfactionScore: null },
+  { id: 'bsv4', hotelId: 'h1', roomId: '14', roomNumber: '304', staffId: 'bs3', staffName: 'Lucia F.', serviceDate: '2026-03-03', adults: 2, children: 2, location: 'salle', included: true, amount: 0, servedAt: '2026-03-03T08:50:00Z', recordedBy: 'Lucia F.', notes: '2 enfants', satisfactionScore: 3 },
+  { id: 'bsv5', hotelId: 'h1', roomId: '12', roomNumber: '302', staffId: 'bs2', staffName: 'Karim B.', serviceDate: '2026-03-02', adults: 1, children: 0, location: 'salle', included: false, amount: 22.00, servedAt: '2026-03-02T09:15:00Z', recordedBy: 'Karim B.', notes: 'Walk-in payant', satisfactionScore: 4 },
+  { id: 'bsv6', hotelId: 'h1', roomId: '8', roomNumber: '203', staffId: 'bs3', staffName: 'Lucia F.', serviceDate: '2026-03-02', adults: 2, children: 1, location: 'salle', included: true, amount: 0, servedAt: '2026-03-02T07:30:00Z', recordedBy: 'Lucia F.', notes: '', satisfactionScore: 5 },
+  { id: 'bsv7', hotelId: 'h1', roomId: '1', roomNumber: '101', staffId: 'bs2', staffName: 'Karim B.', serviceDate: '2026-03-01', adults: 2, children: 0, location: 'salle', included: true, amount: 0, servedAt: '2026-03-01T08:00:00Z', recordedBy: 'Karim B.', notes: '', satisfactionScore: 4 },
+  { id: 'bsv8', hotelId: 'h1', roomId: '6', roomNumber: '201', staffId: 'bs3', staffName: 'Lucia F.', serviceDate: '2026-03-01', adults: 2, children: 0, location: 'chambre', included: true, amount: 0, servedAt: '2026-03-01T08:20:00Z', recordedBy: 'Lucia F.', notes: 'VIP', satisfactionScore: 5 },
+];
+
+export const INITIAL_BREAKFAST_CONFIG: BreakfastConfig = {
+  id: 'bc1',
+  hotelId: 'h1',
+  adultPriceDining: 22.00,
+  adultPriceRoom: 28.00,
+  childPrice: 12.00,
+  childAgeLimit: 12,
+  seatingCapacity: 60,
+};
+
+export const INITIAL_BREAKFAST_PRODUCTS: BreakfastProduct[] = [
+  { id: 'bp1', hotelId: 'h1', name: 'Jus d\'orange frais', category: 'boissons', purchasePrice: 2.80, unit: 'litre', supplier: 'Fruits & Co', active: true },
+  { id: 'bp2', hotelId: 'h1', name: 'Café moulu premium', category: 'boissons', purchasePrice: 18.00, unit: 'kg', supplier: 'Cafés Richard', active: true },
+  { id: 'bp3', hotelId: 'h1', name: 'Croissant beurre', category: 'viennoiseries', purchasePrice: 0.65, unit: 'pièce', supplier: 'Boulangerie Dupain', active: true },
+  { id: 'bp4', hotelId: 'h1', name: 'Pain au chocolat', category: 'viennoiseries', purchasePrice: 0.75, unit: 'pièce', supplier: 'Boulangerie Dupain', active: true },
+  { id: 'bp5', hotelId: 'h1', name: 'Yaourt nature', category: 'laitiers', purchasePrice: 0.35, unit: 'pièce', supplier: 'Danone', active: true },
+  { id: 'bp6', hotelId: 'h1', name: 'Beurre doux 10g', category: 'laitiers', purchasePrice: 0.12, unit: 'pièce', supplier: 'Président', active: true },
+  { id: 'bp7', hotelId: 'h1', name: 'Jambon blanc', category: 'charcuterie', purchasePrice: 12.50, unit: 'kg', supplier: 'Charcutier Local', active: true },
+  { id: 'bp8', hotelId: 'h1', name: 'Confiture assortie', category: 'autre', purchasePrice: 0.25, unit: 'pot 30g', supplier: 'Bonne Maman', active: true },
 ];

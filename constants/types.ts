@@ -91,6 +91,11 @@ export interface MaintenanceTask {
   resolutionNotes: string;
   resolvedAt: string | null;
   comments: CommentEntry[];
+  scheduleId: string | null;
+  isPeriodic: boolean;
+  costs: MaintenanceCost[];
+  costTotal: number;
+  category: string;
 }
 
 export interface CommentEntry {
@@ -472,6 +477,151 @@ export const PMS_TYPE_CONFIG: Record<PMSType, { label: string; logo?: string }> 
   stayntouch: { label: 'StayNTouch' },
   other: { label: 'Autre' },
 };
+
+export type MaintenanceTypeCategory = 'chambre' | 'parties_communes';
+export type FrequencyUnit = 'day' | 'month' | 'year';
+
+export interface MaintenanceType {
+  id: string;
+  hotelId: string;
+  name: string;
+  category: MaintenanceTypeCategory;
+  frequencyValue: number;
+  frequencyUnit: FrequencyUnit;
+  active: boolean;
+}
+
+export interface MaintenanceSchedule {
+  id: string;
+  hotelId: string;
+  maintenanceTypeId: string;
+  roomId: string | null;
+  commonArea: string | null;
+  lastDone: string | null;
+  nextDue: string | null;
+}
+
+export interface MaintenanceCost {
+  id: string;
+  maintenanceTaskId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  supplier: string;
+}
+
+export interface BreakfastStaff {
+  id: string;
+  hotelId: string;
+  firstName: string;
+  lastName: string;
+  position: 'responsable' | 'serveur' | 'cuisinier' | 'plongeur';
+  email: string;
+  phone: string;
+  hourlyRate: number;
+  active: boolean;
+}
+
+export interface BreakfastService {
+  id: string;
+  hotelId: string;
+  roomId: string | null;
+  roomNumber: string;
+  staffId: string | null;
+  staffName: string;
+  serviceDate: string;
+  adults: number;
+  children: number;
+  location: 'salle' | 'chambre';
+  included: boolean;
+  amount: number;
+  servedAt: string;
+  recordedBy: string;
+  notes: string;
+  satisfactionScore: number | null;
+}
+
+export interface BreakfastConfig {
+  id: string;
+  hotelId: string;
+  adultPriceDining: number;
+  adultPriceRoom: number;
+  childPrice: number;
+  childAgeLimit: number;
+  seatingCapacity: number;
+}
+
+export interface BreakfastProduct {
+  id: string;
+  hotelId: string;
+  name: string;
+  category: 'boissons' | 'laitiers' | 'viennoiseries' | 'charcuterie' | 'fruits' | 'cereales' | 'autre';
+  purchasePrice: number;
+  unit: string;
+  supplier: string;
+  active: boolean;
+}
+
+export const BREAKFAST_STAFF_POSITIONS: Record<string, { label: string; color: string }> = {
+  responsable: { label: 'Responsable', color: '#6B5CE7' },
+  serveur: { label: 'Serveur', color: '#3B82F6' },
+  cuisinier: { label: 'Cuisinier', color: '#F59E0B' },
+  plongeur: { label: 'Plongeur', color: '#78909C' },
+};
+
+export const BREAKFAST_PRODUCT_CATEGORIES: Record<string, { label: string; icon: string }> = {
+  boissons: { label: 'Boissons', icon: '☕' },
+  laitiers: { label: 'Produits laitiers', icon: '🥛' },
+  viennoiseries: { label: 'Viennoiseries', icon: '🥐' },
+  charcuterie: { label: 'Charcuterie', icon: '🥓' },
+  fruits: { label: 'Fruits', icon: '🍎' },
+  cereales: { label: 'Céréales', icon: '🥣' },
+  autre: { label: 'Autre', icon: '🍽️' },
+};
+
+export const COMMON_AREAS = [
+  'Réception',
+  'Restaurant',
+  'Salle PDJ',
+  'Bar',
+  'Hall',
+  'Spa',
+  'Business Center',
+  'Salle de réunion',
+  'Couloirs',
+  'Parking',
+  'Jardin',
+  'Piscine',
+];
+
+export const MAINTENANCE_TYPE_TEMPLATES = [
+  'Moquette / Sol',
+  'Filtres climatisation',
+  'VMC',
+  'Joints carrelage SDB',
+  'Joints silicone',
+  'Papier peint',
+  'Coffre-fort',
+  'Serrures',
+  'TV',
+  'Téléphone',
+  'Machine à café',
+  'Sèche-cheveux',
+  'Peinture',
+  'Plomberie générale',
+  'Électricité générale',
+];
+
+export const FREQUENCY_OPTIONS: { value: number; unit: FrequencyUnit; label: string }[] = [
+  { value: 15, unit: 'day', label: '15 jours' },
+  { value: 1, unit: 'month', label: '1 mois' },
+  { value: 2, unit: 'month', label: '2 mois' },
+  { value: 3, unit: 'month', label: '3 mois' },
+  { value: 6, unit: 'month', label: '6 mois' },
+  { value: 1, unit: 'year', label: '1 an' },
+  { value: 2, unit: 'year', label: '2 ans' },
+];
 
 export const LOG_ACTION_CONFIG: Record<LogAction, { label: string; icon: string }> = {
   hotel_created: { label: 'Hôtel créé', icon: '🏨' },

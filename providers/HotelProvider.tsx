@@ -11,6 +11,9 @@ import {
   RoomType,
   RoomHistoryEntry,
   MaintenanceTask,
+  MaintenanceType,
+  MaintenanceSchedule,
+  MaintenanceCost,
   BreakfastOrder,
   Inspection,
   InventoryItem,
@@ -19,9 +22,21 @@ import {
   ConsumableProduct,
   ConsumptionLog,
   StockMovement,
+  BreakfastStaff,
+  BreakfastService,
+  BreakfastConfig,
+  BreakfastProduct,
 } from '@/constants/types';
 import { INITIAL_ROOMS, INITIAL_STAFF } from '@/mocks/rooms';
-import { INITIAL_MAINTENANCE } from '@/mocks/maintenance';
+import {
+  INITIAL_MAINTENANCE,
+  INITIAL_MAINTENANCE_TYPES,
+  INITIAL_MAINTENANCE_SCHEDULES,
+  INITIAL_BREAKFAST_STAFF,
+  INITIAL_BREAKFAST_SERVICES,
+  INITIAL_BREAKFAST_CONFIG,
+  INITIAL_BREAKFAST_PRODUCTS,
+} from '@/mocks/maintenance';
 import { INITIAL_BREAKFAST_ORDERS } from '@/mocks/breakfast';
 import { INITIAL_INSPECTIONS, INITIAL_INVENTORY, INITIAL_LOST_FOUND } from '@/mocks/inventory';
 import { INITIAL_CONSUMABLE_PRODUCTS, INITIAL_CONSUMPTION_LOGS, INITIAL_STOCK_MOVEMENTS } from '@/mocks/consumables';
@@ -37,6 +52,12 @@ const LOST_FOUND_KEY = 'hotel_lost_found';
 const CONSUMABLE_PRODUCTS_KEY = 'hotel_consumable_products';
 const CONSUMPTION_LOGS_KEY = 'hotel_consumption_logs';
 const STOCK_MOVEMENTS_KEY = 'hotel_stock_movements';
+const MAINT_TYPES_KEY = 'hotel_maintenance_types';
+const MAINT_SCHEDULES_KEY = 'hotel_maintenance_schedules';
+const BFAST_STAFF_KEY = 'hotel_breakfast_staff';
+const BFAST_SERVICES_KEY = 'hotel_breakfast_services';
+const BFAST_CONFIG_KEY = 'hotel_breakfast_config';
+const BFAST_PRODUCTS_KEY = 'hotel_breakfast_products';
 
 export const [HotelProvider, useHotel] = createContextHook(() => {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -50,6 +71,12 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
   const [consumableProducts, setConsumableProducts] = useState<ConsumableProduct[]>([]);
   const [consumptionLogs, setConsumptionLogs] = useState<ConsumptionLog[]>([]);
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+  const [maintenanceTypes, setMaintenanceTypes] = useState<MaintenanceType[]>([]);
+  const [maintenanceSchedules, setMaintenanceSchedules] = useState<MaintenanceSchedule[]>([]);
+  const [breakfastStaff, setBreakfastStaff] = useState<BreakfastStaff[]>([]);
+  const [breakfastServices, setBreakfastServices] = useState<BreakfastService[]>([]);
+  const [breakfastConfig, setBreakfastConfig] = useState<BreakfastConfig>(INITIAL_BREAKFAST_CONFIG);
+  const [breakfastProducts, setBreakfastProducts] = useState<BreakfastProduct[]>([]);
   const [pmsSync, setPmsSync] = useState<PMSSyncState>({
     status: 'idle',
     lastSyncTime: null,
@@ -263,6 +290,80 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
   useEffect(() => { if (consumptionLogsQuery.data) setConsumptionLogs(consumptionLogsQuery.data); }, [consumptionLogsQuery.data]);
   useEffect(() => { if (stockMovementsQuery.data) setStockMovements(stockMovementsQuery.data); }, [stockMovementsQuery.data]);
 
+  const maintTypesQuery = useQuery({
+    queryKey: ['maintenanceTypes'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(MAINT_TYPES_KEY);
+        if (stored) { const p = JSON.parse(stored) as MaintenanceType[]; if (Array.isArray(p) && p.length > 0) return p; }
+      } catch (e) { console.log('[HotelProvider] Error reading maint types:', e); await AsyncStorage.removeItem(MAINT_TYPES_KEY); }
+      await AsyncStorage.setItem(MAINT_TYPES_KEY, JSON.stringify(INITIAL_MAINTENANCE_TYPES));
+      return INITIAL_MAINTENANCE_TYPES;
+    },
+  });
+  const maintSchedulesQuery = useQuery({
+    queryKey: ['maintenanceSchedules'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(MAINT_SCHEDULES_KEY);
+        if (stored) { const p = JSON.parse(stored) as MaintenanceSchedule[]; if (Array.isArray(p) && p.length > 0) return p; }
+      } catch (e) { console.log('[HotelProvider] Error reading maint schedules:', e); await AsyncStorage.removeItem(MAINT_SCHEDULES_KEY); }
+      await AsyncStorage.setItem(MAINT_SCHEDULES_KEY, JSON.stringify(INITIAL_MAINTENANCE_SCHEDULES));
+      return INITIAL_MAINTENANCE_SCHEDULES;
+    },
+  });
+  const bfastStaffQuery = useQuery({
+    queryKey: ['breakfastStaff'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(BFAST_STAFF_KEY);
+        if (stored) { const p = JSON.parse(stored) as BreakfastStaff[]; if (Array.isArray(p) && p.length > 0) return p; }
+      } catch (e) { console.log('[HotelProvider] Error reading bfast staff:', e); await AsyncStorage.removeItem(BFAST_STAFF_KEY); }
+      await AsyncStorage.setItem(BFAST_STAFF_KEY, JSON.stringify(INITIAL_BREAKFAST_STAFF));
+      return INITIAL_BREAKFAST_STAFF;
+    },
+  });
+  const bfastServicesQuery = useQuery({
+    queryKey: ['breakfastServices'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(BFAST_SERVICES_KEY);
+        if (stored) { const p = JSON.parse(stored) as BreakfastService[]; if (Array.isArray(p)) return p; }
+      } catch (e) { console.log('[HotelProvider] Error reading bfast services:', e); await AsyncStorage.removeItem(BFAST_SERVICES_KEY); }
+      await AsyncStorage.setItem(BFAST_SERVICES_KEY, JSON.stringify(INITIAL_BREAKFAST_SERVICES));
+      return INITIAL_BREAKFAST_SERVICES;
+    },
+  });
+  const bfastConfigQuery = useQuery({
+    queryKey: ['breakfastConfig'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(BFAST_CONFIG_KEY);
+        if (stored) return JSON.parse(stored) as BreakfastConfig;
+      } catch (e) { console.log('[HotelProvider] Error reading bfast config:', e); await AsyncStorage.removeItem(BFAST_CONFIG_KEY); }
+      await AsyncStorage.setItem(BFAST_CONFIG_KEY, JSON.stringify(INITIAL_BREAKFAST_CONFIG));
+      return INITIAL_BREAKFAST_CONFIG;
+    },
+  });
+  const bfastProductsQuery = useQuery({
+    queryKey: ['breakfastProducts'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(BFAST_PRODUCTS_KEY);
+        if (stored) { const p = JSON.parse(stored) as BreakfastProduct[]; if (Array.isArray(p) && p.length > 0) return p; }
+      } catch (e) { console.log('[HotelProvider] Error reading bfast products:', e); await AsyncStorage.removeItem(BFAST_PRODUCTS_KEY); }
+      await AsyncStorage.setItem(BFAST_PRODUCTS_KEY, JSON.stringify(INITIAL_BREAKFAST_PRODUCTS));
+      return INITIAL_BREAKFAST_PRODUCTS;
+    },
+  });
+
+  useEffect(() => { if (maintTypesQuery.data) setMaintenanceTypes(maintTypesQuery.data); }, [maintTypesQuery.data]);
+  useEffect(() => { if (maintSchedulesQuery.data) setMaintenanceSchedules(maintSchedulesQuery.data); }, [maintSchedulesQuery.data]);
+  useEffect(() => { if (bfastStaffQuery.data) setBreakfastStaff(bfastStaffQuery.data); }, [bfastStaffQuery.data]);
+  useEffect(() => { if (bfastServicesQuery.data) setBreakfastServices(bfastServicesQuery.data); }, [bfastServicesQuery.data]);
+  useEffect(() => { if (bfastConfigQuery.data) setBreakfastConfig(bfastConfigQuery.data); }, [bfastConfigQuery.data]);
+  useEffect(() => { if (bfastProductsQuery.data) setBreakfastProducts(bfastProductsQuery.data); }, [bfastProductsQuery.data]);
+
   const persistRooms = useCallback(async (updated: Room[]) => {
     setRooms(updated);
     await AsyncStorage.setItem(ROOMS_KEY, JSON.stringify(updated));
@@ -311,6 +412,31 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
   const persistStockMovements = useCallback(async (updated: StockMovement[]) => {
     setStockMovements(updated);
     await AsyncStorage.setItem(STOCK_MOVEMENTS_KEY, JSON.stringify(updated));
+  }, []);
+
+  const persistMaintTypes = useCallback(async (updated: MaintenanceType[]) => {
+    setMaintenanceTypes(updated);
+    await AsyncStorage.setItem(MAINT_TYPES_KEY, JSON.stringify(updated));
+  }, []);
+  const persistMaintSchedules = useCallback(async (updated: MaintenanceSchedule[]) => {
+    setMaintenanceSchedules(updated);
+    await AsyncStorage.setItem(MAINT_SCHEDULES_KEY, JSON.stringify(updated));
+  }, []);
+  const persistBfastStaff = useCallback(async (updated: BreakfastStaff[]) => {
+    setBreakfastStaff(updated);
+    await AsyncStorage.setItem(BFAST_STAFF_KEY, JSON.stringify(updated));
+  }, []);
+  const persistBfastServices = useCallback(async (updated: BreakfastService[]) => {
+    setBreakfastServices(updated);
+    await AsyncStorage.setItem(BFAST_SERVICES_KEY, JSON.stringify(updated));
+  }, []);
+  const persistBfastConfig = useCallback(async (updated: BreakfastConfig) => {
+    setBreakfastConfig(updated);
+    await AsyncStorage.setItem(BFAST_CONFIG_KEY, JSON.stringify(updated));
+  }, []);
+  const persistBfastProducts = useCallback(async (updated: BreakfastProduct[]) => {
+    setBreakfastProducts(updated);
+    await AsyncStorage.setItem(BFAST_PRODUCTS_KEY, JSON.stringify(updated));
   }, []);
 
 
@@ -542,6 +668,11 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
         resolutionNotes: '',
         resolvedAt: null,
         comments: [],
+        scheduleId: null,
+        isPeriodic: false,
+        costs: [],
+        costTotal: 0,
+        category: '',
       };
       await persistMaintenance([...maintenanceTasks, newTask]);
     },
@@ -633,6 +764,94 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
         p.id === params.productId ? { ...p, ...params.updates } : p
       );
       await persistConsumableProducts(updated);
+    },
+  });
+
+  const addMaintenanceTypeMutation = useMutation({
+    mutationFn: async (mt: Omit<MaintenanceType, 'id'>) => {
+      const newMt: MaintenanceType = { ...mt, id: `mt-${Date.now()}` };
+      await persistMaintTypes([...maintenanceTypes, newMt]);
+      return newMt;
+    },
+  });
+  const updateMaintenanceTypeMutation = useMutation({
+    mutationFn: async (params: { id: string; updates: Partial<MaintenanceType> }) => {
+      const updated = maintenanceTypes.map((mt) => mt.id === params.id ? { ...mt, ...params.updates } : mt);
+      await persistMaintTypes(updated);
+    },
+  });
+  const addMaintenanceScheduleMutation = useMutation({
+    mutationFn: async (ms: Omit<MaintenanceSchedule, 'id'>) => {
+      const newMs: MaintenanceSchedule = { ...ms, id: `ms-${Date.now()}` };
+      await persistMaintSchedules([...maintenanceSchedules, newMs]);
+      return newMs;
+    },
+  });
+  const updateMaintenanceScheduleMutation = useMutation({
+    mutationFn: async (params: { id: string; updates: Partial<MaintenanceSchedule> }) => {
+      const updated = maintenanceSchedules.map((ms) => ms.id === params.id ? { ...ms, ...params.updates } : ms);
+      await persistMaintSchedules(updated);
+    },
+  });
+  const addMaintenanceCostMutation = useMutation({
+    mutationFn: async (params: { taskId: string; cost: Omit<MaintenanceCost, 'id' | 'maintenanceTaskId' | 'totalPrice'> }) => {
+      const newCost: MaintenanceCost = {
+        id: `mc-${Date.now()}`,
+        maintenanceTaskId: params.taskId,
+        productName: params.cost.productName,
+        quantity: params.cost.quantity,
+        unitPrice: params.cost.unitPrice,
+        totalPrice: params.cost.quantity * params.cost.unitPrice,
+        supplier: params.cost.supplier,
+      };
+      const updated = maintenanceTasks.map((t) => {
+        if (t.id === params.taskId) {
+          const newCosts = [...t.costs, newCost];
+          return { ...t, costs: newCosts, costTotal: newCosts.reduce((s, c) => s + c.totalPrice, 0) };
+        }
+        return t;
+      });
+      await persistMaintenance(updated);
+      return newCost;
+    },
+  });
+  const addBreakfastStaffMutation = useMutation({
+    mutationFn: async (s: Omit<BreakfastStaff, 'id'>) => {
+      const newS: BreakfastStaff = { ...s, id: `bs-${Date.now()}` };
+      await persistBfastStaff([...breakfastStaff, newS]);
+      return newS;
+    },
+  });
+  const updateBreakfastStaffMutation = useMutation({
+    mutationFn: async (params: { id: string; updates: Partial<BreakfastStaff> }) => {
+      const updated = breakfastStaff.map((s) => s.id === params.id ? { ...s, ...params.updates } : s);
+      await persistBfastStaff(updated);
+    },
+  });
+  const addBreakfastServiceMutation = useMutation({
+    mutationFn: async (svc: Omit<BreakfastService, 'id'>) => {
+      const newSvc: BreakfastService = { ...svc, id: `bsv-${Date.now()}` };
+      await persistBfastServices([...breakfastServices, newSvc]);
+      return newSvc;
+    },
+  });
+  const updateBreakfastConfigMutation = useMutation({
+    mutationFn: async (updates: Partial<BreakfastConfig>) => {
+      const updated = { ...breakfastConfig, ...updates };
+      await persistBfastConfig(updated);
+    },
+  });
+  const addBreakfastProductMutation = useMutation({
+    mutationFn: async (p: Omit<BreakfastProduct, 'id'>) => {
+      const newP: BreakfastProduct = { ...p, id: `bp-${Date.now()}` };
+      await persistBfastProducts([...breakfastProducts, newP]);
+      return newP;
+    },
+  });
+  const updateBreakfastProductMutation = useMutation({
+    mutationFn: async (params: { id: string; updates: Partial<BreakfastProduct> }) => {
+      const updated = breakfastProducts.map((p) => p.id === params.id ? { ...p, ...params.updates } : p);
+      await persistBfastProducts(updated);
     },
   });
 
@@ -728,6 +947,23 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
     addConsumptions: addConsumptionsMutation.mutate,
     addStockEntry: addStockEntryMutation.mutate,
     updateConsumableProduct: updateConsumableProductMutation.mutate,
+    maintenanceTypes,
+    maintenanceSchedules,
+    breakfastStaff,
+    breakfastServices,
+    breakfastConfig,
+    breakfastProducts,
+    addMaintenanceType: addMaintenanceTypeMutation.mutate,
+    updateMaintenanceType: updateMaintenanceTypeMutation.mutate,
+    addMaintenanceSchedule: addMaintenanceScheduleMutation.mutate,
+    updateMaintenanceSchedule: updateMaintenanceScheduleMutation.mutate,
+    addMaintenanceCost: addMaintenanceCostMutation.mutate,
+    addBreakfastStaff: addBreakfastStaffMutation.mutate,
+    updateBreakfastStaff: updateBreakfastStaffMutation.mutate,
+    addBreakfastService: addBreakfastServiceMutation.mutate,
+    updateBreakfastConfig: updateBreakfastConfigMutation.mutate,
+    addBreakfastProduct: addBreakfastProductMutation.mutate,
+    updateBreakfastProduct: updateBreakfastProductMutation.mutate,
     toggleRoomSelection,
     toggleFloorSelection,
     clearSelection,
