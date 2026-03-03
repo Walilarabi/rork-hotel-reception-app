@@ -1,15 +1,19 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import React, { useEffect, Component, ReactNode } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, Component, ReactNode } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HotelProvider } from '@/providers/HotelProvider';
 import { SuperAdminProvider } from '@/providers/SuperAdminProvider';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import { Colors } from '@/constants/colors';
 import { FT } from '@/constants/flowtym';
+
+const DATA_VERSION_KEY = 'flowtym_data_version';
+const CURRENT_DATA_VERSION = '3';
 
 try {
   SplashScreen.preventAutoHideAsync();
@@ -100,13 +104,48 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  const [isDataReady, setIsDataReady] = useState(false);
+
   useEffect(() => {
-    try {
-      SplashScreen.hideAsync();
-    } catch (e) {
-      console.log('[RootLayout] SplashScreen.hideAsync failed:', e);
+    async function initData() {
+      try {
+        console.log('[RootLayout] Checking data version...');
+        const storedVersion = await AsyncStorage.getItem(DATA_VERSION_KEY);
+        if (storedVersion !== CURRENT_DATA_VERSION) {
+          console.log('[RootLayout] Data version mismatch, clearing stale data. stored:', storedVersion, 'current:', CURRENT_DATA_VERSION);
+          await AsyncStorage.clear();
+          await AsyncStorage.setItem(DATA_VERSION_KEY, CURRENT_DATA_VERSION);
+          console.log('[RootLayout] AsyncStorage cleared and version set.');
+        } else {
+          console.log('[RootLayout] Data version OK.');
+        }
+      } catch (e) {
+        console.log('[RootLayout] Error during data init, clearing all:', e);
+        try {
+          await AsyncStorage.clear();
+          await AsyncStorage.setItem(DATA_VERSION_KEY, CURRENT_DATA_VERSION);
+        } catch (clearError) {
+          console.log('[RootLayout] Failed to clear AsyncStorage:', clearError);
+        }
+      } finally {
+        setIsDataReady(true);
+        try {
+          await SplashScreen.hideAsync();
+        } catch (e) {
+          console.log('[RootLayout] SplashScreen.hideAsync failed:', e);
+        }
+      }
     }
+    initData();
   }, []);
+
+  if (!isDataReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: FT.bg }}>
+        <ActivityIndicator size="large" color={FT.brand} />
+      </View>
+    );
+  }
 
   return (
     <AppErrorBoundary>
