@@ -50,6 +50,16 @@ export default function LoginScreen() {
         console.log('[Login] Success, role:', user.role);
         if (user.role === 'super_admin') {
           router.replace('/(superadmin)/dashboard');
+        } else if (user.role === 'femme_de_chambre') {
+          router.replace('/(tabs)/housekeeping');
+        } else if (user.role === 'maintenance') {
+          router.replace('/(tabs)/maintenance');
+        } else if (user.role === 'breakfast') {
+          router.replace('/(tabs)/breakfast');
+        } else if (user.role === 'gouvernante') {
+          router.replace('/(tabs)/gouvernante');
+        } else if (user.role === 'direction') {
+          router.replace('/(tabs)/direction');
         } else {
           router.replace('/(tabs)/reception');
         }

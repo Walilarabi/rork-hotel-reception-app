@@ -25,6 +25,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useHotel } from '@/providers/HotelProvider';
 import { Colors } from '@/constants/colors';
+import QRCodeGenerator from '@/components/QRCodeGenerator';
 import {
   RoomStatus,
   ROOM_STATUS_CONFIG,
@@ -260,6 +261,20 @@ export default function RoomDetailsScreen() {
           </View>
         )}
 
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>QR Code Chambre</Text>
+          <View style={styles.qrContainer}>
+            <QRCodeGenerator
+              value={`flowtym://room/${room.id}`}
+              size={160}
+              color={Colors.primary}
+              backgroundColor="#FFFFFF"
+            />
+            <Text style={styles.qrLabel}>Chambre {room.roomNumber}</Text>
+            <Text style={styles.qrHint}>Scannez pour accéder directement</Text>
+          </View>
+        </View>
+
         {room.status === 'occupe' && (
           <TouchableOpacity style={styles.departureButton} onPress={handleDeparture}>
             <DoorOpen size={18} color={Colors.white} />
@@ -330,4 +345,7 @@ const styles = StyleSheet.create({
   historyMeta: { fontSize: 10, color: Colors.textMuted, marginTop: 3 },
   departureButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, marginTop: 20, paddingVertical: 14, backgroundColor: Colors.danger, borderRadius: 12 },
   departureButtonText: { color: Colors.white, fontSize: 15, fontWeight: '700' as const },
+  qrContainer: { alignItems: 'center', paddingVertical: 16, gap: 10 },
+  qrLabel: { fontSize: 16, fontWeight: '700' as const, color: Colors.text },
+  qrHint: { fontSize: 12, color: Colors.textMuted },
 });

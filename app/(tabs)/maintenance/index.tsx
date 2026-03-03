@@ -12,6 +12,7 @@ import { Search, AlertTriangle, Clock, CheckCircle, ChevronDown, BarChart3 } fro
 import UserMenuButton from '@/components/UserMenuButton';
 import { useHotel } from '@/providers/HotelProvider';
 import { useTheme } from '@/providers/ThemeProvider';
+import { useColors } from '@/hooks/useColors';
 import { MaintenanceTask, MaintenanceStatus } from '@/constants/types';
 
 const PRIORITY_CONFIG = {
@@ -30,6 +31,7 @@ export default function MaintenanceScreen() {
   const router = useRouter();
   const { maintenanceTasks } = useHotel();
   const { theme } = useTheme();
+  const colors = useColors();
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<MaintenanceStatus | 'all'>('all');
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
@@ -97,10 +99,10 @@ export default function MaintenanceScreen() {
   }, [router, theme]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
-          headerStyle: { backgroundColor: theme.headerBg },
+          headerStyle: { backgroundColor: colors.headerBg },
           headerTintColor: '#FFF',
           headerShadowVisible: false,
           headerTitle: () => <Text style={styles.headerText}>Maintenance</Text>,
@@ -108,11 +110,11 @@ export default function MaintenanceScreen() {
         }}
       />
 
-      <View style={styles.searchContainer}>
+      <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={[styles.searchBar, { backgroundColor: theme.primary + '15' }]}>
           <Search size={16} color={theme.primaryLight} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: colors.text }]}
             placeholder="Rechercher..."
             placeholderTextColor={theme.primaryLight + '80'}
             value={searchText}
@@ -121,7 +123,7 @@ export default function MaintenanceScreen() {
         </View>
       </View>
 
-      <View style={styles.statsRow}>
+      <View style={[styles.statsRow, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.statItem}>
           <Text style={[styles.statCount, { color: '#F59E0B' }]}>{stats.pending}</Text>
           <Text style={styles.statLabel}>En attente</Text>
@@ -138,7 +140,7 @@ export default function MaintenanceScreen() {
         </View>
       </View>
 
-      <View style={styles.filterRow}>
+      <View style={[styles.filterRow, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity
           style={styles.filterDropdown}
           onPress={() => setShowStatusDropdown(!showStatusDropdown)}
@@ -194,7 +196,7 @@ export default function MaintenanceScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F0F2F5' },
+  container: { flex: 1 },
   headerText: { fontSize: 17, fontWeight: '700' as const, color: '#FFF' },
   searchContainer: { backgroundColor: '#FFF', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#E4E8EC' },
   searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, gap: 8 },

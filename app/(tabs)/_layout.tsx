@@ -3,9 +3,11 @@ import { BedDouble, ClipboardCheck, Sparkles, Wrench, Coffee, BarChart3 } from '
 import React from 'react';
 import { FT } from '@/constants/flowtym';
 import { useAuth } from '@/providers/AuthProvider';
+import { useTheme } from '@/providers/ThemeProvider';
 
 export default function TabLayout() {
   const { currentUser } = useAuth();
+  const { isDarkMode, modeColors, theme } = useTheme();
   const role = currentUser?.role;
 
   const showDirection = role === 'direction';
@@ -18,11 +20,11 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: FT.brand,
-        tabBarInactiveTintColor: FT.textMuted,
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: isDarkMode ? modeColors.textMuted : FT.textMuted,
         tabBarStyle: {
-          backgroundColor: FT.surface,
-          borderTopColor: FT.border,
+          backgroundColor: isDarkMode ? modeColors.surface : FT.surface,
+          borderTopColor: isDarkMode ? modeColors.border : FT.border,
         },
         headerShown: false,
         tabBarLabelStyle: {

@@ -15,6 +15,16 @@ export default function IndexScreen() {
       router.replace('/login');
     } else if (currentUser.role === 'super_admin') {
       router.replace('/(superadmin)/dashboard');
+    } else if (currentUser.role === 'femme_de_chambre') {
+      router.replace('/(tabs)/housekeeping');
+    } else if (currentUser.role === 'maintenance') {
+      router.replace('/(tabs)/maintenance');
+    } else if (currentUser.role === 'breakfast') {
+      router.replace('/(tabs)/breakfast');
+    } else if (currentUser.role === 'gouvernante') {
+      router.replace('/(tabs)/gouvernante');
+    } else if (currentUser.role === 'direction') {
+      router.replace('/(tabs)/direction');
     } else {
       router.replace('/(tabs)/reception');
     }

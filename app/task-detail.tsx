@@ -13,11 +13,15 @@ import {
   Switch,
   FlatList,
   KeyboardAvoidingView,
+  Image,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { useHotel } from '@/providers/HotelProvider';
+import { useTheme } from '@/providers/ThemeProvider';
+import { useColors } from '@/hooks/useColors';
 import { Colors } from '@/constants/colors';
 import {
   CHECKLIST_ITEMS,
@@ -40,6 +44,8 @@ export default function TaskDetailScreen() {
   const { roomId, openReport } = useLocalSearchParams<{ roomId: string; openReport?: string }>();
   const router = useRouter();
   const { rooms, startCleaning, completeCleaning, reportProblem, updateRoom, consumableProducts, addConsumptions } = useHotel();
+  useTheme();
+  const colors = useColors();
 
   const room = useMemo(() => rooms.find((r) => r.id === roomId), [rooms, roomId]);
 
@@ -54,6 +60,8 @@ export default function TaskDetailScreen() {
   const [reportDesc, setReportDesc] = useState('');
   const [reportPriority, setReportPriority] = useState<'haute' | 'moyenne' | 'basse'>('moyenne');
   const [lostFoundDesc, setLostFoundDesc] = useState('');
+  const [reportPhotos, setReportPhotos] = useState<string[]>([]);
+  const [lostFoundPhoto, setLostFoundPhoto] = useState<string | null>(null);
   const [isNPD, setIsNPD] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [comments, setComments] = useState<CommentItem[]>([
@@ -270,16 +278,16 @@ export default function TaskDetailScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
           title: '',
-          headerStyle: { backgroundColor: Colors.surface },
-          headerTintColor: Colors.text,
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.text,
           headerShadowVisible: false,
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-              <ChevronLeft size={24} color={Colors.text} />
+              <ChevronLeft size={24} color={colors.text} />
             </TouchableOpacity>
           ),
         }}
@@ -296,7 +304,7 @@ export default function TaskDetailScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.roomHeader}>
+          <View style={[styles.roomHeader, { backgroundColor: colors.surface }]}>
             <Text style={styles.roomNumber}>{room.roomNumber}</Text>
             <Text style={styles.roomType}>{room.roomType}</Text>
             {room.clientBadge === 'vip' && (
@@ -650,10 +658,46 @@ export default function TaskDetailScreen() {
                 })}
               </View>
 
-              <TouchableOpacity style={styles.photoPlaceholder} onPress={() => Alert.alert('📷 Photo', 'Fonctionnalité appareil photo')}>
+              <TouchableOpacity style={styles.photoPlaceholder} onPress={async () => {
+                try {
+                  const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                  if (status !== 'granted') {
+                    Alert.alert('Permission refusée', 'Autorisez l\'accès à la caméra pour prendre des photos.');
+                    return;
+                  }
+                  const result = await ImagePicker.launchCameraAsync({
+                    mediaTypes: ['images'],
+                    allowsEditing: true,
+                    quality: 0.7,
+                  });
+                  if (!result.canceled && result.assets[0]) {
+                    setReportPhotos(prev => [...prev, result.assets[0].uri]);
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                } catch (e) {
+                  console.log('[TaskDetail] Camera error:', e);
+                  const pickResult = await ImagePicker.launchImageLibraryAsync({
+                    mediaTypes: ['images'],
+                    allowsEditing: true,
+                    quality: 0.7,
+                  });
+                  if (!pickResult.canceled && pickResult.assets[0]) {
+                    setReportPhotos(prev => [...prev, pickResult.assets[0].uri]);
+                  }
+                }
+              }}>
                 <Text style={styles.photoPlaceholderIcon}>📷</Text>
-                <Text style={styles.photoPlaceholderText}>Ajouter photo</Text>
+                <Text style={styles.photoPlaceholderText}>{reportPhotos.length > 0 ? `${reportPhotos.length} photo(s)` : 'Ajouter photo'}</Text>
               </TouchableOpacity>
+              {reportPhotos.length > 0 && (
+                <View style={styles.photoPreviewRow}>
+                  {reportPhotos.map((uri, idx) => (
+                    <TouchableOpacity key={idx} onPress={() => setReportPhotos(prev => prev.filter((_, i) => i !== idx))}>
+                      <Image source={{ uri }} style={styles.photoPreview} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </ScrollView>
             <TouchableOpacity style={[styles.modalSubmitBtn, { backgroundColor: '#FB8C00' }]} onPress={handleSubmitReport}>
               <Text style={styles.modalSubmitText}>⚠️ Envoyer le signalement</Text>
@@ -672,9 +716,42 @@ export default function TaskDetailScreen() {
               </TouchableOpacity>
             </View>
             <View style={styles.modalScroll}>
-              <TouchableOpacity style={styles.photoPlaceholder} onPress={() => Alert.alert('📷 Photo', 'Fonctionnalité appareil photo')}>
-                <Text style={styles.photoPlaceholderIcon}>📷</Text>
-                <Text style={styles.photoPlaceholderText}>Prendre une photo</Text>
+              <TouchableOpacity style={styles.photoPlaceholder} onPress={async () => {
+                try {
+                  const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                  if (status !== 'granted') {
+                    Alert.alert('Permission refusée', 'Autorisez l\'accès à la caméra.');
+                    return;
+                  }
+                  const result = await ImagePicker.launchCameraAsync({
+                    mediaTypes: ['images'],
+                    allowsEditing: true,
+                    quality: 0.7,
+                  });
+                  if (!result.canceled && result.assets[0]) {
+                    setLostFoundPhoto(result.assets[0].uri);
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                } catch (e) {
+                  console.log('[TaskDetail] Camera error:', e);
+                  const pickResult = await ImagePicker.launchImageLibraryAsync({
+                    mediaTypes: ['images'],
+                    allowsEditing: true,
+                    quality: 0.7,
+                  });
+                  if (!pickResult.canceled && pickResult.assets[0]) {
+                    setLostFoundPhoto(pickResult.assets[0].uri);
+                  }
+                }
+              }}>
+                {lostFoundPhoto ? (
+                  <Image source={{ uri: lostFoundPhoto }} style={styles.lostFoundPhotoPreview} />
+                ) : (
+                  <>
+                    <Text style={styles.photoPlaceholderIcon}>📷</Text>
+                    <Text style={styles.photoPlaceholderText}>Prendre une photo</Text>
+                  </>
+                )}
               </TouchableOpacity>
               <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Description</Text>
               <TextInput
@@ -1204,4 +1281,7 @@ const styles = StyleSheet.create({
   checklistItemIcon: { fontSize: 24 },
   checklistItemLabel: { fontSize: 15, color: Colors.text, flex: 1, fontWeight: '500' as const },
   checklistItemLabelChecked: { color: '#2E7D32', textDecorationLine: 'line-through' as const },
+  photoPreviewRow: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' },
+  photoPreview: { width: 60, height: 60, borderRadius: 8 },
+  lostFoundPhotoPreview: { width: 120, height: 90, borderRadius: 10 },
 });

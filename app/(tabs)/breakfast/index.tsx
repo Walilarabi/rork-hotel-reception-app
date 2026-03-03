@@ -14,6 +14,7 @@ import UserMenuButton from '@/components/UserMenuButton';
 import * as Haptics from 'expo-haptics';
 import { useHotel } from '@/providers/HotelProvider';
 import { useTheme } from '@/providers/ThemeProvider';
+import { useColors } from '@/hooks/useColors';
 import { BreakfastOrder, BreakfastStatus } from '@/constants/types';
 
 const STATUS_CONFIG: Record<BreakfastStatus, { label: string; color: string }> = {
@@ -27,6 +28,7 @@ export default function BreakfastScreen() {
   const router = useRouter();
   const { breakfastOrders, updateBreakfast } = useHotel();
   const { theme } = useTheme();
+  const colors = useColors();
   const [activeTab, setActiveTab] = useState<'cuisine' | 'livraison' | 'historique'>('cuisine');
 
   const cuisineOrders = useMemo(() =>
@@ -131,10 +133,10 @@ export default function BreakfastScreen() {
   const currentOrders = activeTab === 'cuisine' ? cuisineOrders : activeTab === 'livraison' ? deliveryOrders : historyOrders;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
-          headerStyle: { backgroundColor: theme.headerBg },
+          headerStyle: { backgroundColor: colors.headerBg },
           headerTintColor: '#FFF',
           headerShadowVisible: false,
           headerTitle: () => <Text style={styles.headerText}>Petit-déjeuner</Text>,
@@ -142,7 +144,7 @@ export default function BreakfastScreen() {
         }}
       />
 
-      <View style={styles.statsRow}>
+      <View style={[styles.statsRow, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.statItem}>
           <Text style={[styles.statCount, { color: '#F59E0B' }]}>{stats.toPrepare}</Text>
           <Text style={styles.statLabel}>À préparer</Text>
@@ -159,7 +161,7 @@ export default function BreakfastScreen() {
         </View>
       </View>
 
-      <View style={styles.tabRow}>
+      <View style={[styles.tabRow, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity
           style={[styles.tabBtn, activeTab === 'cuisine' && { borderBottomColor: theme.primary }]}
           onPress={() => setActiveTab('cuisine')}
@@ -231,7 +233,7 @@ export default function BreakfastScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F0F2F5' },
+  container: { flex: 1 },
   headerText: { fontSize: 17, fontWeight: '700' as const, color: '#FFF' },
   statsRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#E4E8EC' },
   statItem: { flex: 1, alignItems: 'center', gap: 2 },

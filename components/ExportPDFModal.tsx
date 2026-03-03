@@ -60,36 +60,105 @@ export default function ExportPDFModal({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generated, setGenerated] = useState(false);
 
+  const generateHTMLReport = useCallback(() => {
+    const periodLabel = PERIOD_OPTIONS.find((p) => p.id === period)?.label ?? '';
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+    const sectionsHtml: string[] = [];
+    if (includeHotelInfo) {
+      sectionsHtml.push(`<div class="section"><h2>Informations</h2><p>Rapport: ${title}</p><p>P\u00e9riode: ${periodLabel}</p><p>G\u00e9n\u00e9r\u00e9 le: ${dateStr} \u00e0 ${timeStr}</p></div>`);
+    }
+    if (includeKPIs) {
+      sectionsHtml.push(`<div class="section"><h2>KPIs & Indicateurs</h2><div class="kpi-row"><div class="kpi"><span class="kpi-value">--</span><span class="kpi-label">Occupation</span></div><div class="kpi"><span class="kpi-value">--</span><span class="kpi-label">D\u00e9parts</span></div><div class="kpi"><span class="kpi-value">--</span><span class="kpi-label">Propret\u00e9</span></div></div></div>`);
+    }
+    if (includeRoomList) {
+      sectionsHtml.push(`<div class="section"><h2>Liste des chambres</h2><p>Donn\u00e9es disponibles dans l'application.</p></div>`);
+    }
+    if (includeConsumptions) {
+      sectionsHtml.push(`<div class="section"><h2>Consommations</h2><p>D\u00e9tail des consommations disponible dans l'\u00e9conomat.</p></div>`);
+    }
+
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title><style>
+      body{font-family:system-ui,-apple-system,sans-serif;margin:0;padding:20px;color:#1A2B33;background:#fff;}
+      .header{text-align:center;padding:20px 0;border-bottom:2px solid #6B5CE7;margin-bottom:20px;}
+      .brand{font-size:24px;font-weight:900;letter-spacing:-1px;}
+      .brand span{color:#6B5CE7;}
+      .subtitle{color:#5A5878;font-size:14px;margin-top:4px;}
+      .section{margin:16px 0;padding:16px;background:#F8F9FC;border-radius:12px;border:1px solid #E4E3EE;}
+      .section h2{font-size:16px;color:#1A1A2E;margin:0 0 10px 0;}
+      .section p{font-size:13px;color:#5A5878;margin:4px 0;}
+      .kpi-row{display:flex;gap:12px;}
+      .kpi{flex:1;text-align:center;padding:12px;background:#fff;border-radius:8px;border:1px solid #E4E3EE;}
+      .kpi-value{display:block;font-size:24px;font-weight:800;color:#1A1A2E;}
+      .kpi-label{display:block;font-size:11px;color:#9896AD;margin-top:4px;}
+      .footer{text-align:center;margin-top:30px;padding-top:16px;border-top:1px solid #E4E3EE;color:#9896AD;font-size:11px;}
+      @media print{body{padding:0;}.section{break-inside:avoid;}}
+    </style></head><body>
+      <div class="header"><div class="brand">FLOW<span>TYM</span></div><div class="subtitle">${title} - ${periodLabel}</div></div>
+      ${sectionsHtml.join('')}
+      <div class="footer">FLOWTYM - Rapport g\u00e9n\u00e9r\u00e9 le ${dateStr} \u00e0 ${timeStr}</div>
+    </body></html>`;
+  }, [title, period, includeKPIs, includeRoomList, includeConsumptions, includeHotelInfo]);
+
   const handleGenerate = useCallback(() => {
     setIsGenerating(true);
     setGenerated(false);
 
     setTimeout(() => {
-      setIsGenerating(false);
-      setGenerated(true);
-      if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
+      try {
+        if (Platform.OS === 'web') {
+          const html = generateHTMLReport();
+          const blob = new Blob([html], { type: 'text/html' });
+          const url = URL.createObjectURL(blob);
+          const printWindow = window.open(url, '_blank');
+          if (printWindow) {
+            printWindow.onload = () => {
+              setTimeout(() => {
+                printWindow.print();
+              }, 500);
+            };
+          } else {
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_rapport.html`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          }
+        } else {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
 
-      setTimeout(() => {
-        Alert.alert(
-          'Rapport généré',
-          `Le rapport "${title}" a été généré avec succès.\n\nPériode : ${PERIOD_OPTIONS.find((p) => p.id === period)?.label}\nOrientation : ${orientation === 'portrait' ? 'Portrait' : 'Paysage'}\n\nLe fichier PDF est prêt au téléchargement.`,
-          [
-            {
-              text: 'Télécharger',
-              onPress: () => {
-                Alert.alert('Téléchargement', 'Le PDF a été enregistré dans vos fichiers.');
-                setGenerated(false);
-                onClose();
-              },
-            },
-            { text: 'Fermer', style: 'cancel', onPress: () => setGenerated(false) },
-          ]
-        );
-      }, 300);
-    }, 1500);
-  }, [title, period, orientation, onClose]);
+        setIsGenerating(false);
+        setGenerated(true);
+
+        if (Platform.OS !== 'web') {
+          setTimeout(() => {
+            Alert.alert(
+              'Rapport g\u00e9n\u00e9r\u00e9',
+              `Le rapport "${title}" a \u00e9t\u00e9 g\u00e9n\u00e9r\u00e9 avec succ\u00e8s.\n\nP\u00e9riode : ${PERIOD_OPTIONS.find((p) => p.id === period)?.label}\nOrientation : ${orientation === 'portrait' ? 'Portrait' : 'Paysage'}`,
+              [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    setGenerated(false);
+                    onClose();
+                  },
+                },
+              ]
+            );
+          }, 300);
+        }
+      } catch (e) {
+        console.log('[ExportPDF] Error generating report:', e);
+        setIsGenerating(false);
+        Alert.alert('Erreur', 'Impossible de g\u00e9n\u00e9rer le rapport. Veuillez r\u00e9essayer.');
+      }
+    }, 800);
+  }, [title, period, orientation, onClose, generateHTMLReport]);
 
   const handleClose = useCallback(() => {
     setGenerated(false);

@@ -17,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 import UserMenuButton from '@/components/UserMenuButton';
 import { useHotel } from '@/providers/HotelProvider';
 import { useTheme } from '@/providers/ThemeProvider';
+import { useColors } from '@/hooks/useColors';
 import { Colors } from '@/constants/colors';
 import { Room } from '@/constants/types';
 
@@ -218,6 +219,7 @@ export default function HousekeepingScreen() {
   const router = useRouter();
   const { rooms, startCleaning, completeCleaning } = useHotel();
   const { theme } = useTheme();
+  const colors = useColors();
   const [refreshing, setRefreshing] = useState(false);
   const [searchText, setSearchText] = useState('');
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -364,7 +366,7 @@ export default function HousekeepingScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
           headerStyle: { backgroundColor: theme.headerBg },
@@ -389,13 +391,13 @@ export default function HousekeepingScreen() {
         }}
       />
 
-      <View style={styles.topArea}>
-        <View style={styles.searchContainer}>
-          <Search size={16} color="#8A9AA8" />
+      <View style={[styles.topArea, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <View style={[styles.searchContainer, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
+          <Search size={16} color={colors.textMuted} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: colors.text }]}
             placeholder="Rechercher"
-            placeholderTextColor="#8A9AA8"
+            placeholderTextColor={colors.textMuted}
             value={searchText}
             onChangeText={setSearchText}
             testID="search-rooms"
@@ -464,7 +466,7 @@ export default function HousekeepingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F0F2F5' },
+  container: { flex: 1, backgroundColor: '#F0F2F5' } as const,
   headerTitle: { fontSize: 17, fontWeight: '700' as const, color: '#FFF' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12, marginRight: 4 },
   notifContainer: { position: 'relative' },
