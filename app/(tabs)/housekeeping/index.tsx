@@ -218,7 +218,7 @@ interface SectionData {
 export default function HousekeepingScreen() {
   const router = useRouter();
   const { rooms, startCleaning, completeCleaning } = useHotel();
-  const { theme } = useTheme();
+  const { theme, t } = useTheme();
   const colors = useColors();
   const [refreshing, setRefreshing] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -373,7 +373,7 @@ export default function HousekeepingScreen() {
           headerTintColor: '#FFF',
           headerShadowVisible: false,
           headerTitle: () => (
-            <Text style={styles.headerTitle}>Chambres assignées</Text>
+            <Text style={styles.headerTitle}>{t.housekeeping.assignedRooms}</Text>
           ),
           headerRight: () => (
             <View style={styles.headerRight}>
@@ -396,7 +396,7 @@ export default function HousekeepingScreen() {
           <Search size={16} color={colors.textMuted} />
           <TextInput
             style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Rechercher"
+            placeholder={t.common.search}
             placeholderTextColor={colors.textMuted}
             value={searchText}
             onChangeText={setSearchText}
@@ -407,22 +407,22 @@ export default function HousekeepingScreen() {
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Text style={[styles.statValue, { color: theme.primary }]}>{stats.done}/{stats.total}</Text>
-            <Text style={styles.statLabel}>Terminées</Text>
+            <Text style={styles.statLabel}>{t.housekeeping.done}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{stats.departs}</Text>
-            <Text style={styles.statLabel}>🚪 Départs</Text>
+            <Text style={styles.statLabel}>🚪 {t.housekeeping.departures}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{stats.recouches}</Text>
-            <Text style={styles.statLabel}>🔄 Recouches</Text>
+            <Text style={styles.statLabel}>🔄 {t.housekeeping.stayovers}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{stats.inProgress}</Text>
-            <Text style={styles.statLabel}>⏳ En cours</Text>
+            <Text style={styles.statLabel}>⏳ {t.rooms.inProgress}</Text>
           </View>
         </View>
 
@@ -433,7 +433,7 @@ export default function HousekeepingScreen() {
 
       <View style={[styles.swipeHintBar, { backgroundColor: theme.primarySoft }]}>
         <Text style={[styles.swipeHintText, { color: theme.primaryDark }]}>
-          👉 Glisser → démarrer/terminer • ← signaler
+          {t.housekeeping.swipeHint}
         </Text>
       </View>
 
@@ -456,8 +456,8 @@ export default function HousekeepingScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>🎉</Text>
-            <Text style={styles.emptyTitle}>Tout est fait !</Text>
-            <Text style={styles.emptySubtext}>Aucune chambre assignée</Text>
+            <Text style={styles.emptyTitle}>{t.housekeeping.allDone}</Text>
+            <Text style={styles.emptySubtext}>{t.housekeeping.noAssigned}</Text>
           </View>
         }
       />

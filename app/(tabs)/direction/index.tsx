@@ -26,12 +26,14 @@ import FlowtymHeader from '@/components/FlowtymHeader';
 import DeskRoomChip from '@/components/DeskRoomChip';
 import { useHotel } from '@/providers/HotelProvider';
 import { useAuth } from '@/providers/AuthProvider';
+import { useTheme } from '@/providers/ThemeProvider';
 import { FT } from '@/constants/flowtym';
 import { ROOM_STATUS_CONFIG } from '@/constants/types';
 
 export default function DirectionDashboard() {
   const router = useRouter();
   const { currentUser } = useAuth();
+  const { t } = useTheme();
   const {
     rooms,
     staff,
@@ -306,14 +308,14 @@ export default function DirectionDashboard() {
             <View style={[styles.quickActionIcon, { backgroundColor: FT.brandSoft }]}>
               <History size={18} color={FT.brand} />
             </View>
-            <Text style={styles.quickActionLabel}>Historique</Text>
+            <Text style={styles.quickActionLabel}>{t.direction.historyLabel}</Text>
             <ArrowRight size={14} color={FT.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.quickActionBtn} onPress={() => router.push('/maintenance-tracking')}>
             <View style={[styles.quickActionIcon, { backgroundColor: FT.warningSoft }]}>
               <Wrench size={18} color={FT.warning} />
             </View>
-            <Text style={styles.quickActionLabel}>Suivi maintenance</Text>
+            <Text style={styles.quickActionLabel}>{t.direction.maintenanceTracking}</Text>
             <ArrowRight size={14} color={FT.textMuted} />
           </TouchableOpacity>
         </View>

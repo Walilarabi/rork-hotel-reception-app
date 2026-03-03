@@ -16,11 +16,13 @@ import DeskKPI from '@/components/DeskKPI';
 import DeskTeamCard from '@/components/DeskTeamCard';
 import DeskRoomChip from '@/components/DeskRoomChip';
 import { useHotel } from '@/providers/HotelProvider';
+import { useTheme } from '@/providers/ThemeProvider';
 import { FT } from '@/constants/flowtym';
 import { Inspection, ROOM_STATUS_CONFIG } from '@/constants/types';
 
 export default function GouvernanteScreen() {
   const router = useRouter();
+  const { t } = useTheme();
   const { pendingInspections, inspections, rooms, staff, lowStockItems, inventoryItems } = useHotel();
   const [searchText, setSearchText] = useState('');
   const [floorFilter, setFloorFilter] = useState<number | 'all'>('all');
@@ -87,9 +89,9 @@ export default function GouvernanteScreen() {
 
     const getLabel = () => {
       switch (item.status) {
-        case 'en_attente': return 'À valider';
-        case 'valide': return 'Validée';
-        case 'refuse': return 'Refusée';
+        case 'en_attente': return t.gouvernante.toValidate;
+        case 'valide': return t.gouvernante.validatedF;
+        case 'refuse': return t.rooms.refused;
         default: return '';
       }
     };
@@ -126,7 +128,7 @@ export default function GouvernanteScreen() {
         <Text style={styles.chevron}>›</Text>
       </TouchableOpacity>
     );
-  }, [rooms, router]);
+  }, [rooms, router, t]);
 
   const renderEquipeTab = () => (
     <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -220,16 +222,16 @@ export default function GouvernanteScreen() {
 
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>KPIs</Text>
-            <DeskKPI value={inspectionStats.pending} label="À valider" color={FT.warning} />
-            <DeskKPI value={inspectionStats.refused} label="À refaire" color={FT.danger} />
-            <DeskKPI value={inspectionStats.validated} label="Validée" color={FT.success} />
+            <DeskKPI value={inspectionStats.pending} label={t.gouvernante.toValidate} color={FT.warning} />
+            <DeskKPI value={inspectionStats.refused} label={t.gouvernante.toRedo} color={FT.danger} />
+            <DeskKPI value={inspectionStats.validated} label={t.gouvernante.validatedF} color={FT.success} />
             <DeskKPI value={rooms.filter((r) => r.cleaningStatus === 'none' && r.assignedTo).length} label="Affecter" color={FT.info} />
             <DeskKPI value={rooms.filter((r) => r.status === 'recouche').length} label="Reterie" color={FT.teal} />
           </View>
 
           <TouchableOpacity style={styles.actionBtnPrimary} activeOpacity={0.7}>
             <RefreshCw size={14} color="#FFF" />
-            <Text style={styles.actionBtnText}>Réassigner</Text>
+            <Text style={styles.actionBtnText}>{t.gouvernante.reassign}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -241,7 +243,7 @@ export default function GouvernanteScreen() {
             }}
           >
             <CheckCircle size={14} color={FT.brand} />
-            <Text style={styles.actionBtnSecText}>Valider chambres</Text>
+            <Text style={styles.actionBtnSecText}>{t.gouvernante.validateRooms}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionBtnOutline} activeOpacity={0.7}>
@@ -255,7 +257,7 @@ export default function GouvernanteScreen() {
             onPress={() => router.push('/history')}
           >
             <History size={14} color={FT.textSec} />
-            <Text style={styles.actionBtnOutText}>Historique</Text>
+            <Text style={styles.actionBtnOutText}>{t.gouvernante.history}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -263,7 +265,7 @@ export default function GouvernanteScreen() {
       {housekeepers.length === 0 && (
         <View style={styles.emptyState}>
           <Users size={24} color={FT.textMuted} />
-          <Text style={styles.emptyTitle}>Aucune femme de chambre active</Text>
+          <Text style={styles.emptyTitle}>{t.gouvernante.noActiveHousekeeper}</Text>
         </View>
       )}
     </ScrollView>
@@ -280,7 +282,7 @@ export default function GouvernanteScreen() {
           <Package size={18} color={FT.brand} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.economatTitle}>Économat complet</Text>
+          <Text style={styles.economatTitle}>{t.gouvernante.fullEconomat}</Text>
           <Text style={styles.economatSub}>Stocks, consommations, analyses</Text>
         </View>
         <ArrowRight size={16} color={FT.brand} />
@@ -293,7 +295,7 @@ export default function GouvernanteScreen() {
       )}
 
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Inventaire</Text>
+        <Text style={styles.sectionTitle}>{t.gouvernante.inventory}</Text>
         {inventoryItems.map((item) => {
           const isLow = item.currentStock <= item.minimumThreshold;
           const percent = item.minimumThreshold > 0 ? Math.min(100, (item.currentStock / (item.minimumThreshold * 3)) * 100) : 100;
@@ -365,7 +367,7 @@ export default function GouvernanteScreen() {
               <Search size={14} color={FT.textMuted} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Rechercher..."
+                placeholder={t.common.search + '...'}
                 placeholderTextColor={FT.textMuted}
                 value={searchText}
                 onChangeText={setSearchText}
@@ -392,7 +394,7 @@ export default function GouvernanteScreen() {
           {showFloorDropdown && (
             <View style={styles.dropdown}>
               <TouchableOpacity style={styles.dropdownItem} onPress={() => { setFloorFilter('all'); setShowFloorDropdown(false); }}>
-                <Text style={styles.dropdownText}>Tous les étages</Text>
+                <Text style={styles.dropdownText}>{t.rooms.allFloors}</Text>
               </TouchableOpacity>
               {floors.map((f) => (
                 <TouchableOpacity key={f} style={styles.dropdownItem} onPress={() => { setFloorFilter(f); setShowFloorDropdown(false); }}>
@@ -406,8 +408,8 @@ export default function GouvernanteScreen() {
             <View style={styles.dropdown}>
               {[
                 { value: 'all' as const, label: 'Tous' },
-                { value: 'en_attente' as const, label: 'À valider' },
-                { value: 'valide' as const, label: 'Validée' },
+                { value: 'en_attente' as const, label: t.gouvernante.toValidate },
+                { value: 'valide' as const, label: t.gouvernante.validatedF },
                 { value: 'refuse' as const, label: 'Refusée' },
               ].map((opt) => (
                 <TouchableOpacity key={opt.value} style={styles.dropdownItem} onPress={() => { setStatusFilter(opt.value); setShowStatusDropdown(false); }}>
@@ -420,11 +422,11 @@ export default function GouvernanteScreen() {
           <View style={styles.kpiStrip}>
             <View style={[styles.kpiMini, { borderLeftColor: FT.warning }]}>
               <Text style={styles.kpiMiniVal}>{inspectionStats.pending}</Text>
-              <Text style={styles.kpiMiniLabel}>À valider</Text>
+              <Text style={styles.kpiMiniLabel}>{t.gouvernante.toValidate}</Text>
             </View>
             <View style={[styles.kpiMini, { borderLeftColor: FT.success }]}>
               <Text style={styles.kpiMiniVal}>{inspectionStats.validated}</Text>
-              <Text style={styles.kpiMiniLabel}>Validées</Text>
+              <Text style={styles.kpiMiniLabel}>{t.gouvernante.validatedF}</Text>
             </View>
             <View style={[styles.kpiMini, { borderLeftColor: FT.danger }]}>
               <Text style={styles.kpiMiniVal}>{inspectionStats.refused}</Text>
@@ -440,7 +442,7 @@ export default function GouvernanteScreen() {
             ListEmptyComponent={
               <View style={styles.emptyState}>
                 <Text style={styles.emptyIcon}>✅</Text>
-                <Text style={styles.emptyTitle}>Aucune inspection en attente</Text>
+                <Text style={styles.emptyTitle}>{t.gouvernante.noInspectionPending}</Text>
               </View>
             }
           />

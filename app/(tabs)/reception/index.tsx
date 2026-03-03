@@ -18,12 +18,14 @@ import DeskStatusBar from '@/components/DeskStatusBar';
 import * as Haptics from 'expo-haptics';
 import { useHotel, useFilteredRooms } from '@/providers/HotelProvider';
 import { PMSStatusIndicator } from '@/components/PMSStatusIndicator';
+import { useTheme } from '@/providers/ThemeProvider';
 import { FT } from '@/constants/flowtym';
 import { RoomStatus, ClientBadge, Room, ROOM_STATUS_CONFIG, CLEANING_STATUS_CONFIG } from '@/constants/types';
 
 
 export default function ReceptionDashboard() {
   const router = useRouter();
+  const { t } = useTheme();
   const {
     rooms,
     selectedRoomIds,
@@ -76,7 +78,7 @@ export default function ReceptionDashboard() {
 
   const handleDeparture = useCallback(() => {
     if (selectedOccupied === 0) {
-      Alert.alert('Action impossible', 'Aucune chambre occupée sélectionnée.');
+      Alert.alert(t.reception.actionImpossible, t.reception.noOccupiedSelected);
       return;
     }
     Alert.alert('Confirmer le départ', `Confirmer le départ pour ${selectedOccupied} chambre(s) ?`, [
@@ -91,7 +93,7 @@ export default function ReceptionDashboard() {
         },
       },
     ]);
-  }, [selectedOccupied, rooms, selectedRoomIds, bulkDeparture]);
+  }, [selectedOccupied, rooms, selectedRoomIds, bulkDeparture, t]);
 
   const handleAssign = useCallback(() => {
     if (selectionCount === 0) return;
@@ -223,7 +225,7 @@ export default function ReceptionDashboard() {
         <View style={styles.dashActions}>
           <TouchableOpacity style={styles.iconBtn}>
             <Filter size={16} color={FT.textSec} />
-            <Text style={styles.iconBtnText}>Filtres</Text>
+            <Text style={styles.iconBtnText}>{t.reception.filters}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn}>
             <MoreHorizontal size={16} color={FT.textSec} />
@@ -237,7 +239,7 @@ export default function ReceptionDashboard() {
           onPress={() => { setShowFloorDropdown(!showFloorDropdown); }}
         >
           <Text style={styles.filterDropText}>
-            {floorFilter === 'all' ? '🏢 Étage' : `Étage ${floorFilter}`}
+            {floorFilter === 'all' ? `🏢 ${t.rooms.floor}` : `${t.rooms.floorN} ${floorFilter}`}
           </Text>
           <ChevronDown size={12} color={FT.textSec} />
         </TouchableOpacity>
@@ -245,7 +247,7 @@ export default function ReceptionDashboard() {
           <Text style={styles.filterDropText}>🗓 {today}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.filterDrop}>
-          <Text style={styles.filterDropText}>👥 Occupées</Text>
+          <Text style={styles.filterDropText}>👥 {t.reception.occupiedRooms}</Text>
         </TouchableOpacity>
         <View style={styles.roomCounter}>
           <Text style={styles.roomCounterText}>🏠 {filtered.length} / {total} chambres</Text>
@@ -258,7 +260,7 @@ export default function ReceptionDashboard() {
       <View style={styles.statusRow}>
         <DeskStatusBar
           items={[
-            { label: 'À faire', count: statusCounts.depart + statusCounts.recouche, color: FT.roomOrange, sublabel: `${statusCounts.depart} Départs` },
+            { label: t.reception.toDo, count: statusCounts.depart + statusCounts.recouche, color: FT.roomOrange, sublabel: `${statusCounts.depart} ${t.reception.departuresOfDay}` },
             { label: 'Urgentes', count: rooms.filter((r) => r.clientBadge === 'prioritaire').length, color: FT.roomRed, sublabel: 'Attente du jour' },
             { label: 'Retards', count: rooms.filter((r) => r.cleaningStatus === 'refusee').length, color: FT.danger, sublabel: 'À refaire' },
             { label: 'Hors service', count: statusCounts.hors_service, color: FT.roomGray, sublabel: "Hors d'service" },
@@ -272,7 +274,7 @@ export default function ReceptionDashboard() {
             style={[styles.dropItem, floorFilter === 'all' && styles.dropItemActive]}
             onPress={() => { setFloorFilter('all'); setShowFloorDropdown(false); }}
           >
-            <Text style={styles.dropItemText}>Tous les étages</Text>
+            <Text style={styles.dropItemText}>{t.rooms.allFloors}</Text>
           </TouchableOpacity>
           {floors.map((f) => (
             <TouchableOpacity
@@ -280,7 +282,7 @@ export default function ReceptionDashboard() {
               style={[styles.dropItem, floorFilter === f && styles.dropItemActive]}
               onPress={() => { setFloorFilter(f); setShowFloorDropdown(false); }}
             >
-              <Text style={styles.dropItemText}>Étage {f}</Text>
+              <Text style={styles.dropItemText}>{t.rooms.floorN} {f}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -292,7 +294,7 @@ export default function ReceptionDashboard() {
             <View style={styles.selBadge}>
               <Text style={styles.selBadgeText}>{selectionCount}</Text>
             </View>
-            <Text style={styles.selCount}>sélectionnée(s)</Text>
+            <Text style={styles.selCount}>{t.common.selected}</Text>
             <TouchableOpacity onPress={clearSelection} style={styles.selClear}>
               <X size={14} color={FT.textMuted} />
             </TouchableOpacity>
@@ -300,7 +302,7 @@ export default function ReceptionDashboard() {
           <View style={styles.selActions}>
             <TouchableOpacity style={styles.selAssignBtn} onPress={handleAssign}>
               <UserPlus size={14} color="#FFF" />
-              <Text style={styles.selActText}>Assigner</Text>
+              <Text style={styles.selActText}>{t.rooms.assign}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.selDepartBtn, selectedOccupied === 0 && styles.selBtnDisabled]}
@@ -308,7 +310,7 @@ export default function ReceptionDashboard() {
               disabled={selectedOccupied === 0}
             >
               <DoorOpen size={14} color="#FFF" />
-              <Text style={styles.selActText}>Départ</Text>
+              <Text style={styles.selActText}>{t.rooms.departure}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -323,7 +325,7 @@ export default function ReceptionDashboard() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>🏨</Text>
-            <Text style={styles.emptyTitle}>Aucune chambre trouvée</Text>
+            <Text style={styles.emptyTitle}>{t.rooms.noRoomFound}</Text>
           </View>
         }
       />

@@ -7,7 +7,7 @@ import { useTheme } from '@/providers/ThemeProvider';
 
 export default function TabLayout() {
   const { currentUser } = useAuth();
-  const { isDarkMode, modeColors, theme } = useTheme();
+  const { isDarkMode, modeColors, theme, t } = useTheme();
   const role = currentUser?.role;
 
   const showDirection = role === 'direction';
@@ -36,7 +36,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="direction"
         options={{
-          title: 'Direction',
+          title: t.direction.title,
           tabBarIcon: ({ color, size }) => <BarChart3 size={size - 2} color={color} />,
           href: showDirection ? undefined : null,
         }}
@@ -44,7 +44,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="reception"
         options={{
-          title: 'Réception',
+          title: t.reception.title,
           tabBarIcon: ({ color, size }) => <BedDouble size={size - 2} color={color} />,
           href: showReception ? undefined : null,
         }}
@@ -52,7 +52,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="gouvernante"
         options={{
-          title: 'Gouvernante',
+          title: t.gouvernante.title,
           tabBarIcon: ({ color, size }) => <ClipboardCheck size={size - 2} color={color} />,
           href: showGouvernante ? undefined : null,
         }}
@@ -60,7 +60,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="housekeeping"
         options={{
-          title: 'Chambres',
+          title: t.housekeeping.title,
           tabBarIcon: ({ color, size }) => <Sparkles size={size - 2} color={color} />,
           href: showHousekeeping ? undefined : null,
         }}
@@ -68,7 +68,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="maintenance"
         options={{
-          title: 'Maintenance',
+          title: t.maintenance.title,
           tabBarIcon: ({ color, size }) => <Wrench size={size - 2} color={color} />,
           href: showMaintenance ? undefined : null,
         }}
@@ -76,7 +76,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="breakfast"
         options={{
-          title: 'PDJ',
+          title: t.breakfast.title,
           tabBarIcon: ({ color, size }) => <Coffee size={size - 2} color={color} />,
           href: showBreakfast ? undefined : null,
         }}

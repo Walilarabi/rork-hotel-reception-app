@@ -10,6 +10,8 @@ import {
   Platform,
   Switch,
   ScrollView,
+  TextInput,
+  Alert,
 } from 'react-native';
 import {
   User,
@@ -24,6 +26,7 @@ import {
   Check,
   Globe,
   ChevronLeft,
+  Pencil,
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -32,20 +35,24 @@ import { useTheme, MOBILE_THEMES, MobileThemeId } from '@/providers/ThemeProvide
 import { Colors } from '@/constants/colors';
 import { ADMIN_ROLE_CONFIG } from '@/constants/types';
 import { LANGUAGES, LanguageId } from '@/constants/i18n';
+import SecurityPolicyModal from '@/components/SecurityPolicyModal';
 
 interface UserMenuButtonProps {
   tintColor?: string;
   size?: number;
 }
 
-type SubMenu = 'none' | 'theme' | 'language';
+type SubMenu = 'none' | 'theme' | 'language' | 'editName';
 
 export default function UserMenuButton({ tintColor = Colors.white, size = 28 }: UserMenuButtonProps) {
   const router = useRouter();
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, updateUserName } = useAuth();
   const { themeId, setMobileTheme, isDarkMode, toggleDarkMode, languageId, setLanguage, t, modeColors } = useTheme();
   const [visible, setVisible] = useState(false);
   const [subMenu, setSubMenu] = useState<SubMenu>('none');
+  const [securityVisible, setSecurityVisible] = useState(false);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
@@ -88,6 +95,7 @@ export default function UserMenuButton({ tintColor = Colors.white, size = 28 }: 
         case 'password':
           break;
         case 'security':
+          setSecurityVisible(true);
           break;
         case 'logout':
           logout(undefined, {
@@ -116,6 +124,26 @@ export default function UserMenuButton({ tintColor = Colors.white, size = 28 }: 
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSubMenu('none');
   }, [setLanguage]);
+
+  const handleOpenEditName = useCallback(() => {
+    if (currentUser) {
+      setEditFirstName(currentUser.firstName);
+      setEditLastName(currentUser.lastName);
+    }
+    setSubMenu('editName');
+  }, [currentUser]);
+
+  const handleSaveName = useCallback(() => {
+    const fn = editFirstName.trim();
+    const ln = editLastName.trim();
+    if (!fn || !ln) {
+      Alert.alert(t.common.error, t.common.noData);
+      return;
+    }
+    updateUserName(fn, ln);
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setSubMenu('none');
+  }, [editFirstName, editLastName, updateUserName, t]);
 
   const currentLang = LANGUAGES.find((l) => l.id === languageId);
 
@@ -154,6 +182,16 @@ export default function UserMenuButton({ tintColor = Colors.white, size = 28 }: 
         <Text style={[styles.menuItemLabel, { color: menuText }]}>{t.menu.myProfile}</Text>
         <ChevronRight size={14} color={menuTextMut} />
       </TouchableOpacity>
+
+      {(currentUser.role === 'super_admin' || currentUser.role === 'support') && (
+        <TouchableOpacity style={styles.menuItem} onPress={handleOpenEditName} activeOpacity={0.6}>
+          <View style={[styles.menuItemIcon, { backgroundColor: '#8B5CF612' }]}>
+            <Pencil size={16} color="#8B5CF6" />
+          </View>
+          <Text style={[styles.menuItemLabel, { color: menuText }]}>{t.menu.editName}</Text>
+          <ChevronRight size={14} color={menuTextMut} />
+        </TouchableOpacity>
+      )}
 
       <View style={styles.menuItem}>
         <View style={[styles.menuItemIcon, { backgroundColor: '#6366F112' }]}>
@@ -305,6 +343,48 @@ export default function UserMenuButton({ tintColor = Colors.white, size = 28 }: 
     </>
   );
 
+  const renderEditNameMenu = () => (
+    <>
+      <TouchableOpacity
+        style={[styles.subMenuHeader, { borderBottomColor: menuBorder }]}
+        onPress={() => setSubMenu('none')}
+        activeOpacity={0.7}
+      >
+        <ChevronLeft size={18} color={menuText} />
+        <Text style={[styles.subMenuTitle, { color: menuText }]}>{t.menu.editName}</Text>
+      </TouchableOpacity>
+      <View style={styles.editNameContainer}>
+        <View style={styles.editNameField}>
+          <Text style={[styles.editNameLabel, { color: menuTextSec }]}>{t.menu.myProfile}</Text>
+          <TextInput
+            style={[styles.editNameInput, { color: menuText, backgroundColor: isDarkMode ? modeColors.surfaceLight : '#F8F9FA', borderColor: menuBorder }]}
+            value={editFirstName}
+            onChangeText={setEditFirstName}
+            placeholder={t.menu.editName}
+            placeholderTextColor={menuTextMut}
+          />
+        </View>
+        <View style={styles.editNameField}>
+          <Text style={[styles.editNameLabel, { color: menuTextSec }]}>{t.roles[currentUser.role]}</Text>
+          <TextInput
+            style={[styles.editNameInput, { color: menuText, backgroundColor: isDarkMode ? modeColors.surfaceLight : '#F8F9FA', borderColor: menuBorder }]}
+            value={editLastName}
+            onChangeText={setEditLastName}
+            placeholder={t.menu.editName}
+            placeholderTextColor={menuTextMut}
+          />
+        </View>
+        <TouchableOpacity
+          style={[styles.editNameSaveBtn, { backgroundColor: Colors.primary }]}
+          onPress={handleSaveName}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.editNameSaveBtnText}>{t.common.save}</Text>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+
   return (
     <>
       <TouchableOpacity
@@ -338,11 +418,14 @@ export default function UserMenuButton({ tintColor = Colors.white, size = 28 }: 
                 {subMenu === 'none' && renderMainMenu()}
                 {subMenu === 'theme' && renderThemeMenu()}
                 {subMenu === 'language' && renderLanguageMenu()}
+                {subMenu === 'editName' && renderEditNameMenu()}
               </ScrollView>
             </Pressable>
           </Animated.View>
         </Pressable>
       </Modal>
+
+      <SecurityPolicyModal visible={securityVisible} onClose={() => setSecurityVisible(false)} />
     </>
   );
 }
@@ -568,5 +651,34 @@ const styles = StyleSheet.create({
   },
   langItemSub: {
     fontSize: 11,
+  },
+  editNameContainer: {
+    padding: 16,
+    gap: 12,
+  },
+  editNameField: {
+    gap: 4,
+  },
+  editNameLabel: {
+    fontSize: 11,
+    fontWeight: '500' as const,
+  },
+  editNameInput: {
+    fontSize: 14,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  editNameSaveBtn: {
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  editNameSaveBtnText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#FFFFFF',
   },
 });

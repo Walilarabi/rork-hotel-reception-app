@@ -18,6 +18,7 @@ export interface AuthUser {
 
 const DEMO_USERS: AuthUser[] = [
   { id: 'u-sa1', firstName: 'Alexandre', lastName: 'Fontaine', email: 'alex@flowtym.com', role: 'super_admin', hotelId: null, hotelName: null },
+  { id: 'u-sup1', firstName: 'Thomas', lastName: 'Renard', email: 'thomas@flowtym.com', role: 'support', hotelId: null, hotelName: null },
   { id: 'u1', firstName: 'Marie', lastName: 'Leclerc', email: 'marie.leclerc@grandhotelparis.fr', role: 'direction', hotelId: 'h1', hotelName: 'Le Grand Hôtel Paris' },
   { id: 'u2', firstName: 'Sophie', lastName: 'Martin', email: 'sophie.martin@grandhotelparis.fr', role: 'reception', hotelId: 'h1', hotelName: 'Le Grand Hôtel Paris' },
   { id: 'u3', firstName: 'Catherine', lastName: 'Moreau', email: 'c.moreau@grandhotelparis.fr', role: 'gouvernante', hotelId: 'h1', hotelName: 'Le Grand Hôtel Paris' },
@@ -71,13 +72,20 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const canInviteRoles = useCallback((role: AdminUserRole): AdminUserRole[] => {
     if (role === 'super_admin') {
-      return ['direction', 'reception', 'gouvernante', 'femme_de_chambre', 'maintenance', 'breakfast'];
+      return ['support', 'direction', 'reception', 'gouvernante', 'femme_de_chambre', 'maintenance', 'breakfast'];
     }
     if (role === 'direction' || role === 'reception') {
       return ['gouvernante', 'femme_de_chambre', 'maintenance', 'breakfast'];
     }
     return [];
   }, []);
+
+  const updateUserName = useCallback(async (firstName: string, lastName: string) => {
+    if (!currentUser) return;
+    const updated = { ...currentUser, firstName, lastName };
+    setCurrentUser(updated);
+    await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(updated));
+  }, [currentUser]);
 
   return {
     currentUser,
@@ -88,5 +96,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     logout: logoutMutation.mutate,
     isLoggingIn: loginMutation.isPending,
     canInviteRoles,
+    updateUserName,
   };
 });

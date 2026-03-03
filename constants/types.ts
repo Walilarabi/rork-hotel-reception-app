@@ -406,7 +406,7 @@ export interface HousekeeperPerformance {
   confidenceIndex: number;
 }
 
-export type AdminUserRole = 'reception' | 'gouvernante' | 'femme_de_chambre' | 'maintenance' | 'breakfast' | 'direction' | 'super_admin';
+export type AdminUserRole = 'reception' | 'gouvernante' | 'femme_de_chambre' | 'maintenance' | 'breakfast' | 'direction' | 'super_admin' | 'support';
 
 export interface AdminUser {
   id: string;
@@ -471,6 +471,7 @@ export const HOTEL_STATUS_CONFIG: Record<HotelStatus, { label: string; color: st
 
 export const ADMIN_ROLE_CONFIG: Record<AdminUserRole, { label: string; color: string }> = {
   super_admin: { label: 'Super Admin', color: '#7C4DFF' },
+  support: { label: 'Support', color: '#0EA5E9' },
   direction: { label: 'Direction', color: '#1A4D5C' },
   reception: { label: 'Réception', color: '#1E88E5' },
   gouvernante: { label: 'Gouvernante', color: '#00897B' },

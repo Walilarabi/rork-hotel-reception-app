@@ -17,6 +17,7 @@ import { ADMIN_ROLE_CONFIG, AdminUserRole } from '@/constants/types';
 
 const ROLE_ICONS: Record<AdminUserRole, string> = {
   super_admin: '🛡️',
+  support: '🎧',
   direction: '📊',
   reception: '🏨',
   gouvernante: '✅',
@@ -48,7 +49,7 @@ export default function LoginScreen() {
     login(user, {
       onSuccess: () => {
         console.log('[Login] Success, role:', user.role);
-        if (user.role === 'super_admin') {
+        if (user.role === 'super_admin' || user.role === 'support') {
           router.replace('/(superadmin)/dashboard');
         } else if (user.role === 'femme_de_chambre') {
           router.replace('/(tabs)/housekeeping');

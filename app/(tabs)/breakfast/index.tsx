@@ -27,7 +27,7 @@ const STATUS_CONFIG: Record<BreakfastStatus, { label: string; color: string }> =
 export default function BreakfastScreen() {
   const router = useRouter();
   const { breakfastOrders, updateBreakfast } = useHotel();
-  const { theme } = useTheme();
+  const { theme, t } = useTheme();
   const colors = useColors();
   const [activeTab, setActiveTab] = useState<'cuisine' | 'livraison' | 'historique'>('cuisine');
 
@@ -139,7 +139,7 @@ export default function BreakfastScreen() {
           headerStyle: { backgroundColor: colors.headerBg },
           headerTintColor: '#FFF',
           headerShadowVisible: false,
-          headerTitle: () => <Text style={styles.headerText}>Petit-déjeuner</Text>,
+          headerTitle: () => <Text style={styles.headerText}>{t.breakfast.title}</Text>,
           headerRight: () => <UserMenuButton />,
         }}
       />
@@ -147,17 +147,17 @@ export default function BreakfastScreen() {
       <View style={[styles.statsRow, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.statItem}>
           <Text style={[styles.statCount, { color: '#F59E0B' }]}>{stats.toPrepare}</Text>
-          <Text style={styles.statLabel}>À préparer</Text>
+          <Text style={styles.statLabel}>{t.breakfast.toPrepare}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={[styles.statCount, { color: '#0D9488' }]}>{stats.prepared + stats.delivering}</Text>
-          <Text style={styles.statLabel}>En cours</Text>
+          <Text style={styles.statLabel}>{t.maintenance.inProgress}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={[styles.statCount, { color: '#22C55E' }]}>{stats.served}</Text>
-          <Text style={styles.statLabel}>Servis</Text>
+          <Text style={styles.statLabel}>{t.breakfast.servedTab}</Text>
         </View>
       </View>
 
@@ -167,7 +167,7 @@ export default function BreakfastScreen() {
           onPress={() => setActiveTab('cuisine')}
         >
           <Text style={[styles.tabBtnText, activeTab === 'cuisine' && { color: theme.primary, fontWeight: '600' as const }]}>
-            🍳 Cuisine ({cuisineOrders.length})
+            🍳 {t.breakfast.kitchen} ({cuisineOrders.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -175,7 +175,7 @@ export default function BreakfastScreen() {
           onPress={() => setActiveTab('livraison')}
         >
           <Text style={[styles.tabBtnText, activeTab === 'livraison' && { color: theme.primary, fontWeight: '600' as const }]}>
-            🚚 Livraison ({deliveryOrders.length})
+            🚚 {t.breakfast.delivery} ({deliveryOrders.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -183,7 +183,7 @@ export default function BreakfastScreen() {
           onPress={() => setActiveTab('historique')}
         >
           <Text style={[styles.tabBtnText, activeTab === 'historique' && { color: theme.primary, fontWeight: '600' as const }]}>
-            ✅ Servis ({historyOrders.length})
+            ✅ {t.breakfast.servedTab} ({historyOrders.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -198,8 +198,8 @@ export default function BreakfastScreen() {
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>☕</Text>
             <Text style={styles.emptyTitle}>
-              {activeTab === 'cuisine' ? 'Aucune commande à préparer' :
-               activeTab === 'livraison' ? 'Aucune livraison en cours' : 'Aucun historique'}
+              {activeTab === 'cuisine' ? t.breakfast.noOrderToPrepare :
+               activeTab === 'livraison' ? t.breakfast.noDeliveryInProgress : t.breakfast.noHistory}
             </Text>
           </View>
         }

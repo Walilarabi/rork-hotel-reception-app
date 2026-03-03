@@ -30,7 +30,7 @@ const STATUS_CONFIG = {
 export default function MaintenanceScreen() {
   const router = useRouter();
   const { maintenanceTasks } = useHotel();
-  const { theme } = useTheme();
+  const { theme, t } = useTheme();
   const colors = useColors();
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<MaintenanceStatus | 'all'>('all');
@@ -155,17 +155,17 @@ export default function MaintenanceScreen() {
           onPress={() => router.push('/maintenance-tracking')}
         >
           <BarChart3 size={14} color="#FFF" />
-          <Text style={styles.trackingBtnText}>Suivi</Text>
+          <Text style={styles.trackingBtnText}>{t.maintenance.tracking}</Text>
         </TouchableOpacity>
       </View>
 
       {showStatusDropdown && (
         <View style={styles.dropdown}>
           {[
-            { value: 'all' as const, label: 'Tous' },
-            { value: 'en_attente' as const, label: 'En attente' },
-            { value: 'en_cours' as const, label: 'En cours' },
-            { value: 'resolu' as const, label: 'Résolu' },
+            { value: 'all' as const, label: t.gouvernante.allStatuses },
+            { value: 'en_attente' as const, label: t.maintenance.pending },
+            { value: 'en_cours' as const, label: t.maintenance.inProgress },
+            { value: 'resolu' as const, label: t.maintenance.resolved },
           ].map((opt) => (
             <TouchableOpacity
               key={opt.value}
@@ -187,7 +187,7 @@ export default function MaintenanceScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>🔧</Text>
-            <Text style={styles.emptyTitle}>Aucune intervention</Text>
+            <Text style={styles.emptyTitle}>{t.maintenance.noIntervention}</Text>
           </View>
         }
       />
