@@ -19,6 +19,7 @@ import {
   Users,
   ArrowRight,
   Sparkles,
+  History,
 } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
@@ -300,6 +301,23 @@ export default function DirectionDashboard() {
           )}
         </View>
 
+        <View style={styles.quickActions}>
+          <TouchableOpacity style={styles.quickActionBtn} onPress={() => router.push('/history')}>
+            <View style={[styles.quickActionIcon, { backgroundColor: FT.brandSoft }]}>
+              <History size={18} color={FT.brand} />
+            </View>
+            <Text style={styles.quickActionLabel}>Historique</Text>
+            <ArrowRight size={14} color={FT.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickActionBtn} onPress={() => router.push('/maintenance-tracking')}>
+            <View style={[styles.quickActionIcon, { backgroundColor: FT.warningSoft }]}>
+              <Wrench size={18} color={FT.warning} />
+            </View>
+            <Text style={styles.quickActionLabel}>Suivi maintenance</Text>
+            <ArrowRight size={14} color={FT.textMuted} />
+          </TouchableOpacity>
+        </View>
+
         <View style={{ height: 30 }} />
       </ScrollView>
     </View>
@@ -386,4 +404,18 @@ const styles = StyleSheet.create({
 
   emptyStaff: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 16, justifyContent: 'center' },
   emptyStaffText: { fontSize: 13, color: FT.textMuted },
+
+  quickActions: { gap: 8 },
+  quickActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: FT.surface,
+    borderRadius: FT.cardRadius,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: FT.border,
+  },
+  quickActionIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  quickActionLabel: { flex: 1, fontSize: 14, fontWeight: '600' as const, color: FT.text },
 });

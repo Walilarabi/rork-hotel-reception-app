@@ -94,6 +94,7 @@ function RootLayoutNav() {
       <Stack.Screen name="maintenance-tracking" options={{ title: 'Suivi Maintenance' }} />
       <Stack.Screen name="breakfast-config" options={{ presentation: 'modal', title: 'Config. PDJ' }} />
       <Stack.Screen name="breakfast-stats" options={{ title: 'Stats PDJ' }} />
+      <Stack.Screen name="history" options={{ title: 'Historique' }} />
     </Stack>
   );
 }

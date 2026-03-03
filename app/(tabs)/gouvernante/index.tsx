@@ -9,7 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { Search, ChevronDown, CheckCircle, Package, Users, ArrowRight, RefreshCw } from 'lucide-react-native';
+import { Search, ChevronDown, CheckCircle, Package, Users, ArrowRight, RefreshCw, History } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
 import DeskKPI from '@/components/DeskKPI';
@@ -247,6 +247,15 @@ export default function GouvernanteScreen() {
           <TouchableOpacity style={styles.actionBtnOutline} activeOpacity={0.7}>
             <Users size={14} color={FT.textSec} />
             <Text style={styles.actionBtnOutText}>Affecter</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionBtnOutline}
+            activeOpacity={0.7}
+            onPress={() => router.push('/history')}
+          >
+            <History size={14} color={FT.textSec} />
+            <Text style={styles.actionBtnOutText}>Historique</Text>
           </TouchableOpacity>
         </View>
       </View>

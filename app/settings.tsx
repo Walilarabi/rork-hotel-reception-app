@@ -27,6 +27,8 @@ import {
   Palette,
   Globe,
   Check,
+  BedDouble,
+  History,
 } from 'lucide-react-native';
 import { Stack, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -230,6 +232,36 @@ export default function SettingsScreen() {
                 <View>
                   <Text style={[styles.menuBtnTitle, { color: textColor }]}>{t.menu.teamManagement}</Text>
                   <Text style={[styles.menuBtnSub, { color: textSec }]}>{t.menu.teamManagementDesc}</Text>
+                </View>
+              </View>
+              <ChevronRight size={16} color={textMut} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {(currentUser?.role === 'direction' || currentUser?.role === 'gouvernante' || currentUser?.role === 'super_admin') && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <BedDouble size={18} color={Colors.primary} />
+              <Text style={[styles.sectionTitle, { color: textColor }]}>Configuration</Text>
+            </View>
+            <TouchableOpacity style={[styles.menuBtn, { backgroundColor: cardBg, borderColor: borderCol }]} onPress={() => router.push('/add-room')}>
+              <View style={styles.menuBtnLeft}>
+                <BedDouble size={18} color={Colors.primary} />
+                <View>
+                  <Text style={[styles.menuBtnTitle, { color: textColor }]}>Gestion des chambres</Text>
+                  <Text style={[styles.menuBtnSub, { color: textSec }]}>Ajouter, modifier les chambres</Text>
+                </View>
+              </View>
+              <ChevronRight size={16} color={textMut} />
+            </TouchableOpacity>
+            <View style={{ height: 8 }} />
+            <TouchableOpacity style={[styles.menuBtn, { backgroundColor: cardBg, borderColor: borderCol }]} onPress={() => router.push('/history')}>
+              <View style={styles.menuBtnLeft}>
+                <History size={18} color={Colors.primary} />
+                <View>
+                  <Text style={[styles.menuBtnTitle, { color: textColor }]}>Historique</Text>
+                  <Text style={[styles.menuBtnSub, { color: textSec }]}>Activité journalière, performance</Text>
                 </View>
               </View>
               <ChevronRight size={16} color={textMut} />

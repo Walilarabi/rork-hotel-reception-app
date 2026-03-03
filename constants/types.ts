@@ -321,6 +321,34 @@ export interface Consumption {
 export type HotelStatus = 'active' | 'suspended' | 'trial';
 export type SubscriptionPlan = 'basic' | 'premium' | 'enterprise';
 
+export interface HotelBilling {
+  vatNumber: string;
+  iban: string;
+  bic: string;
+  billingAddress: string;
+  billingEmail: string;
+  legalRepresentative: string;
+  mandateReference: string;
+  mandateCreatedAt: string | null;
+  mandateSentAt: string | null;
+  mandateSignedAt: string | null;
+  mandateStatus: 'none' | 'pending' | 'sent' | 'signed' | 'expired';
+}
+
+export const DEFAULT_HOTEL_BILLING: HotelBilling = {
+  vatNumber: '',
+  iban: '',
+  bic: '',
+  billingAddress: '',
+  billingEmail: '',
+  legalRepresentative: '',
+  mandateReference: '',
+  mandateCreatedAt: null,
+  mandateSentAt: null,
+  mandateSignedAt: null,
+  mandateStatus: 'none',
+};
+
 export interface Hotel {
   id: string;
   name: string;
@@ -335,6 +363,47 @@ export interface Hotel {
   userCount: number;
   createdAt: string;
   updatedAt: string;
+  billing?: HotelBilling;
+}
+
+export interface HistoryDaySummary {
+  date: string;
+  dayName: string;
+  departures: number;
+  stayovers: number;
+  incidents: number;
+  blockedRooms: number;
+  npdCount: number;
+  consumptionTotal: number;
+  occupancyRate: number;
+}
+
+export interface HistoryRoomDetail {
+  roomNumber: string;
+  cleaningStartedAt: string | null;
+  cleaningCompletedAt: string | null;
+  housekeeperName: string;
+  consumables: { name: string; quantity: number; total: number }[];
+  validatedAt: string | null;
+  validatedBy: string | null;
+  status: 'validated' | 'refused' | 'pending';
+  incidents: string[];
+}
+
+export interface HousekeeperPerformance {
+  id: string;
+  name: string;
+  totalRooms: number;
+  departures: number;
+  stayovers: number;
+  npdCount: number;
+  blockedCount: number;
+  lostFoundCount: number;
+  validationRate: number;
+  refusalRate: number;
+  incidentCount: number;
+  avgTimeMinutes: number;
+  confidenceIndex: number;
 }
 
 export type AdminUserRole = 'reception' | 'gouvernante' | 'femme_de_chambre' | 'maintenance' | 'breakfast' | 'direction' | 'super_admin';
@@ -622,6 +691,20 @@ export const FREQUENCY_OPTIONS: { value: number; unit: FrequencyUnit; label: str
   { value: 1, unit: 'year', label: '1 an' },
   { value: 2, unit: 'year', label: '2 ans' },
 ];
+
+export interface ExportPDFOptions {
+  title: string;
+  period: 'today' | 'week' | 'month' | 'custom';
+  customStart?: string;
+  customEnd?: string;
+  includeKPIs: boolean;
+  includeRoomList: boolean;
+  includeConsumptions: boolean;
+  includeCharts: boolean;
+  includeHistory: boolean;
+  includeHotelInfo: boolean;
+  orientation: 'portrait' | 'landscape';
+}
 
 export const LOG_ACTION_CONFIG: Record<LogAction, { label: string; icon: string }> = {
   hotel_created: { label: 'Hôtel créé', icon: '🏨' },

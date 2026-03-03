@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { Plus, DoorOpen, UserPlus, X, ChevronDown, Coffee, Filter, MoreHorizontal } from 'lucide-react-native';
+import { DoorOpen, UserPlus, X, ChevronDown, Coffee, Filter, MoreHorizontal } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
 import DeskFloorSection from '@/components/DeskFloorSection';
@@ -328,9 +328,7 @@ export default function ReceptionDashboard() {
         }
       />
 
-      <TouchableOpacity style={styles.fab} onPress={() => router.push('/add-room')} testID="add-room-fab">
-        <Plus size={22} color="#FFF" />
-      </TouchableOpacity>
+
     </View>
   );
 }
@@ -402,20 +400,5 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 48 },
   emptyTitle: { fontSize: 16, fontWeight: '600' as const, color: FT.text },
 
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 20,
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: FT.brand,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 6,
-    shadowColor: FT.brand,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
+
 });

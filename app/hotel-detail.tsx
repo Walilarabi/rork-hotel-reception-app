@@ -35,6 +35,10 @@ import {
   X,
   FileSpreadsheet,
   Layers,
+  CreditCard,
+  FileText,
+  Send,
+  Shield,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useSuperAdmin } from '@/providers/SuperAdminProvider';
@@ -45,6 +49,8 @@ import {
   HOTEL_STATUS_CONFIG,
   SUBSCRIPTION_PLAN_CONFIG,
   PMS_TYPE_CONFIG,
+  HotelBilling,
+  DEFAULT_HOTEL_BILLING,
 } from '@/constants/types';
 import {
   DEFAULT_ROOM_TYPES,
@@ -73,7 +79,7 @@ const SA = {
   danger: '#EF4444',
 };
 
-type ActiveTab = 'general' | 'config' | 'pms';
+type ActiveTab = 'general' | 'config' | 'pms' | 'billing';
 
 export default function HotelDetailScreen() {
   const router = useRouter();
@@ -118,6 +124,11 @@ export default function HotelDetailScreen() {
   const [showPmsDropdown, setShowPmsDropdown] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
+
+  const [billing, setBilling] = useState<HotelBilling>(existingHotel?.billing ?? DEFAULT_HOTEL_BILLING);
+  const updateBilling = useCallback((field: keyof HotelBilling, value: string) => {
+    setBilling((prev) => ({ ...prev, [field]: value }));
+  }, []);
 
   useEffect(() => {
     if (!subEnd && subStart) {
@@ -182,6 +193,64 @@ export default function HotelDetailScreen() {
     Alert.alert('Configuration PMS sauvegardée', `La configuration pour ${PMS_TYPE_CONFIG[pmsType].label} a été enregistrée.`);
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [pmsConnectionName, pmsType]);
+
+  const validateIBAN = useCallback((iban: string) => {
+    const cleaned = iban.replace(/\s/g, '').toUpperCase();
+    return /^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(cleaned);
+  }, []);
+
+  const validateBIC = useCallback((bic: string) => {
+    return /^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(bic.toUpperCase());
+  }, []);
+
+  const handleSaveBilling = useCallback(() => {
+    if (billing.iban && !validateIBAN(billing.iban)) {
+      Alert.alert('Erreur', 'Le format IBAN est invalide.');
+      return;
+    }
+    if (billing.bic && !validateBIC(billing.bic)) {
+      Alert.alert('Erreur', 'Le format BIC/SWIFT est invalide (8 ou 11 caractères).');
+      return;
+    }
+    if (isEditing && existingHotel) {
+      updateHotel({
+        hotelId: existingHotel.id,
+        updates: { billing },
+      });
+    }
+    Alert.alert('Facturation sauvegardée', 'Les informations de facturation ont été enregistrées.');
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [billing, isEditing, existingHotel, updateHotel, validateIBAN, validateBIC]);
+
+  const handleGenerateMandate = useCallback(() => {
+    if (!billing.iban || !billing.bic || !billing.legalRepresentative) {
+      Alert.alert('Informations manquantes', 'IBAN, BIC et Responsable légal sont requis pour générer un mandat.');
+      return;
+    }
+    const ref = `MANDAT-${existingHotel?.id?.toUpperCase().slice(0, 6) ?? 'NEW'}-${new Date().toISOString().slice(0, 7).replace('-', '')}`;
+    setBilling((prev) => ({
+      ...prev,
+      mandateReference: ref,
+      mandateCreatedAt: new Date().toISOString(),
+      mandateStatus: 'pending',
+    }));
+    Alert.alert('Mandat généré', `Référence: ${ref}\n\nLe mandat SEPA a été généré. Vous pouvez l'envoyer pour signature.`);
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [billing, existingHotel]);
+
+  const handleSendMandate = useCallback(() => {
+    if (!billing.billingEmail) {
+      Alert.alert('Erreur', 'Veuillez renseigner l\'email de facturation.');
+      return;
+    }
+    setBilling((prev) => ({
+      ...prev,
+      mandateSentAt: new Date().toISOString(),
+      mandateStatus: 'sent',
+    }));
+    Alert.alert('Mandat envoyé', `Le mandat a été envoyé à ${billing.billingEmail} pour signature.`);
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [billing.billingEmail]);
 
   const handleGenerateRooms = useCallback(() => {
     const count = parseInt(genCount, 10);
@@ -512,6 +581,151 @@ export default function HotelDetailScreen() {
     </>
   );
 
+  const getMandateStatusConfig = useCallback((status: HotelBilling['mandateStatus']) => {
+    switch (status) {
+      case 'pending': return { label: 'En attente', color: SA.warning, icon: '⏳' };
+      case 'sent': return { label: 'Envoyé', color: '#3B82F6', icon: '📩' };
+      case 'signed': return { label: 'Signé', color: SA.success, icon: '✅' };
+      case 'expired': return { label: 'Expiré', color: SA.danger, icon: '⚠️' };
+      default: return { label: 'Non créé', color: SA.textMuted, icon: '📄' };
+    }
+  }, []);
+
+  const renderBillingTab = () => {
+    const mandateConfig = getMandateStatusConfig(billing.mandateStatus);
+    return (
+      <>
+        <View style={styles.configHeader}>
+          <View style={[styles.configIconContainer, { backgroundColor: '#F59E0B15' }]}>
+            <CreditCard size={24} color="#F59E0B" />
+          </View>
+          <Text style={styles.formTitle}>Informations de facturation</Text>
+          <Text style={styles.configSubtitle}>
+            Renseignez les informations bancaires et TVA pour la facturation et les mandats SEPA
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>TVA & Informations légales</Text>
+          <View style={styles.inputGroup}>
+            <View style={styles.inputIcon}><Shield size={16} color={SA.textMuted} /></View>
+            <TextInput style={styles.input} placeholder="N° TVA intracommunautaire (ex: FR12345678901)" placeholderTextColor={SA.textMuted} value={billing.vatNumber} onChangeText={(v) => updateBilling('vatNumber', v)} autoCapitalize="characters" />
+          </View>
+          <View style={styles.inputGroup}>
+            <View style={styles.inputIcon}><User size={16} color={SA.textMuted} /></View>
+            <TextInput style={styles.input} placeholder="Nom du responsable légal *" placeholderTextColor={SA.textMuted} value={billing.legalRepresentative} onChangeText={(v) => updateBilling('legalRepresentative', v)} />
+          </View>
+          <View style={styles.inputGroup}>
+            <View style={styles.inputIcon}><MapPin size={16} color={SA.textMuted} /></View>
+            <TextInput style={styles.input} placeholder="Adresse de facturation" placeholderTextColor={SA.textMuted} value={billing.billingAddress} onChangeText={(v) => updateBilling('billingAddress', v)} multiline />
+          </View>
+          <View style={styles.inputGroup}>
+            <View style={styles.inputIcon}><Mail size={16} color={SA.textMuted} /></View>
+            <TextInput style={styles.input} placeholder="Email de facturation *" placeholderTextColor={SA.textMuted} value={billing.billingEmail} onChangeText={(v) => updateBilling('billingEmail', v)} keyboardType="email-address" autoCapitalize="none" />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Coordonnées bancaires (RIB)</Text>
+          <View style={styles.inputGroup}>
+            <View style={styles.inputIcon}><CreditCard size={16} color={SA.textMuted} /></View>
+            <TextInput style={styles.input} placeholder="IBAN *" placeholderTextColor={SA.textMuted} value={billing.iban} onChangeText={(v) => updateBilling('iban', v)} autoCapitalize="characters" />
+          </View>
+          {billing.iban.length > 0 && (
+            <View style={[styles.billingHint, { backgroundColor: validateIBAN(billing.iban) ? SA.success + '10' : SA.danger + '10' }]}>
+              {validateIBAN(billing.iban) ? (
+                <CheckCircle size={12} color={SA.success} />
+              ) : (
+                <AlertTriangle size={12} color={SA.danger} />
+              )}
+              <Text style={{ fontSize: 11, color: validateIBAN(billing.iban) ? SA.success : SA.danger, fontWeight: '500' as const }}>
+                {validateIBAN(billing.iban) ? 'Format IBAN valide' : 'Format IBAN invalide'}
+              </Text>
+            </View>
+          )}
+          <View style={styles.inputGroup}>
+            <View style={styles.inputIcon}><Key size={16} color={SA.textMuted} /></View>
+            <TextInput style={styles.input} placeholder="BIC / SWIFT *" placeholderTextColor={SA.textMuted} value={billing.bic} onChangeText={(v) => updateBilling('bic', v)} autoCapitalize="characters" />
+          </View>
+          {billing.bic.length > 0 && (
+            <View style={[styles.billingHint, { backgroundColor: validateBIC(billing.bic) ? SA.success + '10' : SA.danger + '10' }]}>
+              {validateBIC(billing.bic) ? (
+                <CheckCircle size={12} color={SA.success} />
+              ) : (
+                <AlertTriangle size={12} color={SA.danger} />
+              )}
+              <Text style={{ fontSize: 11, color: validateBIC(billing.bic) ? SA.success : SA.danger, fontWeight: '500' as const }}>
+                {validateBIC(billing.bic) ? 'Format BIC valide' : 'Format BIC invalide (8 ou 11 car.)'}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Mandat de prélèvement SEPA</Text>
+          <View style={styles.mandateCard}>
+            <View style={styles.mandateHeader}>
+              <FileText size={20} color={mandateConfig.color} />
+              <View style={styles.mandateInfo}>
+                <Text style={styles.mandateTitle}>Mandat SEPA</Text>
+                <View style={[styles.mandateStatusBadge, { backgroundColor: mandateConfig.color + '15' }]}>
+                  <Text style={styles.mandateStatusIcon}>{mandateConfig.icon}</Text>
+                  <Text style={[styles.mandateStatusText, { color: mandateConfig.color }]}>{mandateConfig.label}</Text>
+                </View>
+              </View>
+            </View>
+
+            {billing.mandateReference ? (
+              <View style={styles.mandateDetails}>
+                <View style={styles.mandateDetailRow}>
+                  <Text style={styles.mandateDetailLabel}>Référence</Text>
+                  <Text style={styles.mandateDetailValue}>{billing.mandateReference}</Text>
+                </View>
+                {billing.mandateCreatedAt && (
+                  <View style={styles.mandateDetailRow}>
+                    <Text style={styles.mandateDetailLabel}>Créé le</Text>
+                    <Text style={styles.mandateDetailValue}>
+                      {new Date(billing.mandateCreatedAt).toLocaleDateString('fr-FR')}
+                    </Text>
+                  </View>
+                )}
+                {billing.mandateSentAt && (
+                  <View style={styles.mandateDetailRow}>
+                    <Text style={styles.mandateDetailLabel}>Envoyé le</Text>
+                    <Text style={styles.mandateDetailValue}>
+                      {new Date(billing.mandateSentAt).toLocaleDateString('fr-FR')}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ) : (
+              <Text style={styles.mandateEmpty}>Aucun mandat généré. Renseignez les informations bancaires puis générez le mandat.</Text>
+            )}
+
+            <View style={styles.mandateActions}>
+              {!billing.mandateReference ? (
+                <TouchableOpacity style={[styles.generateBtn, { backgroundColor: '#F59E0B' }]} onPress={handleGenerateMandate}>
+                  <FileText size={16} color="#FFFFFF" />
+                  <Text style={styles.generateBtnText}>Générer le mandat</Text>
+                </TouchableOpacity>
+              ) : billing.mandateStatus === 'pending' ? (
+                <TouchableOpacity style={[styles.generateBtn, { backgroundColor: '#3B82F6' }]} onPress={handleSendMandate}>
+                  <Send size={16} color="#FFFFFF" />
+                  <Text style={styles.generateBtnText}>Envoyer pour signature</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
+        </View>
+
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSaveBilling}>
+          <Save size={18} color="#FFFFFF" />
+          <Text style={styles.saveBtnText}>Enregistrer la facturation</Text>
+        </TouchableOpacity>
+      </>
+    );
+  };
+
   const pmsTypes = Object.entries(PMS_TYPE_CONFIG) as [PMSType, { label: string }][];
 
   const renderPmsTab = () => (
@@ -695,12 +909,22 @@ export default function HotelDetailScreen() {
             <Text style={[styles.tab_text_inner, activeTab === 'pms' && styles.tabTextActive]}>PMS</Text>
           </TouchableOpacity>
         )}
+        {isEditing && (
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'billing' && styles.tabActive]}
+            onPress={() => setActiveTab('billing')}
+          >
+            <CreditCard size={15} color={activeTab === 'billing' ? SA.accent : SA.textMuted} />
+            <Text style={[styles.tab_text_inner, activeTab === 'billing' && styles.tabTextActive]}>Factu.</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {activeTab === 'general' && renderGeneralTab()}
         {activeTab === 'config' && renderConfigTab()}
         {activeTab === 'pms' && renderPmsTab()}
+        {activeTab === 'billing' && renderBillingTab()}
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
@@ -871,4 +1095,19 @@ const styles = StyleSheet.create({
   testBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: SA.accent + '12', paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: SA.accent + '30' },
   testBtnDisabled: { opacity: 0.6 },
   testBtnText: { fontSize: 14, fontWeight: '600' as const, color: SA.accent },
+
+  billingHint: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, marginBottom: 10, marginTop: -4 },
+  mandateCard: { backgroundColor: SA.surface, borderRadius: 14, borderWidth: 1, borderColor: SA.border, padding: 18, gap: 16 },
+  mandateHeader: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  mandateInfo: { flex: 1, gap: 6 },
+  mandateTitle: { fontSize: 15, fontWeight: '700' as const, color: SA.text },
+  mandateStatusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start' as const },
+  mandateStatusIcon: { fontSize: 12 },
+  mandateStatusText: { fontSize: 11, fontWeight: '600' as const },
+  mandateDetails: { gap: 8, paddingTop: 4, borderTopWidth: 1, borderTopColor: SA.border },
+  mandateDetailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  mandateDetailLabel: { fontSize: 12, color: SA.textMuted },
+  mandateDetailValue: { fontSize: 12, fontWeight: '600' as const, color: SA.text },
+  mandateEmpty: { fontSize: 12, color: SA.textMuted, lineHeight: 18 },
+  mandateActions: { gap: 8 },
 });
