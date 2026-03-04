@@ -707,6 +707,101 @@ export interface ExportPDFOptions {
   orientation: 'portrait' | 'landscape';
 }
 
+export type BillingType = 'one_time' | 'monthly' | 'yearly';
+export type DiscountType = 'percentage' | 'fixed';
+export type PromotionStatus = 'active' | 'inactive' | 'scheduled';
+
+export interface SubscriptionPlanDetail {
+  id: string;
+  name: string;
+  description: string;
+  priceMonthly: number;
+  priceYearly: number;
+  currency: string;
+  maxRooms: number;
+  maxUsers: number;
+  maxHotels: number;
+  extraHotelPrice: number;
+  sortOrder: number;
+  isActive: boolean;
+  featureIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Feature {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  icon: string;
+}
+
+export interface Addon {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  billingType: BillingType;
+  isActive: boolean;
+}
+
+export interface Promotion {
+  id: string;
+  code: string;
+  description: string;
+  discountType: DiscountType;
+  discountValue: number;
+  durationMonths: number | null;
+  startDate: string | null;
+  endDate: string | null;
+  maxUses: number | null;
+  maxUsesPerCustomer: number;
+  firstPurchaseOnly: boolean;
+  isActive: boolean;
+  currentUses: number;
+  applicablePlanIds: string[];
+}
+
+export interface HotelSubscription {
+  id: string;
+  hotelId: string;
+  hotelName: string;
+  planId: string;
+  planName: string;
+  startDate: string;
+  endDate: string | null;
+  status: 'active' | 'cancelled' | 'expired' | 'trial';
+  priceAtSubscription: number;
+  promoCode: string | null;
+  createdAt: string;
+}
+
+export interface SubscriptionGlobalConfig {
+  defaultCurrency: string;
+  defaultBillingCycle: 'monthly' | 'yearly';
+  trialDays: number;
+  termsUrl: string;
+  billingEmail: string;
+  reminderDaysBefore: number;
+}
+
+export const FEATURE_CATEGORIES = [
+  'Modules',
+  'Applications',
+  'QR Codes',
+  'Intégrations',
+  'Rapports',
+  'Support',
+  'Formation',
+] as const;
+
+export const BILLING_TYPE_CONFIG: Record<BillingType, { label: string }> = {
+  one_time: { label: 'Unique' },
+  monthly: { label: 'Mensuel' },
+  yearly: { label: 'Annuel' },
+};
+
 export const LOG_ACTION_CONFIG: Record<LogAction, { label: string; icon: string }> = {
   hotel_created: { label: 'Hôtel créé', icon: '🏨' },
   hotel_updated: { label: 'Hôtel modifié', icon: '✏️' },

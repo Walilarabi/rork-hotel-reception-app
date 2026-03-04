@@ -7,13 +7,14 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HotelProvider } from '@/providers/HotelProvider';
 import { SuperAdminProvider } from '@/providers/SuperAdminProvider';
+import { SubscriptionProvider } from '@/providers/SubscriptionProvider';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import { Colors } from '@/constants/colors';
 import { FT } from '@/constants/flowtym';
 
 const DATA_VERSION_KEY = 'flowtym_data_version';
-const CURRENT_DATA_VERSION = '3';
+const CURRENT_DATA_VERSION = '4';
 
 try {
   SplashScreen.preventAutoHideAsync();
@@ -156,7 +157,9 @@ export default function RootLayout() {
             <ThemeProvider>
               <HotelProvider>
                 <SuperAdminProvider>
-                  <RootLayoutNav />
+                  <SubscriptionProvider>
+                    <RootLayoutNav />
+                  </SubscriptionProvider>
                 </SuperAdminProvider>
               </HotelProvider>
             </ThemeProvider>

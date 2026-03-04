@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { LayoutDashboard, Building2, Users, Headphones, ScrollText } from 'lucide-react-native';
+import { LayoutDashboard, Building2, Users, Headphones, ScrollText, CreditCard } from 'lucide-react-native';
 import React from 'react';
 import { SA_THEME as SA } from '@/constants/flowtym';
 
@@ -46,6 +46,13 @@ export default function SuperAdminTabLayout() {
         options={{
           title: 'Support',
           tabBarIcon: ({ color, size }) => <Headphones size={size - 2} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="subscriptions"
+        options={{
+          title: 'Abonnements',
+          tabBarIcon: ({ color, size }) => <CreditCard size={size - 2} color={color} />,
         }}
       />
       <Tabs.Screen
