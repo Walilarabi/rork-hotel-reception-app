@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,10 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
-  ScrollView,
+  Animated,
+  PanResponder,
+  GestureResponderEvent,
+  PanResponderGestureState,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { DoorOpen, UserPlus, X, ChevronDown, Coffee, Filter, MoreHorizontal, List, LayoutGrid, Eye } from 'lucide-react-native';
@@ -22,6 +25,133 @@ import { PMSStatusIndicator } from '@/components/PMSStatusIndicator';
 import { useTheme } from '@/providers/ThemeProvider';
 import { FT } from '@/constants/flowtym';
 import { RoomStatus, ClientBadge, Room, ROOM_STATUS_CONFIG, CLEANING_STATUS_CONFIG } from '@/constants/types';
+
+const SWIPE_THRESHOLD = 30;
+
+interface BreakfastSwipeToggleProps {
+  included: boolean;
+  onToggle: (newValue: boolean) => void;
+  includedLabel: string;
+  notIncludedLabel: string;
+}
+
+const BreakfastSwipeToggle = React.memo(function BreakfastSwipeToggle({
+  included,
+  onToggle,
+  includedLabel,
+  notIncludedLabel,
+}: BreakfastSwipeToggleProps) {
+  const translateX = useRef(new Animated.Value(0)).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_: GestureResponderEvent, gs: PanResponderGestureState) =>
+        Math.abs(gs.dx) > 5 && Math.abs(gs.dx) > Math.abs(gs.dy),
+      onPanResponderGrant: () => {
+        translateX.setValue(0);
+      },
+      onPanResponderMove: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
+        const clamped = Math.max(-40, Math.min(40, gs.dx));
+        translateX.setValue(clamped);
+      },
+      onPanResponderRelease: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 80,
+          friction: 10,
+        }).start();
+
+        if (gs.dx > SWIPE_THRESHOLD && !included) {
+          onToggle(true);
+        } else if (gs.dx < -SWIPE_THRESHOLD && included) {
+          onToggle(false);
+        }
+      },
+    })
+  ).current;
+
+  const handleTap = useCallback(() => {
+    onToggle(!included);
+  }, [included, onToggle]);
+
+  const bgColor = included ? FT.success : FT.danger;
+  const bgSoft = included ? FT.successSoft : FT.dangerSoft;
+  const label = included ? includedLabel : notIncludedLabel;
+
+  return (
+    <View style={pdjToggleStyles.cell}>
+      <Animated.View
+        style={[pdjToggleStyles.track, { backgroundColor: bgSoft }, { transform: [{ translateX }] }]}
+        {...panResponder.panHandlers}
+      >
+        <TouchableOpacity
+          onPress={handleTap}
+          activeOpacity={0.7}
+          style={pdjToggleStyles.touchable}
+          testID="pdj-toggle"
+        >
+          <View style={[pdjToggleStyles.dot, { backgroundColor: bgColor }]} />
+          <Text style={[pdjToggleStyles.label, { color: bgColor }]} numberOfLines={1}>
+            {label}
+          </Text>
+        </TouchableOpacity>
+      </Animated.View>
+      <View style={pdjToggleStyles.hintRow}>
+        <Text style={pdjToggleStyles.hintArrowLeft}>◀</Text>
+        <Text style={pdjToggleStyles.hintArrowRight}>▶</Text>
+      </View>
+    </View>
+  );
+});
+
+const pdjToggleStyles = StyleSheet.create({
+  cell: {
+    width: 90,
+    paddingHorizontal: 2,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  track: {
+    borderRadius: 8,
+    overflow: 'hidden' as const,
+  },
+  touchable: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  label: {
+    fontSize: 10,
+    fontWeight: '600' as const,
+    flexShrink: 1,
+  },
+  hintRow: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    width: '100%' as unknown as number,
+    paddingHorizontal: 8,
+    marginTop: 1,
+  },
+  hintArrowLeft: {
+    fontSize: 6,
+    color: FT.textMuted,
+    opacity: 0.5,
+  },
+  hintArrowRight: {
+    fontSize: 6,
+    color: FT.textMuted,
+    opacity: 0.5,
+  },
+});
 
 
 export default function ReceptionDashboard() {
@@ -39,6 +169,7 @@ export default function ReceptionDashboard() {
     toggleRoomSelection,
     toggleFloorSelection,
     clearSelection,
+    updateRoom,
   } = useHotel();
 
   const unbilledBreakfasts = useMemo(
@@ -130,6 +261,12 @@ export default function ReceptionDashboard() {
     }
   }, [t.rooms.cleaning, t.rooms.inProgress, t.rooms.toValidate, t.rooms.validated, t.rooms.refused]);
 
+  const handleToggleBreakfast = useCallback((roomId: string, newValue: boolean) => {
+    console.log('[Reception] Toggle breakfast for room', roomId, 'to', newValue);
+    updateRoom({ roomId, updates: { breakfastIncluded: newValue } });
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [updateRoom]);
+
   const renderTableRow = useCallback(({ item: room }: { item: Room }) => {
     const isSelected = selectedRoomIds.has(room.id);
     const statusConfig = ROOM_STATUS_CONFIG[room.status];
@@ -146,6 +283,7 @@ export default function ReceptionDashboard() {
           if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }}
         activeOpacity={0.7}
+        testID={`table-row-${room.roomNumber}`}
       >
         <TouchableOpacity
           style={tableStyles.checkCell}
@@ -193,12 +331,12 @@ export default function ReceptionDashboard() {
           <Text style={tableStyles.assignText} numberOfLines={1}>{assignee}</Text>
         </View>
 
-        <View style={tableStyles.pdjCell}>
-          <View style={[tableStyles.pdjDot, { backgroundColor: pdjIncluded ? FT.success : FT.danger }]} />
-          <Text style={[tableStyles.pdjText, { color: pdjIncluded ? FT.success : FT.danger }]}>
-            {pdjIncluded ? 'Inclus' : 'Non'}
-          </Text>
-        </View>
+        <BreakfastSwipeToggle
+          included={pdjIncluded}
+          onToggle={(val) => handleToggleBreakfast(room.id, val)}
+          includedLabel={t.rooms.breakfastIncluded}
+          notIncludedLabel={t.rooms.breakfastNotIncluded}
+        />
 
         <View style={tableStyles.actionsCell}>
           <TouchableOpacity onPress={() => handleRoomPress(room)} style={tableStyles.actionBtn}>
@@ -207,7 +345,7 @@ export default function ReceptionDashboard() {
         </View>
       </TouchableOpacity>
     );
-  }, [selectedRoomIds, handleRoomPress, toggleRoomSelection, getCleaningLabel]);
+  }, [selectedRoomIds, handleRoomPress, toggleRoomSelection, getCleaningLabel, handleToggleBreakfast, t.rooms.breakfastIncluded, t.rooms.breakfastNotIncluded]);
 
   const renderFloorSection = useCallback(
     ({ item }: { item: { floor: number; rooms: Room[] } }) => {
@@ -491,46 +629,47 @@ export default function ReceptionDashboard() {
           }
         />
       ) : (
-        <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={tableStyles.headerScroll}>
-            <View style={tableStyles.headerRow}>
-              <View style={tableStyles.checkCell}>
-                <Text style={tableStyles.headerText}>✓</Text>
-              </View>
-              <View style={tableStyles.roomCell}>
-                <Text style={tableStyles.headerText}>{t.rooms.room}</Text>
-              </View>
-              <View style={tableStyles.statusCell}>
-                <Text style={tableStyles.headerText}>{t.rooms.status}</Text>
-              </View>
-              <View style={tableStyles.cleanCell}>
-                <Text style={tableStyles.headerText}>{t.rooms.cleaning}</Text>
-              </View>
-              <View style={tableStyles.assignCell}>
-                <Text style={tableStyles.headerText}>{t.rooms.assign}</Text>
-              </View>
-              <View style={tableStyles.pdjCell}>
-                <Text style={tableStyles.headerText}>PDJ</Text>
-              </View>
-              <View style={tableStyles.actionsCell}>
-                <Text style={tableStyles.headerText}>{t.common.actions}</Text>
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item.id}
+          renderItem={renderTableRow}
+          contentContainerStyle={styles.tableListContent}
+          showsVerticalScrollIndicator={false}
+          stickyHeaderIndices={[0]}
+          ListHeaderComponent={
+            <View style={tableStyles.stickyHeader}>
+              <View style={tableStyles.headerRow}>
+                <View style={tableStyles.checkCell}>
+                  <Text style={tableStyles.headerText}>✓</Text>
+                </View>
+                <View style={tableStyles.roomCell}>
+                  <Text style={tableStyles.headerText}>{t.rooms.room}</Text>
+                </View>
+                <View style={tableStyles.statusCell}>
+                  <Text style={tableStyles.headerText}>{t.rooms.status}</Text>
+                </View>
+                <View style={tableStyles.cleanCell}>
+                  <Text style={tableStyles.headerText}>{t.rooms.cleaning}</Text>
+                </View>
+                <View style={tableStyles.assignCell}>
+                  <Text style={tableStyles.headerText}>{t.rooms.assignmentCol}</Text>
+                </View>
+                <View style={tableStyles.pdjCell}>
+                  <Text style={tableStyles.headerText}>{t.rooms.breakfastCol}</Text>
+                </View>
+                <View style={tableStyles.actionsCell}>
+                  <Text style={tableStyles.headerText}>{t.common.actions}</Text>
+                </View>
               </View>
             </View>
-          </ScrollView>
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => item.id}
-            renderItem={renderTableRow}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>🏨</Text>
-                <Text style={styles.emptyTitle}>{t.rooms.noRoomFound}</Text>
-              </View>
-            }
-          />
-        </>
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyIcon}>🏨</Text>
+              <Text style={styles.emptyTitle}>{t.rooms.noRoomFound}</Text>
+            </View>
+          }
+        />
       )}
     </View>
   );
@@ -557,32 +696,61 @@ const ftStyles = StyleSheet.create({
 });
 
 const tableStyles = StyleSheet.create({
-  headerScroll: { backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.border },
-  headerRow: { flexDirection: 'row', paddingVertical: 10, paddingHorizontal: 8, minWidth: '100%' as unknown as number },
-  headerText: { fontSize: 10, fontWeight: '700' as const, color: FT.textMuted, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 8, backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.borderLight },
+  stickyHeader: {
+    backgroundColor: FT.surfaceAlt,
+    borderBottomWidth: 2,
+    borderBottomColor: FT.border,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+  },
+  headerText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: FT.textMuted,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    backgroundColor: FT.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: FT.borderLight,
+  },
   rowSelected: { backgroundColor: FT.brandSoft },
   checkCell: { width: 32, alignItems: 'center', justifyContent: 'center' },
-  checkbox: { width: 18, height: 18, borderRadius: 4, borderWidth: 1.5, borderColor: FT.border, justifyContent: 'center', alignItems: 'center' },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: FT.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   checkboxActive: { backgroundColor: FT.brand, borderColor: FT.brand },
   checkMark: { fontSize: 10, color: '#FFF', fontWeight: '700' as const },
-  roomCell: { width: 100, paddingHorizontal: 4 },
+  roomCell: { flex: 1.2, minWidth: 80, paddingHorizontal: 4 },
   roomNum: { fontSize: 15, fontWeight: '800' as const, color: FT.text },
   roomType: { fontSize: 10, color: FT.textMuted },
   roomDates: { fontSize: 9, color: FT.textSec, marginTop: 1 },
-  statusCell: { width: 80, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 4 },
+  statusCell: { flex: 1, minWidth: 70, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 4 },
   statusBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   statusText: { fontSize: 9, fontWeight: '600' as const, color: '#FFF' },
   badgeIcon: { fontSize: 10 },
-  cleanCell: { width: 80, paddingHorizontal: 4 },
+  cleanCell: { flex: 1, minWidth: 70, paddingHorizontal: 4 },
   cleanBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start' as const },
   cleanText: { fontSize: 9, fontWeight: '600' as const },
   emptyDash: { fontSize: 12, color: FT.textMuted },
-  assignCell: { width: 80, paddingHorizontal: 4 },
+  assignCell: { flex: 1, minWidth: 70, paddingHorizontal: 4 },
   assignText: { fontSize: 11, color: FT.textSec },
-  pdjCell: { width: 60, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 4 },
-  pdjDot: { width: 8, height: 8, borderRadius: 4 },
-  pdjText: { fontSize: 10, fontWeight: '600' as const },
+  pdjCell: { width: 90, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 },
   actionsCell: { width: 40, alignItems: 'center' },
   actionBtn: { padding: 4 },
 });
@@ -643,6 +811,7 @@ const styles = StyleSheet.create({
   selActText: { color: '#FFF', fontSize: 11, fontWeight: '600' as const },
 
   listContent: { padding: 14, paddingBottom: 100, gap: 10 },
+  tableListContent: { paddingBottom: 100 },
 
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 8 },
   emptyIcon: { fontSize: 48 },
