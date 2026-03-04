@@ -24,6 +24,7 @@ import {
 import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
 import DeskRoomChip from '@/components/DeskRoomChip';
+import StaffForecastCard from '@/components/StaffForecastCard';
 import { useHotel } from '@/providers/HotelProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { useTheme } from '@/providers/ThemeProvider';
@@ -302,6 +303,8 @@ export default function DirectionDashboard() {
             </View>
           )}
         </View>
+
+        <StaffForecastCard />
 
         <View style={styles.quickActions}>
           <TouchableOpacity style={styles.quickActionBtn} onPress={() => router.push('/history')}>

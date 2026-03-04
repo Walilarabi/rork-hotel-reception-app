@@ -802,6 +802,52 @@ export const BILLING_TYPE_CONFIG: Record<BillingType, { label: string }> = {
   yearly: { label: 'Annuel' },
 };
 
+export interface HousekeepingForecastConfig {
+  id: string;
+  hotelId: string;
+  defaultMaxRoomsPerHousekeeper: number;
+  maxDepartsPerHousekeeper: number | null;
+  departCoefficient: number;
+  stayoverCoefficient: number;
+  useRoomTypeCoefficients: boolean;
+  updatedAt: string;
+}
+
+export const DEFAULT_FORECAST_CONFIG: HousekeepingForecastConfig = {
+  id: 'hfc-default',
+  hotelId: 'hotel-1',
+  defaultMaxRoomsPerHousekeeper: 12,
+  maxDepartsPerHousekeeper: null,
+  departCoefficient: 1.0,
+  stayoverCoefficient: 0.7,
+  useRoomTypeCoefficients: false,
+  updatedAt: new Date().toISOString(),
+};
+
+export interface RoomTypeCoefficient {
+  roomType: RoomType;
+  coefficient: number;
+}
+
+export const DEFAULT_ROOM_TYPE_COEFFICIENTS: RoomTypeCoefficient[] = [
+  { roomType: 'Simple', coefficient: 0.8 },
+  { roomType: 'Double', coefficient: 1.0 },
+  { roomType: 'Suite', coefficient: 1.5 },
+  { roomType: 'Deluxe', coefficient: 1.3 },
+  { roomType: 'Familiale', coefficient: 1.4 },
+];
+
+export interface DayForecast {
+  date: string;
+  dayLabel: string;
+  departures: number;
+  stayovers: number;
+  weightedTotal: number;
+  estimatedStaff: number;
+  availableStaff: number;
+  status: 'ok' | 'warning' | 'critical';
+}
+
 export const LOG_ACTION_CONFIG: Record<LogAction, { label: string; icon: string }> = {
   hotel_created: { label: 'Hôtel créé', icon: '🏨' },
   hotel_updated: { label: 'Hôtel modifié', icon: '✏️' },

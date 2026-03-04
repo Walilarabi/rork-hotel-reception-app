@@ -15,6 +15,7 @@ import FlowtymHeader from '@/components/FlowtymHeader';
 import DeskKPI from '@/components/DeskKPI';
 import DeskTeamCard from '@/components/DeskTeamCard';
 import DeskRoomChip from '@/components/DeskRoomChip';
+import StaffForecastCard from '@/components/StaffForecastCard';
 import { useHotel } from '@/providers/HotelProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { FT } from '@/constants/flowtym';
@@ -261,6 +262,8 @@ export default function GouvernanteScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      <StaffForecastCard />
 
       {housekeepers.length === 0 && (
         <View style={styles.emptyState}>

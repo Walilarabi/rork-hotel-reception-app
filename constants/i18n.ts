@@ -360,6 +360,40 @@ type TranslationKeys = {
     compliance: string;
     complianceDesc: string;
   };
+  forecast: {
+    title: string;
+    staffNeeds: string;
+    today: string;
+    tomorrow: string;
+    dayAfter: string;
+    departures: string;
+    stayovers: string;
+    totalRooms: string;
+    capacityPerEmployee: string;
+    estimatedNeed: string;
+    available: string;
+    employees: string;
+    employee: string;
+    justEnough: string;
+    inReserve: string;
+    shortage: string;
+    weekForecast: string;
+    configure: string;
+    configTitle: string;
+    maxRoomsPerHousekeeper: string;
+    maxDepartsPerHousekeeper: string;
+    departCoefficient: string;
+    stayoverCoefficient: string;
+    useRoomTypeCoefficients: string;
+    roomTypeCoefficients: string;
+    saved: string;
+    configDesc: string;
+    trend: string;
+    trendUp: string;
+    trendDown: string;
+    trendStable: string;
+    noData: string;
+  };
 };
 
 export type Translations = TranslationKeys;
@@ -690,6 +724,40 @@ const fr: Translations = {
     supportMode: 'Mode support',
     activateSupport: 'Activer le mode support',
     exitSupport: 'Quitter le mode support',
+  },
+  forecast: {
+    title: 'Prévision personnel',
+    staffNeeds: 'Besoin femmes de chambre',
+    today: "Aujourd'hui",
+    tomorrow: 'Demain',
+    dayAfter: 'Après-demain',
+    departures: 'Départs',
+    stayovers: 'Recouches',
+    totalRooms: 'Total chambres',
+    capacityPerEmployee: 'Capacité/employée',
+    estimatedNeed: 'Besoin estimé',
+    available: 'Disponible',
+    employees: 'employées',
+    employee: 'employée',
+    justEnough: 'juste assez',
+    inReserve: 'en réserve',
+    shortage: 'manque',
+    weekForecast: 'Prévisions semaine',
+    configure: 'Configurer',
+    configTitle: 'Planification personnel',
+    maxRoomsPerHousekeeper: 'Chambres max par employée',
+    maxDepartsPerHousekeeper: 'Départs max par employée',
+    departCoefficient: 'Coefficient départ',
+    stayoverCoefficient: 'Coefficient recouche',
+    useRoomTypeCoefficients: 'Coefficients par type de chambre',
+    roomTypeCoefficients: 'Coefficients types chambres',
+    saved: 'Configuration sauvegardée',
+    configDesc: 'Paramétrez la charge maximale par femme de chambre',
+    trend: 'Tendance',
+    trendUp: 'employée(s) de plus que hier',
+    trendDown: 'employée(s) de moins que hier',
+    trendStable: 'Stable par rapport à hier',
+    noData: 'Aucune donnée disponible',
   },
   security: {
     title: 'Politique de sécurité et confidentialité',
@@ -1036,6 +1104,40 @@ const en: Translations = {
     activateSupport: 'Activate support mode',
     exitSupport: 'Exit support mode',
   },
+  forecast: {
+    title: 'Staff Forecast',
+    staffNeeds: 'Housekeeper Needs',
+    today: 'Today',
+    tomorrow: 'Tomorrow',
+    dayAfter: 'Day after tomorrow',
+    departures: 'Check-outs',
+    stayovers: 'Stay-overs',
+    totalRooms: 'Total rooms',
+    capacityPerEmployee: 'Capacity/employee',
+    estimatedNeed: 'Estimated need',
+    available: 'Available',
+    employees: 'employees',
+    employee: 'employee',
+    justEnough: 'just enough',
+    inReserve: 'in reserve',
+    shortage: 'shortage',
+    weekForecast: 'Weekly forecast',
+    configure: 'Configure',
+    configTitle: 'Staff Planning',
+    maxRoomsPerHousekeeper: 'Max rooms per housekeeper',
+    maxDepartsPerHousekeeper: 'Max check-outs per housekeeper',
+    departCoefficient: 'Check-out coefficient',
+    stayoverCoefficient: 'Stay-over coefficient',
+    useRoomTypeCoefficients: 'Room type coefficients',
+    roomTypeCoefficients: 'Room type coefficients',
+    saved: 'Configuration saved',
+    configDesc: 'Set max workload per housekeeper',
+    trend: 'Trend',
+    trendUp: 'more employee(s) than yesterday',
+    trendDown: 'fewer employee(s) than yesterday',
+    trendStable: 'Stable compared to yesterday',
+    noData: 'No data available',
+  },
   security: {
     title: 'Security and Privacy Policy',
     intro: 'FLOWTYM is committed to protecting your personal data in accordance with the General Data Protection Regulation (GDPR) and applicable data protection laws.',
@@ -1055,6 +1157,7 @@ const en: Translations = {
 };
 
 const de: Translations = {
+  forecast: { title: 'Personalvorhersage', staffNeeds: 'Zimmermädchen-Bedarf', today: 'Heute', tomorrow: 'Morgen', dayAfter: 'Übermorgen', departures: 'Abreisen', stayovers: 'Übernachtungen', totalRooms: 'Zimmer gesamt', capacityPerEmployee: 'Kapazität/Mitarbeiterin', estimatedNeed: 'Geschätzter Bedarf', available: 'Verfügbar', employees: 'Mitarbeiterinnen', employee: 'Mitarbeiterin', justEnough: 'gerade genug', inReserve: 'in Reserve', shortage: 'Mangel', weekForecast: 'Wochenvorhersage', configure: 'Konfigurieren', configTitle: 'Personalplanung', maxRoomsPerHousekeeper: 'Max. Zimmer pro Mitarbeiterin', maxDepartsPerHousekeeper: 'Max. Abreisen pro Mitarbeiterin', departCoefficient: 'Abreise-Koeffizient', stayoverCoefficient: 'Übernachtungs-Koeffizient', useRoomTypeCoefficients: 'Zimmertyp-Koeffizienten', roomTypeCoefficients: 'Zimmertyp-Koeffizienten', saved: 'Konfiguration gespeichert', configDesc: 'Maximale Arbeitslast pro Zimmermädchen festlegen', trend: 'Trend', trendUp: 'Mitarbeiterin(nen) mehr als gestern', trendDown: 'Mitarbeiterin(nen) weniger als gestern', trendStable: 'Stabil im Vergleich zu gestern', noData: 'Keine Daten verfügbar' },
   common: { save: 'Speichern', cancel: 'Abbrechen', delete: 'Löschen', edit: 'Bearbeiten', add: 'Hinzufügen', search: 'Suchen', filter: 'Filtern', back: 'Zurück', confirm: 'Bestätigen', loading: 'Laden...', error: 'Fehler', success: 'Erfolg', noData: 'Keine Daten', all: 'Alle', today: 'Heute', yesterday: 'Gestern', thisWeek: 'Diese Woche', thisMonth: 'Dieser Monat', thisYear: 'Dieses Jahr', export: 'Exportieren', import: 'Importieren', close: 'Schließen', retry: 'Erneut versuchen', yes: 'Ja', no: 'Nein', seeAll: 'Alle anzeigen', seeDetails: 'Details anzeigen', selected: 'ausgewählt', actions: 'Aktionen', apply: 'Anwenden', reset: 'Zurücksetzen', total: 'Gesamt', unknown: 'Unbekannt', none: 'Keine', ok: 'OK' },
   auth: { login: 'Anmelden', logout: 'Abmelden', logoutConfirm: 'Möchten Sie sich abmelden?', email: 'E-Mail', password: 'Passwort', changePassword: 'Passwort ändern', selectRole: 'Rolle auswählen', demoMode: 'Demo-Modus', demoModeDesc: 'Wählen Sie ein Profil für den Zugang zur Anwendung', smartHotelManagement: 'Intelligentes Hotelmanagement', poweredBy: 'Powered by FLOWTYM' },
   menu: { myProfile: 'Mein Profil', darkMode: 'Dunkelmodus', colorTheme: 'Farbthema', language: 'Sprache', settings: 'Einstellungen', securityPolicy: 'Sicherheitsrichtlinie', logout: 'Abmelden', team: 'Team', teamManagement: 'Teamverwaltung', teamManagementDesc: 'Hotelmitglieder einladen und verwalten', editName: 'Name bearbeiten', chooseTheme: 'Wählen Sie Ihr Thema' },
@@ -1074,6 +1177,7 @@ const de: Translations = {
 };
 
 const es: Translations = {
+  forecast: { title: 'Previsión de personal', staffNeeds: 'Necesidad de camareras', today: 'Hoy', tomorrow: 'Mañana', dayAfter: 'Pasado mañana', departures: 'Salidas', stayovers: 'Estancias', totalRooms: 'Total habitaciones', capacityPerEmployee: 'Capacidad/empleada', estimatedNeed: 'Necesidad estimada', available: 'Disponible', employees: 'empleadas', employee: 'empleada', justEnough: 'justo', inReserve: 'en reserva', shortage: 'falta', weekForecast: 'Previsión semanal', configure: 'Configurar', configTitle: 'Planificación de personal', maxRoomsPerHousekeeper: 'Hab. máx. por empleada', maxDepartsPerHousekeeper: 'Salidas máx. por empleada', departCoefficient: 'Coeficiente salida', stayoverCoefficient: 'Coeficiente estancia', useRoomTypeCoefficients: 'Coeficientes por tipo', roomTypeCoefficients: 'Coeficientes tipo hab.', saved: 'Configuración guardada', configDesc: 'Configure la carga máxima por empleada', trend: 'Tendencia', trendUp: 'empleada(s) más que ayer', trendDown: 'empleada(s) menos que ayer', trendStable: 'Estable respecto a ayer', noData: 'Sin datos disponibles' },
   common: { save: 'Guardar', cancel: 'Cancelar', delete: 'Eliminar', edit: 'Editar', add: 'Añadir', search: 'Buscar', filter: 'Filtrar', back: 'Volver', confirm: 'Confirmar', loading: 'Cargando...', error: 'Error', success: 'Éxito', noData: 'Sin datos', all: 'Todo', today: 'Hoy', yesterday: 'Ayer', thisWeek: 'Esta semana', thisMonth: 'Este mes', thisYear: 'Este año', export: 'Exportar', import: 'Importar', close: 'Cerrar', retry: 'Reintentar', yes: 'Sí', no: 'No', seeAll: 'Ver todo', seeDetails: 'Ver detalles', selected: 'seleccionada(s)', actions: 'Acciones', apply: 'Aplicar', reset: 'Restablecer', total: 'Total', unknown: 'Desconocido', none: 'Ninguno', ok: 'OK' },
   auth: { login: 'Iniciar sesión', logout: 'Cerrar sesión', logoutConfirm: '¿Desea cerrar sesión?', email: 'Correo electrónico', password: 'Contraseña', changePassword: 'Cambiar contraseña', selectRole: 'Seleccionar rol', demoMode: 'Modo demo', demoModeDesc: 'Seleccione un perfil para acceder a la aplicación', smartHotelManagement: 'Gestión Hotelera Inteligente', poweredBy: 'Powered by FLOWTYM' },
   menu: { myProfile: 'Mi perfil', darkMode: 'Modo oscuro', colorTheme: 'Tema de color', language: 'Idioma', settings: 'Ajustes', securityPolicy: 'Política de seguridad', logout: 'Cerrar sesión', team: 'Equipo', teamManagement: 'Gestión del equipo', teamManagementDesc: 'Invitar y gestionar miembros del hotel', editName: 'Editar nombre', chooseTheme: 'Elija su tema' },
@@ -1093,6 +1197,7 @@ const es: Translations = {
 };
 
 const it: Translations = {
+  forecast: { title: 'Previsione personale', staffNeeds: 'Fabbisogno cameriere', today: 'Oggi', tomorrow: 'Domani', dayAfter: 'Dopodomani', departures: 'Partenze', stayovers: 'Soggiorni', totalRooms: 'Camere totali', capacityPerEmployee: 'Capacità/dipendente', estimatedNeed: 'Fabbisogno stimato', available: 'Disponibili', employees: 'dipendenti', employee: 'dipendente', justEnough: 'appena sufficiente', inReserve: 'in riserva', shortage: 'carenza', weekForecast: 'Previsione settimanale', configure: 'Configurare', configTitle: 'Pianificazione personale', maxRoomsPerHousekeeper: 'Camere max per dipendente', maxDepartsPerHousekeeper: 'Partenze max per dipendente', departCoefficient: 'Coefficiente partenza', stayoverCoefficient: 'Coefficiente soggiorno', useRoomTypeCoefficients: 'Coefficienti per tipo', roomTypeCoefficients: 'Coefficienti tipo camera', saved: 'Configurazione salvata', configDesc: 'Imposta il carico massimo per cameriera', trend: 'Tendenza', trendUp: 'dipendente/i in più di ieri', trendDown: 'dipendente/i in meno di ieri', trendStable: 'Stabile rispetto a ieri', noData: 'Nessun dato disponibile' },
   common: { save: 'Salvare', cancel: 'Annullare', delete: 'Eliminare', edit: 'Modificare', add: 'Aggiungere', search: 'Cercare', filter: 'Filtrare', back: 'Indietro', confirm: 'Confermare', loading: 'Caricamento...', error: 'Errore', success: 'Successo', noData: 'Nessun dato', all: 'Tutto', today: 'Oggi', yesterday: 'Ieri', thisWeek: 'Questa settimana', thisMonth: 'Questo mese', thisYear: "Quest'anno", export: 'Esportare', import: 'Importare', close: 'Chiudere', retry: 'Riprovare', yes: 'Sì', no: 'No', seeAll: 'Vedi tutto', seeDetails: 'Vedi dettagli', selected: 'selezionata/e', actions: 'Azioni', apply: 'Applicare', reset: 'Ripristinare', total: 'Totale', unknown: 'Sconosciuto', none: 'Nessuno', ok: 'OK' },
   auth: { login: 'Accedere', logout: 'Disconnettersi', logoutConfirm: 'Vuoi disconnetterti?', email: 'Email', password: 'Password', changePassword: 'Cambiare password', selectRole: 'Selezionare ruolo', demoMode: 'Modalità demo', demoModeDesc: 'Seleziona un profilo per accedere all\'applicazione', smartHotelManagement: 'Gestione Alberghiera Intelligente', poweredBy: 'Powered by FLOWTYM' },
   menu: { myProfile: 'Il mio profilo', darkMode: 'Modalità scura', colorTheme: 'Tema colore', language: 'Lingua', settings: 'Impostazioni', securityPolicy: 'Politica di sicurezza', logout: 'Disconnettersi', team: 'Team', teamManagement: 'Gestione team', teamManagementDesc: "Invitare e gestire i membri dell'hotel", editName: 'Modifica nome', chooseTheme: 'Scegli il tuo tema' },
@@ -1112,6 +1217,7 @@ const it: Translations = {
 };
 
 const pt: Translations = {
+  forecast: { title: 'Previsão de pessoal', staffNeeds: 'Necessidade de empregadas', today: 'Hoje', tomorrow: 'Amanhã', dayAfter: 'Depois de amanhã', departures: 'Saídas', stayovers: 'Estadias', totalRooms: 'Total quartos', capacityPerEmployee: 'Capacidade/empregada', estimatedNeed: 'Necessidade estimada', available: 'Disponível', employees: 'empregadas', employee: 'empregada', justEnough: 'justo', inReserve: 'em reserva', shortage: 'falta', weekForecast: 'Previsão semanal', configure: 'Configurar', configTitle: 'Planeamento de pessoal', maxRoomsPerHousekeeper: 'Quartos máx. por empregada', maxDepartsPerHousekeeper: 'Saídas máx. por empregada', departCoefficient: 'Coeficiente saída', stayoverCoefficient: 'Coeficiente estadia', useRoomTypeCoefficients: 'Coeficientes por tipo', roomTypeCoefficients: 'Coeficientes tipo quarto', saved: 'Configuração guardada', configDesc: 'Defina a carga máxima por empregada', trend: 'Tendência', trendUp: 'empregada(s) a mais que ontem', trendDown: 'empregada(s) a menos que ontem', trendStable: 'Estável em relação a ontem', noData: 'Sem dados disponíveis' },
   common: { save: 'Guardar', cancel: 'Cancelar', delete: 'Eliminar', edit: 'Editar', add: 'Adicionar', search: 'Pesquisar', filter: 'Filtrar', back: 'Voltar', confirm: 'Confirmar', loading: 'Carregando...', error: 'Erro', success: 'Sucesso', noData: 'Sem dados', all: 'Tudo', today: 'Hoje', yesterday: 'Ontem', thisWeek: 'Esta semana', thisMonth: 'Este mês', thisYear: 'Este ano', export: 'Exportar', import: 'Importar', close: 'Fechar', retry: 'Tentar novamente', yes: 'Sim', no: 'Não', seeAll: 'Ver tudo', seeDetails: 'Ver detalhes', selected: 'selecionado(s)', actions: 'Ações', apply: 'Aplicar', reset: 'Reiniciar', total: 'Total', unknown: 'Desconhecido', none: 'Nenhum', ok: 'OK' },
   auth: { login: 'Entrar', logout: 'Sair', logoutConfirm: 'Deseja sair?', email: 'Email', password: 'Senha', changePassword: 'Alterar senha', selectRole: 'Selecionar função', demoMode: 'Modo demo', demoModeDesc: 'Selecione um perfil para aceder à aplicação', smartHotelManagement: 'Gestão Hoteleira Inteligente', poweredBy: 'Powered by FLOWTYM' },
   menu: { myProfile: 'Meu perfil', darkMode: 'Modo escuro', colorTheme: 'Tema de cor', language: 'Idioma', settings: 'Configurações', securityPolicy: 'Política de segurança', logout: 'Sair', team: 'Equipe', teamManagement: 'Gestão da equipe', teamManagementDesc: 'Convidar e gerir membros do hotel', editName: 'Editar nome', chooseTheme: 'Escolha o seu tema' },
@@ -1131,6 +1237,7 @@ const pt: Translations = {
 };
 
 const ar: Translations = {
+  forecast: { title: 'توقعات الموظفين', staffNeeds: 'احتياجات عاملات النظافة', today: 'اليوم', tomorrow: 'غداً', dayAfter: 'بعد غد', departures: 'مغادرات', stayovers: 'إقامات', totalRooms: 'إجمالي الغرف', capacityPerEmployee: 'السعة/موظفة', estimatedNeed: 'الاحتياج المقدر', available: 'متاح', employees: 'موظفات', employee: 'موظفة', justEnough: 'كافي تماماً', inReserve: 'احتياطي', shortage: 'نقص', weekForecast: 'توقعات الأسبوع', configure: 'تكوين', configTitle: 'تخطيط الموظفين', maxRoomsPerHousekeeper: 'أقصى غرف لكل موظفة', maxDepartsPerHousekeeper: 'أقصى مغادرات لكل موظفة', departCoefficient: 'معامل المغادرة', stayoverCoefficient: 'معامل الإقامة', useRoomTypeCoefficients: 'معاملات نوع الغرفة', roomTypeCoefficients: 'معاملات نوع الغرفة', saved: 'تم حفظ التكوين', configDesc: 'حدد الحمل الأقصى لكل عاملة نظافة', trend: 'الاتجاه', trendUp: 'موظفة/ات أكثر من الأمس', trendDown: 'موظفة/ات أقل من الأمس', trendStable: 'مستقر مقارنة بالأمس', noData: 'لا توجد بيانات متاحة' },
   common: { save: 'حفظ', cancel: 'إلغاء', delete: 'حذف', edit: 'تعديل', add: 'إضافة', search: 'بحث', filter: 'تصفية', back: 'رجوع', confirm: 'تأكيد', loading: 'جاري التحميل...', error: 'خطأ', success: 'نجاح', noData: 'لا توجد بيانات', all: 'الكل', today: 'اليوم', yesterday: 'أمس', thisWeek: 'هذا الأسبوع', thisMonth: 'هذا الشهر', thisYear: 'هذه السنة', export: 'تصدير', import: 'استيراد', close: 'إغلاق', retry: 'إعادة المحاولة', yes: 'نعم', no: 'لا', seeAll: 'عرض الكل', seeDetails: 'عرض التفاصيل', selected: 'محدد', actions: 'إجراءات', apply: 'تطبيق', reset: 'إعادة تعيين', total: 'المجموع', unknown: 'غير معروف', none: 'لا شيء', ok: 'حسناً' },
   auth: { login: 'تسجيل الدخول', logout: 'تسجيل الخروج', logoutConfirm: 'هل تريد تسجيل الخروج؟', email: 'البريد الإلكتروني', password: 'كلمة المرور', changePassword: 'تغيير كلمة المرور', selectRole: 'اختيار الدور', demoMode: 'وضع تجريبي', demoModeDesc: 'اختر ملفًا شخصيًا للوصول إلى التطبيق', smartHotelManagement: 'إدارة فندقية ذكية', poweredBy: 'مدعوم من FLOWTYM' },
   menu: { myProfile: 'ملفي الشخصي', darkMode: 'الوضع الداكن', colorTheme: 'نمط الألوان', language: 'اللغة', settings: 'الإعدادات', securityPolicy: 'سياسة الأمان', logout: 'تسجيل الخروج', team: 'الفريق', teamManagement: 'إدارة الفريق', teamManagementDesc: 'دعوة وإدارة أعضاء الفندق', editName: 'تعديل الاسم', chooseTheme: 'اختر نمطك' },

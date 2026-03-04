@@ -19,6 +19,7 @@ import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
 import DeskFloorSection from '@/components/DeskFloorSection';
 import DeskStatusBar from '@/components/DeskStatusBar';
+import StaffForecastCard from '@/components/StaffForecastCard';
 import * as Haptics from 'expo-haptics';
 import { useHotel, useFilteredRooms } from '@/providers/HotelProvider';
 import { PMSStatusIndicator } from '@/components/PMSStatusIndicator';
@@ -621,6 +622,7 @@ export default function ReceptionDashboard() {
           renderItem={renderFloorSection}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={<StaffForecastCard />}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyIcon}>🏨</Text>
