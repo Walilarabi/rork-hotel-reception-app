@@ -327,14 +327,14 @@ export default function HistoryScreen() {
                     </Text>
                   </View>
                 )}
-                {rd.validatedAt && (
+                {rd.validatedAt ? (
                   <View style={styles.roomDetailValidation}>
                     <Shield size={11} color={FT.textMuted} />
                     <Text style={styles.roomDetailValidText}>
                       Validation : {formatTime(rd.validatedAt)}
                     </Text>
                   </View>
-                )}
+                ) : null}
               </View>
             ))}
           </ScrollView>

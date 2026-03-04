@@ -107,9 +107,9 @@ export default function UsersScreen() {
           <View style={[styles.roleBadge, { backgroundColor: roleConfig.color + '20' }]}>
             <Text style={[styles.roleBadgeText, { color: roleConfig.color }]}>{roleConfig.label}</Text>
           </View>
-          {item.hotelName && (
+          {item.hotelName ? (
             <Text style={styles.hotelLabel} numberOfLines={1}>{item.hotelName}</Text>
-          )}
+          ) : null}
           {isPending && (
             <View style={[styles.roleBadge, { backgroundColor: SA.warning + '20' }]}>
               <Clock size={10} color={SA.warning} />
@@ -119,11 +119,11 @@ export default function UsersScreen() {
         </View>
 
         <View style={styles.userCardBottom}>
-          {item.lastLoginAt && (
+          {item.lastLoginAt ? (
             <Text style={styles.lastLogin}>
               Dernière connexion: {new Date(item.lastLoginAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
             </Text>
-          )}
+          ) : null}
           {!item.lastLoginAt && <Text style={styles.lastLogin}>Jamais connecté</Text>}
           <View style={styles.userActions}>
             <TouchableOpacity

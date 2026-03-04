@@ -285,15 +285,15 @@ export default function ChatbotAdminScreen() {
             <Text style={styles.testBtnText}>Tester</Text>
           </TouchableOpacity>
 
-          {testResult && (
+          {testResult ? (
             <View style={styles.testResultCard}>
               <Text style={styles.testResultTitle}>Résultat</Text>
               <Text style={styles.testResultText}>{testResult}</Text>
-              {testMatchId && (
+              {testMatchId ? (
                 <Text style={styles.testResultMeta}>ID: {testMatchId}</Text>
-              )}
+              ) : null}
             </View>
-          )}
+          ) : null}
           <View style={{ height: 40 }} />
         </ScrollView>
       ) : activeTab === 'stats' ? (

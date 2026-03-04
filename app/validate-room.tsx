@@ -111,14 +111,14 @@ export default function ValidateRoomScreen() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {inspection.guestName && (
+        {inspection.guestName ? (
           <View style={styles.guestCard}>
             <View style={styles.guestAvatar}>
               <Text style={styles.guestAvatarText}>{inspection.guestName[0]}</Text>
             </View>
             <Text style={styles.guestNameText}>{inspection.guestName}</Text>
           </View>
-        )}
+        ) : null}
 
         {room?.currentReservation && (
           <View style={styles.datesSection}>

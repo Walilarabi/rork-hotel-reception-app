@@ -181,14 +181,14 @@ export default function TicketDetailScreen() {
               {new Date(task.reportedAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
             </Text>
           </View>
-          {task.assignedTo && (
+          {task.assignedTo ? (
             <View style={styles.infoRow}>
               <User size={14} color={Colors.textMuted} />
               <Text style={styles.infoLabel}>Assigné à</Text>
               <Text style={styles.infoValue}>{task.assignedTo}</Text>
             </View>
-          )}
-          {task.resolvedAt && (
+          ) : null}
+          {task.resolvedAt ? (
             <View style={styles.infoRow}>
               <CheckCircle size={14} color={Colors.success} />
               <Text style={styles.infoLabel}>Résolu le</Text>
@@ -196,7 +196,7 @@ export default function TicketDetailScreen() {
                 {new Date(task.resolvedAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
               </Text>
             </View>
-          )}
+          ) : null}
         </View>
 
         <View style={styles.section}>

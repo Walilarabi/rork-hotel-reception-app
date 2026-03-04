@@ -82,9 +82,9 @@ export default function LogsScreen() {
           </View>
           <Text style={styles.logDetails}>{item.details}</Text>
           <View style={styles.logMeta}>
-            {item.hotelName && (
+            {item.hotelName ? (
               <Text style={styles.logMetaText}>{item.hotelName}</Text>
-            )}
+            ) : null}
             <Text style={styles.logMetaText}>{item.userName}</Text>
             <Text style={styles.logMetaIp}>{item.ipAddress}</Text>
           </View>

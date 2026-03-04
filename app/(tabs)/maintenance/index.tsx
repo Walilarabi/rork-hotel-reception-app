@@ -85,9 +85,9 @@ export default function MaintenanceScreen() {
               {new Date(item.reportedAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
             </Text>
           </View>
-          {item.assignedTo && (
+          {item.assignedTo ? (
             <Text style={[styles.taskAssignee, { color: theme.primaryLight }]}>👤 {item.assignedTo}</Text>
-          )}
+          ) : null}
           <View style={[styles.priorityBadge, { backgroundColor: priorityConfig.color + '12' }]}>
             <AlertTriangle size={10} color={priorityConfig.color} />
             <Text style={[styles.priorityText, { color: priorityConfig.color }]}>{priorityConfig.label}</Text>

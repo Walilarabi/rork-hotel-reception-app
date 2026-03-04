@@ -30,7 +30,7 @@ export default React.memo(function DeskStatusBar({ items, activeLabel, onPress }
             <View style={[styles.dot, { backgroundColor: item.color }]} />
             <Text style={styles.label}>{item.label}</Text>
             <Text style={[styles.count, { color: item.color }]}>{item.count}</Text>
-            {item.sublabel && <Text style={styles.sublabel}>{item.sublabel}</Text>}
+            {item.sublabel ? <Text style={styles.sublabel}>{item.sublabel}</Text> : null}
           </TouchableOpacity>
         );
       })}

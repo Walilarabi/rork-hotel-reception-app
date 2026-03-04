@@ -681,22 +681,22 @@ export default function HotelDetailScreen() {
                   <Text style={styles.mandateDetailLabel}>Référence</Text>
                   <Text style={styles.mandateDetailValue}>{billing.mandateReference}</Text>
                 </View>
-                {billing.mandateCreatedAt && (
+                {billing.mandateCreatedAt ? (
                   <View style={styles.mandateDetailRow}>
                     <Text style={styles.mandateDetailLabel}>Créé le</Text>
                     <Text style={styles.mandateDetailValue}>
                       {new Date(billing.mandateCreatedAt).toLocaleDateString('fr-FR')}
                     </Text>
                   </View>
-                )}
-                {billing.mandateSentAt && (
+                ) : null}
+                {billing.mandateSentAt ? (
                   <View style={styles.mandateDetailRow}>
                     <Text style={styles.mandateDetailLabel}>Envoyé le</Text>
                     <Text style={styles.mandateDetailValue}>
                       {new Date(billing.mandateSentAt).toLocaleDateString('fr-FR')}
                     </Text>
                   </View>
-                )}
+                ) : null}
               </View>
             ) : (
               <Text style={styles.mandateEmpty}>Aucun mandat généré. Renseignez les informations bancaires puis générez le mandat.</Text>
@@ -974,7 +974,7 @@ export default function HotelDetailScreen() {
         </View>
       </View>
 
-      {testResult && (
+      {testResult ? (
         <View style={[styles.testResultBanner, testResult === 'success' ? styles.testResultSuccess : styles.testResultError]}>
           {testResult === 'success' ? (
             <CheckCircle size={16} color={SA.success} />
@@ -985,7 +985,7 @@ export default function HotelDetailScreen() {
             {testResult === 'success' ? 'Connexion établie avec succès' : 'Échec de la connexion'}
           </Text>
         </View>
-      )}
+      ) : null}
 
       <View style={styles.pmsActions}>
         <TouchableOpacity

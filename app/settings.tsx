@@ -130,9 +130,9 @@ export default function SettingsScreen() {
                       {t.roles[currentUser.role] ?? roleConfig?.label ?? currentUser.role}
                     </Text>
                   </View>
-                  {currentUser.hotelName && (
+                  {currentUser.hotelName ? (
                     <Text style={[styles.profileHotel, { color: textSec }]}>{currentUser.hotelName}</Text>
-                  )}
+                  ) : null}
                 </View>
               </View>
             </View>
@@ -283,7 +283,7 @@ export default function SettingsScreen() {
                 <Text style={[styles.statusText, { color: textColor }]}>{getSyncStatusLabel()}</Text>
               </View>
             </View>
-            {pmsSync.lastSyncTime && (
+            {pmsSync.lastSyncTime ? (
               <View style={styles.cardRow}>
                 <Clock size={16} color={textMut} />
                 <Text style={[styles.cardLabel, { color: textSec }]}>{t.settings.lastSync}</Text>
@@ -291,7 +291,7 @@ export default function SettingsScreen() {
                   {new Date(pmsSync.lastSyncTime).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                 </Text>
               </View>
-            )}
+            ) : null}
             {pmsSync.recordsUpdated > 0 && (
               <View style={styles.cardRow}>
                 <CheckCircle size={16} color={textMut} />
@@ -299,12 +299,12 @@ export default function SettingsScreen() {
                 <Text style={[styles.cardValue, { color: textColor }]}>{pmsSync.recordsUpdated}</Text>
               </View>
             )}
-            {pmsSync.errorMessage && (
+            {pmsSync.errorMessage ? (
               <View style={styles.errorBox}>
                 <AlertTriangle size={14} color={Colors.danger} />
                 <Text style={styles.errorText}>{pmsSync.errorMessage}</Text>
               </View>
-            )}
+            ) : null}
             <TouchableOpacity
               style={[styles.syncBtn, isSyncing && styles.syncBtnDisabled]}
               onPress={() => syncPms()}
