@@ -8,6 +8,7 @@ import {
   Alert,
   Platform,
   TextInput,
+  Linking,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import {
@@ -18,6 +19,7 @@ import {
   XCircle,
   Mail,
   User,
+  Phone,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/providers/AuthProvider';
@@ -157,18 +159,32 @@ export default function TeamScreen() {
             )}
           </View>
         </View>
-        {item.id !== currentUser?.id && (
+        <View style={styles.memberActions}>
           <TouchableOpacity
-            style={styles.memberAction}
-            onPress={() => handleToggleStatus(item)}
+            style={styles.phoneBtnSmall}
+            onPress={() => {
+              if (Platform.OS === 'web') {
+                Alert.alert(`${item.firstName} ${item.lastName}`, '+33 6 12 34 56 78');
+              } else {
+                Linking.openURL('tel:+33612345678');
+              }
+            }}
           >
-            {item.active ? (
-              <XCircle size={18} color={Colors.textMuted} />
-            ) : (
-              <CheckCircle size={18} color={Colors.success} />
-            )}
+            <Phone size={14} color={Colors.primary} />
           </TouchableOpacity>
-        )}
+          {item.id !== currentUser?.id && (
+            <TouchableOpacity
+              style={styles.memberAction}
+              onPress={() => handleToggleStatus(item)}
+            >
+              {item.active ? (
+                <XCircle size={18} color={Colors.textMuted} />
+              ) : (
+                <CheckCircle size={18} color={Colors.success} />
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     );
   }, [currentUser, handleToggleStatus]);
@@ -363,6 +379,8 @@ const styles = StyleSheet.create({
   pendingText: { fontSize: 10, color: Colors.warning, fontWeight: '500' as const },
   inactiveBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: Colors.danger + '12' },
   inactiveText: { fontSize: 10, color: Colors.danger, fontWeight: '500' as const },
+  memberActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  phoneBtnSmall: { width: 30, height: 30, borderRadius: 8, backgroundColor: Colors.primarySoft, justifyContent: 'center', alignItems: 'center' },
   memberAction: { padding: 6 },
   emptyState: { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyIcon: { fontSize: 48 },

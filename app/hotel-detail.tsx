@@ -79,7 +79,7 @@ const SA = {
   danger: '#EF4444',
 };
 
-type ActiveTab = 'general' | 'config' | 'pms' | 'billing';
+type ActiveTab = 'general' | 'config' | 'pms' | 'billing' | 'contract';
 
 export default function HotelDetailScreen() {
   const router = useRouter();
@@ -726,6 +726,143 @@ export default function HotelDetailScreen() {
     );
   };
 
+  const [contractStatus, setContractStatus] = useState<'draft' | 'sent' | 'signed'>('draft');
+  const [contractRef, setContractRef] = useState('');
+
+  const handleGenerateContract = useCallback(() => {
+    if (!name.trim()) {
+      Alert.alert('Erreur', 'Le nom de l\'hôtel est requis pour générer un contrat.');
+      return;
+    }
+    const ref = `CTR-${existingHotel?.id?.toUpperCase().slice(0, 6) ?? 'NEW'}-${new Date().toISOString().slice(0, 7).replace('-', '')}`;
+    setContractRef(ref);
+    setContractStatus('draft');
+    Alert.alert('Contrat généré', `Référence: ${ref}\n\nLe contrat a été généré en brouillon. Vous pouvez l\'envoyer pour signature.`);
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [name, existingHotel]);
+
+  const handleSendContract = useCallback(() => {
+    if (!email.trim()) {
+      Alert.alert('Erreur', 'L\'email de contact est requis.');
+      return;
+    }
+    setContractStatus('sent');
+    Alert.alert('Contrat envoyé', `Le contrat a été envoyé à ${email} pour signature électronique.`);
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [email]);
+
+  const handleSignContract = useCallback(() => {
+    setContractStatus('signed');
+    Alert.alert('Contrat signé', 'Le contrat a été marqué comme signé.');
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, []);
+
+  const renderContractTab = () => {
+    const contractStatusConfig = {
+      draft: { label: 'Brouillon', color: SA.warning, icon: '📝' },
+      sent: { label: 'Envoyé', color: '#3B82F6', icon: '📩' },
+      signed: { label: 'Signé', color: SA.success, icon: '✅' },
+    };
+    const statusCfg = contractStatusConfig[contractStatus];
+
+    return (
+      <>
+        <View style={styles.configHeader}>
+          <View style={[styles.configIconContainer, { backgroundColor: '#6B5CE715' }]}>
+            <FileText size={24} color="#6B5CE7" />
+          </View>
+          <Text style={styles.formTitle}>Contrat</Text>
+          <Text style={styles.configSubtitle}>
+            Générez et gérez le contrat entre l{"'"}hôtel et FLOWTYM
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Informations du contrat</Text>
+          <View style={styles.contractInfoCard}>
+            <View style={styles.contractInfoRow}>
+              <Text style={styles.contractInfoLabel}>Hôtel</Text>
+              <Text style={styles.contractInfoValue}>{name || '-'}</Text>
+            </View>
+            <View style={styles.contractInfoRow}>
+              <Text style={styles.contractInfoLabel}>Plan</Text>
+              <Text style={styles.contractInfoValue}>{SUBSCRIPTION_PLAN_CONFIG[plan].label}</Text>
+            </View>
+            <View style={styles.contractInfoRow}>
+              <Text style={styles.contractInfoLabel}>Chambres max</Text>
+              <Text style={styles.contractInfoValue}>{SUBSCRIPTION_PLAN_CONFIG[plan].maxRooms}</Text>
+            </View>
+            <View style={styles.contractInfoRow}>
+              <Text style={styles.contractInfoLabel}>Début</Text>
+              <Text style={styles.contractInfoValue}>{subStart || '-'}</Text>
+            </View>
+            <View style={styles.contractInfoRow}>
+              <Text style={styles.contractInfoLabel}>Fin</Text>
+              <Text style={styles.contractInfoValue}>{subEnd || '-'}</Text>
+            </View>
+            <View style={styles.contractInfoRow}>
+              <Text style={styles.contractInfoLabel}>Contact</Text>
+              <Text style={styles.contractInfoValue}>{email || '-'}</Text>
+            </View>
+            {billing.legalRepresentative ? (
+              <View style={styles.contractInfoRow}>
+                <Text style={styles.contractInfoLabel}>Représentant</Text>
+                <Text style={styles.contractInfoValue}>{billing.legalRepresentative}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {contractRef ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Statut du contrat</Text>
+            <View style={styles.mandateCard}>
+              <View style={styles.mandateHeader}>
+                <FileText size={20} color={statusCfg.color} />
+                <View style={styles.mandateInfo}>
+                  <Text style={styles.mandateTitle}>Contrat FLOWTYM</Text>
+                  <View style={[styles.mandateStatusBadge, { backgroundColor: statusCfg.color + '15' }]}>
+                    <Text style={styles.mandateStatusIcon}>{statusCfg.icon}</Text>
+                    <Text style={[styles.mandateStatusText, { color: statusCfg.color }]}>{statusCfg.label}</Text>
+                  </View>
+                </View>
+              </View>
+              <View style={styles.mandateDetails}>
+                <View style={styles.mandateDetailRow}>
+                  <Text style={styles.mandateDetailLabel}>Référence</Text>
+                  <Text style={styles.mandateDetailValue}>{contractRef}</Text>
+                </View>
+                <View style={styles.mandateDetailRow}>
+                  <Text style={styles.mandateDetailLabel}>Date</Text>
+                  <Text style={styles.mandateDetailValue}>{new Date().toLocaleDateString('fr-FR')}</Text>
+                </View>
+              </View>
+              <View style={styles.mandateActions}>
+                {contractStatus === 'draft' && (
+                  <TouchableOpacity style={[styles.generateBtn, { backgroundColor: '#3B82F6' }]} onPress={handleSendContract}>
+                    <Send size={16} color="#FFFFFF" />
+                    <Text style={styles.generateBtnText}>Envoyer pour signature</Text>
+                  </TouchableOpacity>
+                )}
+                {contractStatus === 'sent' && (
+                  <TouchableOpacity style={[styles.generateBtn, { backgroundColor: SA.success }]} onPress={handleSignContract}>
+                    <CheckCircle size={16} color="#FFFFFF" />
+                    <Text style={styles.generateBtnText}>Marquer comme signé</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </View>
+        ) : null}
+
+        <TouchableOpacity style={styles.saveBtn} onPress={handleGenerateContract}>
+          <FileText size={18} color="#FFFFFF" />
+          <Text style={styles.saveBtnText}>{contractRef ? 'Régénérer le contrat' : 'Générer le contrat'}</Text>
+        </TouchableOpacity>
+      </>
+    );
+  };
+
   const pmsTypes = Object.entries(PMS_TYPE_CONFIG) as [PMSType, { label: string }][];
 
   const renderPmsTab = () => (
@@ -918,6 +1055,15 @@ export default function HotelDetailScreen() {
             <Text style={[styles.tab_text_inner, activeTab === 'billing' && styles.tabTextActive]}>Factu.</Text>
           </TouchableOpacity>
         )}
+        {isEditing && (
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'contract' && styles.tabActive]}
+            onPress={() => setActiveTab('contract')}
+          >
+            <FileText size={15} color={activeTab === 'contract' ? SA.accent : SA.textMuted} />
+            <Text style={[styles.tab_text_inner, activeTab === 'contract' && styles.tabTextActive]}>Contrat</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -925,6 +1071,7 @@ export default function HotelDetailScreen() {
         {activeTab === 'config' && renderConfigTab()}
         {activeTab === 'pms' && renderPmsTab()}
         {activeTab === 'billing' && renderBillingTab()}
+        {activeTab === 'contract' && renderContractTab()}
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
@@ -1110,4 +1257,8 @@ const styles = StyleSheet.create({
   mandateDetailValue: { fontSize: 12, fontWeight: '600' as const, color: SA.text },
   mandateEmpty: { fontSize: 12, color: SA.textMuted, lineHeight: 18 },
   mandateActions: { gap: 8 },
+  contractInfoCard: { backgroundColor: SA.surface, borderRadius: 14, borderWidth: 1, borderColor: SA.border, padding: 16, gap: 12 },
+  contractInfoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
+  contractInfoLabel: { fontSize: 12, color: SA.textMuted, fontWeight: '500' as const },
+  contractInfoValue: { fontSize: 13, fontWeight: '600' as const, color: SA.text },
 });

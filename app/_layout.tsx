@@ -99,6 +99,7 @@ function RootLayoutNav() {
       <Stack.Screen name="breakfast-config" options={{ presentation: 'modal', title: 'Config. PDJ' }} />
       <Stack.Screen name="breakfast-stats" options={{ title: 'Stats PDJ' }} />
       <Stack.Screen name="history" options={{ title: 'Historique' }} />
+      <Stack.Screen name="client-review" options={{ headerShown: false, presentation: 'modal' }} />
     </Stack>
   );
 }

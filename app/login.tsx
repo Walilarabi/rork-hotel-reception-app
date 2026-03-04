@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { ChevronRight, Shield, Building2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAuth, AuthUser } from '@/providers/AuthProvider';
+import { useTheme } from '@/providers/ThemeProvider';
 import { ADMIN_ROLE_CONFIG, AdminUserRole } from '@/constants/types';
 
 const ROLE_ICONS: Record<AdminUserRole, string> = {
@@ -29,6 +30,7 @@ const ROLE_ICONS: Record<AdminUserRole, string> = {
 export default function LoginScreen() {
   const router = useRouter();
   const { demoUsers, login } = useAuth();
+  const { loadUserPrefs } = useTheme();
   const [selectedUser, setSelectedUser] = useState<AuthUser | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -47,8 +49,9 @@ export default function LoginScreen() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     login(user, {
-      onSuccess: () => {
+      onSuccess: async () => {
         console.log('[Login] Success, role:', user.role);
+        await loadUserPrefs(user.id);
         if (user.role === 'super_admin' || user.role === 'support') {
           router.replace('/(superadmin)/dashboard');
         } else if (user.role === 'femme_de_chambre') {
@@ -66,7 +69,7 @@ export default function LoginScreen() {
         }
       },
     });
-  }, [login, router]);
+  }, [login, router, loadUserPrefs]);
 
   const groupedByHotel = demoUsers.reduce<Record<string, AuthUser[]>>((acc, user) => {
     const key = user.hotelName ?? 'Plateforme FLOWTYM';

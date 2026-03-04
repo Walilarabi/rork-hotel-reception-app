@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, Platform, Alert } from 'react-native';
+import { Phone } from 'lucide-react-native';
 import { FT } from '@/constants/flowtym';
 
 interface DeskTeamCardProps {
@@ -10,6 +11,7 @@ interface DeskTeamCardProps {
   loadCurrent: number;
   loadMax: number;
   roomChips?: React.ReactNode;
+  phone?: string;
 }
 
 export default React.memo(function DeskTeamCard({
@@ -20,6 +22,7 @@ export default React.memo(function DeskTeamCard({
   loadCurrent,
   loadMax,
   roomChips,
+  phone,
 }: DeskTeamCardProps) {
   const loadColor = loadPercent > 80 ? FT.danger : loadPercent > 50 ? FT.warning : FT.success;
   const initials = name.split(' ').map((n) => n.charAt(0)).join('').slice(0, 2);
@@ -35,11 +38,28 @@ export default React.memo(function DeskTeamCard({
           <Text style={styles.details}>{details}</Text>
           {metrics && <Text style={styles.metrics}>{metrics}</Text>}
         </View>
-        <View style={styles.loadContainer}>
-          <View style={styles.loadBarBg}>
-            <View style={[styles.loadBarFill, { width: `${Math.min(100, loadPercent)}%`, backgroundColor: loadColor }]} />
+        <View style={styles.rightSection}>
+          {phone ? (
+            <TouchableOpacity
+              style={styles.phoneBtn}
+              onPress={() => {
+                if (Platform.OS === 'web') {
+                  Alert.alert(name, phone);
+                } else {
+                  Linking.openURL(`tel:${phone}`);
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <Phone size={14} color={FT.brand} />
+            </TouchableOpacity>
+          ) : null}
+          <View style={styles.loadContainer}>
+            <View style={styles.loadBarBg}>
+              <View style={[styles.loadBarFill, { width: `${Math.min(100, loadPercent)}%`, backgroundColor: loadColor }]} />
+            </View>
+            <Text style={[styles.loadText, { color: loadColor }]}>{loadCurrent}/{loadMax}</Text>
           </View>
-          <Text style={[styles.loadText, { color: loadColor }]}>{loadCurrent}/{loadMax}</Text>
         </View>
       </View>
       {roomChips && <View style={styles.chipsRow}>{roomChips}</View>}
@@ -91,6 +111,19 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: FT.textSec,
     fontWeight: '500' as const,
+  },
+  rightSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  phoneBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: FT.brandSoft,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loadContainer: {
     alignItems: 'flex-end',

@@ -8,9 +8,10 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { DoorOpen, UserPlus, X, ChevronDown, Coffee, Filter, MoreHorizontal } from 'lucide-react-native';
+import { DoorOpen, UserPlus, X, ChevronDown, Coffee, Filter, MoreHorizontal, List, LayoutGrid, Eye } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
 import DeskFloorSection from '@/components/DeskFloorSection';
@@ -45,11 +46,14 @@ export default function ReceptionDashboard() {
     [breakfastOrders]
   );
 
-  const [statusFilter] = useState<RoomStatus | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<RoomStatus | 'all'>('all');
   const [floorFilter, setFloorFilter] = useState<number | 'all'>('all');
   const [badgeFilter] = useState<ClientBadge | 'all'>('all');
   const [searchText] = useState('');
   const [showFloorDropdown, setShowFloorDropdown] = useState(false);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [viewMode, setViewMode] = useState<'plan' | 'table'>('plan');
 
   const { filtered, floors, total } = useFilteredRooms({
     status: statusFilter,
@@ -81,10 +85,10 @@ export default function ReceptionDashboard() {
       Alert.alert(t.reception.actionImpossible, t.reception.noOccupiedSelected);
       return;
     }
-    Alert.alert('Confirmer le départ', `Confirmer le départ pour ${selectedOccupied} chambre(s) ?`, [
-      { text: 'Annuler', style: 'cancel' },
+    Alert.alert(t.reception.confirmDeparture, t.reception.confirmDepartureMsg, [
+      { text: t.common.cancel, style: 'cancel' },
       {
-        text: 'Confirmer',
+        text: t.common.confirm,
         style: 'destructive',
         onPress: () => {
           const ids = rooms.filter((r) => selectedRoomIds.has(r.id) && r.status === 'occupe').map((r) => r.id);
@@ -114,6 +118,96 @@ export default function ReceptionDashboard() {
       }))
       .sort((a, b) => a.floor - b.floor);
   }, [filtered]);
+
+  const getCleaningLabel = useCallback((status: string) => {
+    switch (status) {
+      case 'none': return t.rooms.cleaning;
+      case 'en_cours': return t.rooms.inProgress;
+      case 'nettoyee': return t.rooms.toValidate;
+      case 'validee': return t.rooms.validated;
+      case 'refusee': return t.rooms.refused;
+      default: return '';
+    }
+  }, [t.rooms.cleaning, t.rooms.inProgress, t.rooms.toValidate, t.rooms.validated, t.rooms.refused]);
+
+  const renderTableRow = useCallback(({ item: room }: { item: Room }) => {
+    const isSelected = selectedRoomIds.has(room.id);
+    const statusConfig = ROOM_STATUS_CONFIG[room.status];
+    const cleanConfig = CLEANING_STATUS_CONFIG[room.cleaningStatus];
+    const assignee = room.cleaningAssignee ?? '-';
+    const pdjIncluded = room.breakfastIncluded;
+
+    return (
+      <TouchableOpacity
+        style={[tableStyles.row, isSelected && tableStyles.rowSelected]}
+        onPress={() => handleRoomPress(room)}
+        onLongPress={() => {
+          toggleRoomSelection(room.id);
+          if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        }}
+        activeOpacity={0.7}
+      >
+        <TouchableOpacity
+          style={tableStyles.checkCell}
+          onPress={() => {
+            toggleRoomSelection(room.id);
+            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
+        >
+          <View style={[tableStyles.checkbox, isSelected && tableStyles.checkboxActive]}>
+            {isSelected && <Text style={tableStyles.checkMark}>✓</Text>}
+          </View>
+        </TouchableOpacity>
+
+        <View style={tableStyles.roomCell}>
+          <Text style={tableStyles.roomNum}>{room.roomNumber}</Text>
+          <Text style={tableStyles.roomType}>{room.roomType}</Text>
+          {room.currentReservation && (
+            <Text style={tableStyles.roomDates} numberOfLines={1}>
+              ↓ {room.currentReservation.checkInDate.slice(5)} ↑ {room.currentReservation.checkOutDate.slice(5)}
+            </Text>
+          )}
+        </View>
+
+        <View style={tableStyles.statusCell}>
+          <View style={[tableStyles.statusBadge, { backgroundColor: statusConfig.color }]}>
+            <Text style={tableStyles.statusText}>{statusConfig.label}</Text>
+          </View>
+          {room.clientBadge === 'vip' && <Text style={tableStyles.badgeIcon}>⭐</Text>}
+          {room.clientBadge === 'prioritaire' && <Text style={tableStyles.badgeIcon}>⚡</Text>}
+        </View>
+
+        <View style={tableStyles.cleanCell}>
+          {room.cleaningStatus !== 'none' ? (
+            <View style={[tableStyles.cleanBadge, { backgroundColor: cleanConfig.color + '18' }]}>
+              <Text style={[tableStyles.cleanText, { color: cleanConfig.color }]}>
+                {getCleaningLabel(room.cleaningStatus)}
+              </Text>
+            </View>
+          ) : (
+            <Text style={tableStyles.emptyDash}>-</Text>
+          )}
+        </View>
+
+        <View style={tableStyles.assignCell}>
+          <Text style={tableStyles.assignText} numberOfLines={1}>{assignee}</Text>
+        </View>
+
+        <View style={tableStyles.pdjCell}>
+          <View style={[tableStyles.pdjDot, { backgroundColor: pdjIncluded ? FT.success : FT.danger }]} />
+          <Text style={[tableStyles.pdjText, { color: pdjIncluded ? FT.success : FT.danger }]}>
+            {pdjIncluded ? 'Inclus' : 'Non'}
+          </Text>
+        </View>
+
+        <View style={tableStyles.actionsCell}>
+          <TouchableOpacity onPress={() => handleRoomPress(room)} style={tableStyles.actionBtn}>
+            <Eye size={14} color={FT.brand} />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  }, [selectedRoomIds, handleRoomPress, toggleRoomSelection, getCleaningLabel]);
 
   const renderFloorSection = useCallback(
     ({ item }: { item: { floor: number; rooms: Room[] } }) => {
@@ -171,9 +265,9 @@ export default function ReceptionDashboard() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Stack.Screen options={{ title: 'Réception' }} />
+        <Stack.Screen options={{ title: t.reception.title }} />
         <ActivityIndicator size="large" color={FT.brand} />
-        <Text style={styles.loadingText}>Chargement...</Text>
+        <Text style={styles.loadingText}>{t.common.loading}...</Text>
       </View>
     );
   }
@@ -189,17 +283,16 @@ export default function ReceptionDashboard() {
             <FlowtymHeader
               hotelName="Grand Hôtel"
               navItems={[
-                { label: 'Statistiques', icon: '📊' },
-                { label: 'Alertes', icon: '🔔', badge: unbilledBreakfasts.length },
+                { label: t.direction.todayAlerts, icon: '🔔', badge: unbilledBreakfasts.length },
               ]}
               rightItems={
                 <View style={styles.headerRight}>
                   {unbilledBreakfasts.length > 0 && (
                     <TouchableOpacity style={styles.billingBtn} onPress={() => {
                       Alert.alert(
-                        `${unbilledBreakfasts.length} PDJ à facturer`,
+                        `${unbilledBreakfasts.length} PDJ ${t.reception.billing}`,
                         unbilledBreakfasts.map((o) => `Ch. ${o.roomNumber} — ${o.personCount} pers.`).join('\n'),
-                        [{ text: 'OK' }]
+                        [{ text: t.common.ok }]
                       );
                     }}>
                       <Coffee size={16} color="#FFF" />
@@ -220,18 +313,91 @@ export default function ReceptionDashboard() {
 
       <View style={styles.dashHeader}>
         <View>
-          <Text style={styles.dashTitle}>Housekeeping <Text style={styles.dashTitleLight}>Dashboard</Text></Text>
+          <Text style={styles.dashTitle}>{t.reception.dashboard}</Text>
         </View>
         <View style={styles.dashActions}>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Filter size={16} color={FT.textSec} />
-            <Text style={styles.iconBtnText}>{t.reception.filters}</Text>
+          <TouchableOpacity
+            style={[styles.viewToggle, viewMode === 'plan' && styles.viewToggleActive]}
+            onPress={() => setViewMode('plan')}
+          >
+            <LayoutGrid size={14} color={viewMode === 'plan' ? '#FFF' : FT.textSec} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
-            <MoreHorizontal size={16} color={FT.textSec} />
+          <TouchableOpacity
+            style={[styles.viewToggle, viewMode === 'table' && styles.viewToggleActive]}
+            onPress={() => setViewMode('table')}
+          >
+            <List size={14} color={viewMode === 'table' ? '#FFF' : FT.textSec} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => { setShowFilterPanel(!showFilterPanel); setShowMoreMenu(false); }}>
+            <Filter size={16} color={showFilterPanel ? FT.brand : FT.textSec} />
+            <Text style={[styles.iconBtnText, showFilterPanel && { color: FT.brand }]}>{t.reception.filters}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => { setShowMoreMenu(!showMoreMenu); setShowFilterPanel(false); }}>
+            <MoreHorizontal size={16} color={showMoreMenu ? FT.brand : FT.textSec} />
           </TouchableOpacity>
         </View>
       </View>
+
+      {showFilterPanel && (
+        <View style={styles.filterPanel}>
+          <Text style={styles.filterPanelTitle}>{t.reception.filters}</Text>
+          <View style={styles.filterChipRow}>
+            <TouchableOpacity
+              style={[styles.filterChipBtn, statusFilter === 'all' && styles.filterChipBtnActive]}
+              onPress={() => setStatusFilter('all')}
+            >
+              <Text style={[styles.filterChipBtnText, statusFilter === 'all' && styles.filterChipBtnTextActive]}>{t.common.all}</Text>
+            </TouchableOpacity>
+            {(['libre', 'occupe', 'depart', 'recouche', 'hors_service'] as const).map((st) => (
+              <TouchableOpacity
+                key={st}
+                style={[styles.filterChipBtn, statusFilter === st && { backgroundColor: ROOM_STATUS_CONFIG[st].color }]}
+                onPress={() => setStatusFilter(st === statusFilter ? 'all' : st)}
+              >
+                <Text style={[styles.filterChipBtnText, statusFilter === st && { color: '#FFF' }]}>{ROOM_STATUS_CONFIG[st].label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={styles.filterChipRow}>
+            <TouchableOpacity
+              style={[styles.filterChipBtn, floorFilter === 'all' && styles.filterChipBtnActive]}
+              onPress={() => setFloorFilter('all')}
+            >
+              <Text style={[styles.filterChipBtnText, floorFilter === 'all' && styles.filterChipBtnTextActive]}>{t.rooms.allFloors}</Text>
+            </TouchableOpacity>
+            {floors.map((f) => (
+              <TouchableOpacity
+                key={f}
+                style={[styles.filterChipBtn, floorFilter === f && styles.filterChipBtnActive]}
+                onPress={() => setFloorFilter(f === floorFilter ? 'all' : f)}
+              >
+                <Text style={[styles.filterChipBtnText, floorFilter === f && styles.filterChipBtnTextActive]}>{t.rooms.floorN} {f}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {showMoreMenu && (
+        <View style={styles.moreMenu}>
+          <TouchableOpacity style={styles.moreMenuItem} onPress={() => { router.push('/history'); setShowMoreMenu(false); }}>
+            <Text style={styles.moreMenuIcon}>📋</Text>
+            <Text style={styles.moreMenuText}>{t.direction.historyLabel}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.moreMenuItem} onPress={() => { router.push('/breakfast-stats'); setShowMoreMenu(false); }}>
+            <Text style={styles.moreMenuIcon}>☕</Text>
+            <Text style={styles.moreMenuText}>{t.breakfast.title}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.moreMenuItem} onPress={() => { router.push('/economat'); setShowMoreMenu(false); }}>
+            <Text style={styles.moreMenuIcon}>📦</Text>
+            <Text style={styles.moreMenuText}>{t.economat.title}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.moreMenuItem} onPress={() => { router.push('/settings'); setShowMoreMenu(false); }}>
+            <Text style={styles.moreMenuIcon}>⚙️</Text>
+            <Text style={styles.moreMenuText}>{t.menu.settings}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <View style={styles.filterRow}>
         <TouchableOpacity
@@ -246,24 +412,18 @@ export default function ReceptionDashboard() {
         <TouchableOpacity style={styles.filterDrop}>
           <Text style={styles.filterDropText}>🗓 {today}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.filterDrop}>
-          <Text style={styles.filterDropText}>👥 {t.reception.occupiedRooms}</Text>
-        </TouchableOpacity>
         <View style={styles.roomCounter}>
-          <Text style={styles.roomCounterText}>🏠 {filtered.length} / {total} chambres</Text>
+          <Text style={styles.roomCounterText}>🏠 {filtered.length} / {total} {t.rooms.rooms}</Text>
         </View>
-        <TouchableOpacity style={styles.filterDrop}>
-          <Text style={styles.filterDropText}>📊 Reports</Text>
-        </TouchableOpacity>
       </View>
 
       <View style={styles.statusRow}>
         <DeskStatusBar
           items={[
             { label: t.reception.toDo, count: statusCounts.depart + statusCounts.recouche, color: FT.roomOrange, sublabel: `${statusCounts.depart} ${t.reception.departuresOfDay}` },
-            { label: 'Urgentes', count: rooms.filter((r) => r.clientBadge === 'prioritaire').length, color: FT.roomRed, sublabel: 'Attente du jour' },
-            { label: 'Retards', count: rooms.filter((r) => r.cleaningStatus === 'refusee').length, color: FT.danger, sublabel: 'À refaire' },
-            { label: 'Hors service', count: statusCounts.hors_service, color: FT.roomGray, sublabel: "Hors d'service" },
+            { label: t.reception.urgent, count: rooms.filter((r) => r.clientBadge === 'prioritaire').length, color: FT.roomRed, sublabel: '' },
+            { label: t.reception.delays, count: rooms.filter((r) => r.cleaningStatus === 'refusee').length, color: FT.danger, sublabel: '' },
+            { label: t.rooms.outOfService, count: statusCounts.hors_service, color: FT.roomGray, sublabel: '' },
           ]}
         />
       </View>
@@ -316,21 +476,62 @@ export default function ReceptionDashboard() {
         </View>
       )}
 
-      <FlatList
-        data={groupedByFloor}
-        keyExtractor={(item) => `floor-${item.floor}`}
-        renderItem={renderFloorSection}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🏨</Text>
-            <Text style={styles.emptyTitle}>{t.rooms.noRoomFound}</Text>
-          </View>
-        }
-      />
-
-
+      {viewMode === 'plan' ? (
+        <FlatList
+          data={groupedByFloor}
+          keyExtractor={(item) => `floor-${item.floor}`}
+          renderItem={renderFloorSection}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyIcon}>🏨</Text>
+              <Text style={styles.emptyTitle}>{t.rooms.noRoomFound}</Text>
+            </View>
+          }
+        />
+      ) : (
+        <>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={tableStyles.headerScroll}>
+            <View style={tableStyles.headerRow}>
+              <View style={tableStyles.checkCell}>
+                <Text style={tableStyles.headerText}>✓</Text>
+              </View>
+              <View style={tableStyles.roomCell}>
+                <Text style={tableStyles.headerText}>{t.rooms.room}</Text>
+              </View>
+              <View style={tableStyles.statusCell}>
+                <Text style={tableStyles.headerText}>{t.rooms.status}</Text>
+              </View>
+              <View style={tableStyles.cleanCell}>
+                <Text style={tableStyles.headerText}>{t.rooms.cleaning}</Text>
+              </View>
+              <View style={tableStyles.assignCell}>
+                <Text style={tableStyles.headerText}>{t.rooms.assign}</Text>
+              </View>
+              <View style={tableStyles.pdjCell}>
+                <Text style={tableStyles.headerText}>PDJ</Text>
+              </View>
+              <View style={tableStyles.actionsCell}>
+                <Text style={tableStyles.headerText}>{t.common.actions}</Text>
+              </View>
+            </View>
+          </ScrollView>
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => item.id}
+            renderItem={renderTableRow}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyIcon}>🏨</Text>
+                <Text style={styles.emptyTitle}>{t.rooms.noRoomFound}</Text>
+              </View>
+            }
+          />
+        </>
+      )}
     </View>
   );
 }
@@ -355,6 +556,37 @@ const ftStyles = StyleSheet.create({
   roomAvatarText: { fontSize: 8, fontWeight: '700' as const, color: '#FFF' },
 });
 
+const tableStyles = StyleSheet.create({
+  headerScroll: { backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.border },
+  headerRow: { flexDirection: 'row', paddingVertical: 10, paddingHorizontal: 8, minWidth: '100%' as unknown as number },
+  headerText: { fontSize: 10, fontWeight: '700' as const, color: FT.textMuted, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 8, backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.borderLight },
+  rowSelected: { backgroundColor: FT.brandSoft },
+  checkCell: { width: 32, alignItems: 'center', justifyContent: 'center' },
+  checkbox: { width: 18, height: 18, borderRadius: 4, borderWidth: 1.5, borderColor: FT.border, justifyContent: 'center', alignItems: 'center' },
+  checkboxActive: { backgroundColor: FT.brand, borderColor: FT.brand },
+  checkMark: { fontSize: 10, color: '#FFF', fontWeight: '700' as const },
+  roomCell: { width: 100, paddingHorizontal: 4 },
+  roomNum: { fontSize: 15, fontWeight: '800' as const, color: FT.text },
+  roomType: { fontSize: 10, color: FT.textMuted },
+  roomDates: { fontSize: 9, color: FT.textSec, marginTop: 1 },
+  statusCell: { width: 80, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 4 },
+  statusBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  statusText: { fontSize: 9, fontWeight: '600' as const, color: '#FFF' },
+  badgeIcon: { fontSize: 10 },
+  cleanCell: { width: 80, paddingHorizontal: 4 },
+  cleanBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start' as const },
+  cleanText: { fontSize: 9, fontWeight: '600' as const },
+  emptyDash: { fontSize: 12, color: FT.textMuted },
+  assignCell: { width: 80, paddingHorizontal: 4 },
+  assignText: { fontSize: 11, color: FT.textSec },
+  pdjCell: { width: 60, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 4 },
+  pdjDot: { width: 8, height: 8, borderRadius: 4 },
+  pdjText: { fontSize: 10, fontWeight: '600' as const },
+  actionsCell: { width: 40, alignItems: 'center' },
+  actionBtn: { padding: 4 },
+});
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: FT.bg },
   loadingContainer: { flex: 1, backgroundColor: FT.bg, justifyContent: 'center', alignItems: 'center', gap: 12 },
@@ -366,10 +598,24 @@ const styles = StyleSheet.create({
 
   dashHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   dashTitle: { fontSize: 20, fontWeight: '800' as const, color: FT.text },
-  dashTitleLight: { fontWeight: '400' as const, color: FT.textSec },
-  dashActions: { flexDirection: 'row', gap: 8 },
+  dashActions: { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  viewToggle: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center', backgroundColor: FT.surfaceAlt, borderWidth: 1, borderColor: FT.border },
+  viewToggleActive: { backgroundColor: FT.brand, borderColor: FT.brand },
   iconBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: FT.surfaceAlt, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: FT.border },
   iconBtnText: { fontSize: 12, color: FT.textSec, fontWeight: '500' as const },
+
+  filterPanel: { backgroundColor: FT.surface, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: FT.border, gap: 8 },
+  filterPanelTitle: { fontSize: 12, fontWeight: '700' as const, color: FT.textSec, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
+  filterChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  filterChipBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: FT.surfaceAlt, borderWidth: 1, borderColor: FT.border },
+  filterChipBtnActive: { backgroundColor: FT.brand, borderColor: FT.brand },
+  filterChipBtnText: { fontSize: 11, fontWeight: '500' as const, color: FT.textSec },
+  filterChipBtnTextActive: { color: '#FFF' },
+
+  moreMenu: { backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.border, paddingVertical: 4 },
+  moreMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12 },
+  moreMenuIcon: { fontSize: 16 },
+  moreMenuText: { fontSize: 14, color: FT.text, fontWeight: '500' as const },
 
   filterRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.border, gap: 6, flexWrap: 'wrap' },
   filterDrop: { flexDirection: 'row', alignItems: 'center', backgroundColor: FT.surfaceAlt, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, gap: 4, borderWidth: 1, borderColor: FT.border },
@@ -401,6 +647,4 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 8 },
   emptyIcon: { fontSize: 48 },
   emptyTitle: { fontSize: 16, fontWeight: '600' as const, color: FT.text },
-
-
 });

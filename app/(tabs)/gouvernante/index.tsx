@@ -134,8 +134,8 @@ export default function GouvernanteScreen() {
     <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Supervision Housekeeping Gouvernante</Text>
-          <Text style={styles.sectionSub}>{housekeepers.length} membres actifs</Text>
+          <Text style={styles.sectionTitle}>{t.gouvernante.supervision}</Text>
+          <Text style={styles.sectionSub}>{housekeepers.length} {t.gouvernante.activeMembers}</Text>
         </View>
       </View>
 
@@ -176,7 +176,7 @@ export default function GouvernanteScreen() {
 
           {todoRooms.length > 0 && (
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Soute chambres à faire</Text>
+              <Text style={styles.sectionTitle}>{t.gouvernante.todoRooms}</Text>
               <View style={styles.chipGrid}>
                 {todoRooms.slice(0, 6).map((r) => (
                   <DeskRoomChip
@@ -195,14 +195,14 @@ export default function GouvernanteScreen() {
 
         <View style={styles.colRight}>
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Toute chambres à faire</Text>
-            <Text style={styles.sectionSub}>Tâches</Text>
+            <Text style={styles.sectionTitle}>{t.gouvernante.allTodoRooms}</Text>
+            <Text style={styles.sectionSub}>{t.gouvernante.tasks}</Text>
             {roomsByFloor.map(({ floor, rooms: fRooms }) => {
               const todoFloor = fRooms.filter((r) => r.cleaningStatus !== 'validee');
               if (todoFloor.length === 0) return null;
               return (
                 <View key={floor} style={styles.miniFloor}>
-                  <Text style={styles.miniFloorLabel}>Étage {floor}</Text>
+                  <Text style={styles.miniFloorLabel}>{t.rooms.floorN} {floor}</Text>
                   <View style={styles.chipGrid}>
                     {todoFloor.map((r) => (
                       <DeskRoomChip
@@ -221,7 +221,7 @@ export default function GouvernanteScreen() {
           </View>
 
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>KPIs</Text>
+            <Text style={styles.sectionTitle}>{t.gouvernante.kpis}</Text>
             <DeskKPI value={inspectionStats.pending} label={t.gouvernante.toValidate} color={FT.warning} />
             <DeskKPI value={inspectionStats.refused} label={t.gouvernante.toRedo} color={FT.danger} />
             <DeskKPI value={inspectionStats.validated} label={t.gouvernante.validatedF} color={FT.success} />
@@ -339,8 +339,7 @@ export default function GouvernanteScreen() {
       />
 
       <View style={styles.dashTitle}>
-        <Text style={styles.dashTitleBold}>Supervision </Text>
-        <Text style={styles.dashTitleLight}>Housekeeping Gouvernante</Text>
+        <Text style={styles.dashTitleBold}>{t.gouvernante.supervision}</Text>
       </View>
 
       <View style={styles.tabRow}>
