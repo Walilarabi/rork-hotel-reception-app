@@ -10,6 +10,8 @@ import { SuperAdminProvider } from '@/providers/SuperAdminProvider';
 import { SubscriptionProvider } from '@/providers/SubscriptionProvider';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { ThemeProvider } from '@/providers/ThemeProvider';
+import { ChatbotProvider } from '@/providers/ChatbotProvider';
+import ChatBot from '@/components/ChatBot';
 import { Colors } from '@/constants/colors';
 import { FT } from '@/constants/flowtym';
 
@@ -101,6 +103,7 @@ function RootLayoutNav() {
       <Stack.Screen name="breakfast-stats" options={{ title: 'Stats PDJ' }} />
       <Stack.Screen name="history" options={{ title: 'Historique' }} />
       <Stack.Screen name="client-review" options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen name="chatbot-admin" options={{ presentation: 'modal', title: 'FAQ Assistant' }} />
     </Stack>
   );
 }
@@ -158,7 +161,10 @@ export default function RootLayout() {
               <HotelProvider>
                 <SuperAdminProvider>
                   <SubscriptionProvider>
-                    <RootLayoutNav />
+                    <ChatbotProvider>
+                      <RootLayoutNav />
+                      <ChatBot />
+                    </ChatbotProvider>
                   </SubscriptionProvider>
                 </SuperAdminProvider>
               </HotelProvider>

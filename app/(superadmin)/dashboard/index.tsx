@@ -17,6 +17,7 @@ import {
   ArrowRight,
   Zap,
   Calendar,
+  MessageCircle,
 } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import { useSuperAdmin } from '@/providers/SuperAdminProvider';
@@ -212,6 +213,24 @@ export default function SuperAdminDashboard() {
             </View>
           ))}
         </View>
+
+        <TouchableOpacity
+          style={styles.widgetCard}
+          onPress={() => router.push('/chatbot-admin' as never)}
+        >
+          <View style={styles.widgetHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={[styles.statIconWrap, { backgroundColor: SA.accent + '18', width: 34, height: 34, borderRadius: 9 }]}>
+                <MessageCircle size={16} color={SA.accent} />
+              </View>
+              <View>
+                <Text style={styles.widgetTitle}>Assistant / FAQ</Text>
+                <Text style={[styles.statBreakdownText, { marginTop: 2 }]}>Gérer les questions et réponses du chatbot</Text>
+              </View>
+            </View>
+            <ArrowRight size={16} color={SA.accent} />
+          </View>
+        </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>
