@@ -13,7 +13,7 @@ import {
   Dimensions,
   Pressable,
 } from 'react-native';
-import { MessageCircle, X, Send, Trash2, ChevronRight, Sparkles, HelpCircle, ArrowUpRight } from 'lucide-react-native';
+import { MessageCircle, X, Send, Trash2, ChevronRight, Sparkles, HelpCircle, ArrowUpRight, AlertTriangle, ShieldAlert, Briefcase } from 'lucide-react-native';
 import { useChatbot, ChatMessage } from '@/providers/ChatbotProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { useSubscriptions } from '@/providers/SubscriptionProvider';
@@ -44,10 +44,38 @@ function getQuickSuggestions(role: AdminUserRole | null): string[] {
   }
 }
 
+function getMessageIcon(type: ChatMessage['type']): React.ReactNode | null {
+  switch (type) {
+    case 'out_of_scope':
+      return <ShieldAlert size={14} color="#F59E0B" />;
+    case 'commercial':
+      return <Briefcase size={14} color="#3B82F6" />;
+    case 'no_match':
+      return <AlertTriangle size={14} color="#EF4444" />;
+    default:
+      return null;
+  }
+}
+
+function getBubbleAccent(type: ChatMessage['type']): string | null {
+  switch (type) {
+    case 'out_of_scope':
+      return '#F59E0B';
+    case 'commercial':
+      return '#3B82F6';
+    case 'no_match':
+      return '#EF4444';
+    default:
+      return null;
+  }
+}
+
 function ChatBubble({ msg, colors }: { msg: ChatMessage; colors: ReturnType<typeof useColors> }) {
   const isBot = msg.sender === 'bot';
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(isBot ? -20 : 20)).current;
+  const accent = isBot ? getBubbleAccent(msg.type) : null;
+  const icon = isBot ? getMessageIcon(msg.type) : null;
 
   useEffect(() => {
     Animated.parallel([
@@ -65,15 +93,20 @@ function ChatBubble({ msg, colors }: { msg: ChatMessage; colors: ReturnType<type
       ]}
     >
       {isBot && (
-        <View style={[styles.botAvatar, { backgroundColor: '#6B5CE7' }]}>
-          <Sparkles size={14} color="#FFFFFF" />
+        <View style={[styles.botAvatar, { backgroundColor: accent ?? '#6B5CE7' }]}>
+          {icon ?? <Sparkles size={14} color="#FFFFFF" />}
         </View>
       )}
       <View
         style={[
           styles.bubble,
           isBot
-            ? { backgroundColor: colors.surfaceAlt, borderBottomLeftRadius: 4 }
+            ? {
+                backgroundColor: colors.surfaceAlt,
+                borderBottomLeftRadius: 4,
+                borderLeftWidth: accent ? 3 : 0,
+                borderLeftColor: accent ?? 'transparent',
+              }
             : { backgroundColor: '#6B5CE7', borderBottomRightRadius: 4 },
         ]}
       >
@@ -193,16 +226,6 @@ export default function ChatBot() {
     if (!trimmed) return;
     setInput('');
 
-    const outOfScope = /technique|code|base de donn|sql|développ|fonctionnalit.*ajout|factur.*probl/i.test(trimmed);
-    if (outOfScope) {
-      sendMessage(trimmed, currentUser?.role ?? null);
-      setSuggestions(getQuickSuggestions(currentUser?.role ?? null));
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 150);
-      return;
-    }
-
     const newSuggestions = sendMessage(trimmed, currentUser?.role ?? null);
     setSuggestions(newSuggestions);
 
@@ -241,7 +264,7 @@ export default function ChatBot() {
 
   if (!currentUser) return null;
 
-  const welcomeMessage = `Bonjour${currentUser.firstName ? ` ${currentUser.firstName}` : ''} ! 👋\n\nJe suis l'assistant FLOWTYM. Comment puis-je vous aider aujourd'hui ?`;
+  const welcomeMessage = `Bonjour${currentUser.firstName ? ` ${currentUser.firstName}` : ''} ! 👋\n\nJe suis l'assistant FLOWTYM. Je réponds uniquement aux questions d'utilisation de l'application.\n\nComment puis-je vous aider ?`;
 
   return (
     <>
@@ -287,7 +310,7 @@ export default function ChatBot() {
                 </View>
                 <View>
                   <Text style={styles.chatHeaderTitle}>Assistant FLOWTYM</Text>
-                  <Text style={styles.chatHeaderSubtitle}>En ligne</Text>
+                  <Text style={styles.chatHeaderSubtitle}>Aide à l{"'"}utilisation</Text>
                 </View>
               </View>
               <View style={styles.chatHeaderActions}>
@@ -313,6 +336,12 @@ export default function ChatBot() {
                       <Sparkles size={20} color="#6B5CE7" />
                     </View>
                     <Text style={[styles.welcomeText, { color: colors.text }]}>{welcomeMessage}</Text>
+                    <View style={[styles.scopeNotice, { backgroundColor: 'rgba(107,92,231,0.08)' }]}>
+                      <HelpCircle size={14} color="#6B5CE7" />
+                      <Text style={[styles.scopeNoticeText, { color: colors.textSecondary }]}>
+                        Je réponds aux questions du type {"\""}Comment faire...{"\""} uniquement.
+                      </Text>
+                    </View>
                   </View>
                 </View>
               }
@@ -348,7 +377,7 @@ export default function ChatBot() {
             <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
               <TextInput
                 style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                placeholder="Posez votre question..."
+                placeholder="Comment faire pour..."
                 placeholderTextColor={colors.textMuted}
                 value={input}
                 onChangeText={setInput}
@@ -400,7 +429,6 @@ const styles = StyleSheet.create({
   },
   chatPanel: {
     flex: 1,
-    marginTop: Platform.OS === 'ios' ? 0 : 0,
   },
   chatHeader: {
     flexDirection: 'row',
@@ -469,6 +497,19 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 14,
     lineHeight: 22,
+  },
+  scopeNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  scopeNoticeText: {
+    fontSize: 12,
+    flex: 1,
+    lineHeight: 17,
   },
   bubbleRow: {
     flexDirection: 'row',

@@ -19,12 +19,13 @@ import {
   MessageCircle,
   TrendingUp,
   HelpCircle,
-  ChevronDown,
   X,
   Check,
   Eye,
   EyeOff,
   BarChart3,
+  FlaskConical,
+  ChevronDown,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useChatbot } from '@/providers/ChatbotProvider';
@@ -44,6 +45,7 @@ const SA = {
   success: '#22C55E',
   warning: '#F59E0B',
   danger: '#EF4444',
+  info: '#3B82F6',
 };
 
 const ALL_ROLES: AdminUserRole[] = ['reception', 'gouvernante', 'femme_de_chambre', 'maintenance', 'breakfast', 'direction', 'super_admin', 'support'];
@@ -51,20 +53,29 @@ const ALL_ROLES: AdminUserRole[] = ['reception', 'gouvernante', 'femme_de_chambr
 const FAQ_CATEGORIES = ['Général', 'Réception', 'Gouvernante', 'Femme de chambre', 'Maintenance', 'Petit-déjeuner', 'Direction', 'Super Admin'];
 
 export default function ChatbotAdminScreen() {
-  const { faqItems, stats, addFaq, updateFaq, deleteFaq } = useChatbot();
+  const { faqItems, stats, addFaq, updateFaq, deleteFaq, sendMessage } = useChatbot();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [editingItem, setEditingItem] = useState<ChatbotFaqItem | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<'faq' | 'stats'>('faq');
+  const [activeTab, setActiveTab] = useState<'faq' | 'stats' | 'test'>('faq');
 
   const [formQuestion, setFormQuestion] = useState('');
   const [formAnswer, setFormAnswer] = useState('');
   const [formKeywords, setFormKeywords] = useState('');
+  const [formForbiddenKeywords, setFormForbiddenKeywords] = useState('');
   const [formCategory, setFormCategory] = useState('Général');
   const [formRoles, setFormRoles] = useState<AdminUserRole[]>([]);
   const [formActive, setFormActive] = useState(true);
+  const [formPriority, setFormPriority] = useState('10');
+  const [formRelatedIds, setFormRelatedIds] = useState('');
+
+  const [testQuery, setTestQuery] = useState('');
+  const [testRole, setTestRole] = useState<AdminUserRole | null>(null);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [testMatchId, setTestMatchId] = useState<string | null>(null);
+  const [showTestRolePicker, setShowTestRolePicker] = useState(false);
 
   const filteredItems = useMemo(() => {
     let items = faqItems;
@@ -76,7 +87,8 @@ export default function ChatbotAdminScreen() {
       items = items.filter(f =>
         f.question.toLowerCase().includes(q) ||
         f.answer.toLowerCase().includes(q) ||
-        f.keywords.some(k => k.toLowerCase().includes(q))
+        f.keywords.some(k => k.toLowerCase().includes(q)) ||
+        f.id.toLowerCase().includes(q)
       );
     }
     return items.sort((a, b) => b.usageCount - a.usageCount);
@@ -87,9 +99,12 @@ export default function ChatbotAdminScreen() {
     setFormQuestion('');
     setFormAnswer('');
     setFormKeywords('');
+    setFormForbiddenKeywords('');
     setFormCategory('Général');
     setFormRoles([]);
     setFormActive(true);
+    setFormPriority('10');
+    setFormRelatedIds('');
     setShowForm(true);
   }, []);
 
@@ -98,9 +113,12 @@ export default function ChatbotAdminScreen() {
     setFormQuestion(item.question);
     setFormAnswer(item.answer);
     setFormKeywords(item.keywords.join(', '));
+    setFormForbiddenKeywords(item.forbiddenKeywords.join(', '));
     setFormCategory(item.category);
     setFormRoles([...item.roles]);
     setFormActive(item.isActive);
+    setFormPriority(String(item.priority));
+    setFormRelatedIds(item.relatedIds.join(', '));
     setShowForm(true);
   }, []);
 
@@ -111,6 +129,9 @@ export default function ChatbotAdminScreen() {
     }
 
     const keywords = formKeywords.split(',').map(k => k.trim()).filter(k => k.length > 0);
+    const forbiddenKeywords = formForbiddenKeywords.split(',').map(k => k.trim()).filter(k => k.length > 0);
+    const relatedIds = formRelatedIds.split(',').map(k => k.trim()).filter(k => k.length > 0);
+    const priority = parseInt(formPriority, 10) || 10;
 
     if (editingItem) {
       updateFaq({
@@ -119,9 +140,12 @@ export default function ChatbotAdminScreen() {
           question: formQuestion.trim(),
           answer: formAnswer.trim(),
           keywords,
+          forbiddenKeywords,
           category: formCategory,
           roles: formRoles,
           isActive: formActive,
+          priority,
+          relatedIds,
         },
       });
     } else {
@@ -129,15 +153,18 @@ export default function ChatbotAdminScreen() {
         question: formQuestion.trim(),
         answer: formAnswer.trim(),
         keywords,
+        forbiddenKeywords,
         category: formCategory,
         roles: formRoles,
         isActive: formActive,
+        priority,
+        relatedIds,
       });
     }
 
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setShowForm(false);
-  }, [editingItem, formQuestion, formAnswer, formKeywords, formCategory, formRoles, formActive, updateFaq, addFaq]);
+  }, [editingItem, formQuestion, formAnswer, formKeywords, formForbiddenKeywords, formCategory, formRoles, formActive, formPriority, formRelatedIds, updateFaq, addFaq]);
 
   const handleDelete = useCallback((id: string, question: string) => {
     Alert.alert('Supprimer', `Supprimer la question "${question.substring(0, 50)}..." ?`, [
@@ -159,6 +186,15 @@ export default function ChatbotAdminScreen() {
     );
   }, []);
 
+  const handleTest = useCallback(() => {
+    if (!testQuery.trim()) return;
+    const suggestions = sendMessage(testQuery.trim(), testRole);
+    console.log('[ChatbotAdmin] Test suggestions:', suggestions);
+
+    setTestResult('Test envoyé — vérifiez le chatbot pour la réponse');
+    setTestMatchId(null);
+  }, [testQuery, testRole, sendMessage]);
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Gestion FAQ Assistant' }} />
@@ -178,9 +214,89 @@ export default function ChatbotAdminScreen() {
           <BarChart3 size={16} color={activeTab === 'stats' ? SA.accent : SA.textMuted} />
           <Text style={[styles.tabText, activeTab === 'stats' && styles.tabTextActive]}>Statistiques</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'test' && styles.tabActive]}
+          onPress={() => setActiveTab('test')}
+        >
+          <FlaskConical size={16} color={activeTab === 'test' ? SA.accent : SA.textMuted} />
+          <Text style={[styles.tabText, activeTab === 'test' && styles.tabTextActive]}>Testeur</Text>
+        </TouchableOpacity>
       </View>
 
-      {activeTab === 'stats' ? (
+      {activeTab === 'test' ? (
+        <ScrollView contentContainerStyle={styles.content}>
+          <Text style={styles.sectionTitle}>Tester le matching</Text>
+          <Text style={styles.sectionDesc}>Entrez une question et sélectionnez un rôle pour vérifier quelle réponse sera retournée.</Text>
+
+          <Text style={styles.formLabel}>Rôle de test</Text>
+          <TouchableOpacity
+            style={styles.formSelect}
+            onPress={() => setShowTestRolePicker(!showTestRolePicker)}
+          >
+            <Text style={styles.formSelectText}>
+              {testRole ? (ADMIN_ROLE_CONFIG[testRole]?.label ?? testRole) : 'Tous les rôles'}
+            </Text>
+            <ChevronDown size={16} color={SA.textMuted} />
+          </TouchableOpacity>
+          {showTestRolePicker && (
+            <View style={styles.pickerDropdown}>
+              <TouchableOpacity
+                style={[styles.pickerOption, !testRole && styles.pickerOptionActive]}
+                onPress={() => { setTestRole(null); setShowTestRolePicker(false); }}
+              >
+                <Text style={[styles.pickerOptionText, !testRole && { color: SA.accent }]}>Tous les rôles</Text>
+                {!testRole && <Check size={14} color={SA.accent} />}
+              </TouchableOpacity>
+              {ALL_ROLES.map(role => (
+                <TouchableOpacity
+                  key={role}
+                  style={[styles.pickerOption, testRole === role && styles.pickerOptionActive]}
+                  onPress={() => { setTestRole(role); setShowTestRolePicker(false); }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={[styles.roleToggleDot, { backgroundColor: ADMIN_ROLE_CONFIG[role].color }]} />
+                    <Text style={[styles.pickerOptionText, testRole === role && { color: SA.accent }]}>
+                      {ADMIN_ROLE_CONFIG[role].label}
+                    </Text>
+                  </View>
+                  {testRole === role && <Check size={14} color={SA.accent} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          <Text style={[styles.formLabel, { marginTop: 16 }]}>Question de test</Text>
+          <TextInput
+            style={[styles.formInput, { minHeight: 80 }]}
+            placeholder="Ex: Comment assigner une chambre ?"
+            placeholderTextColor={SA.textMuted}
+            value={testQuery}
+            onChangeText={setTestQuery}
+            multiline
+            textAlignVertical="top"
+          />
+
+          <TouchableOpacity
+            style={[styles.testBtn, !testQuery.trim() && { opacity: 0.5 }]}
+            onPress={handleTest}
+            disabled={!testQuery.trim()}
+          >
+            <FlaskConical size={18} color="#FFFFFF" />
+            <Text style={styles.testBtnText}>Tester</Text>
+          </TouchableOpacity>
+
+          {testResult && (
+            <View style={styles.testResultCard}>
+              <Text style={styles.testResultTitle}>Résultat</Text>
+              <Text style={styles.testResultText}>{testResult}</Text>
+              {testMatchId && (
+                <Text style={styles.testResultMeta}>ID: {testMatchId}</Text>
+              )}
+            </View>
+          )}
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      ) : activeTab === 'stats' ? (
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
@@ -201,6 +317,20 @@ export default function ChatbotAdminScreen() {
             </View>
           </View>
 
+          <Text style={styles.sectionTitle}>Répartition par rôle</Text>
+          <View style={styles.roleStatsGrid}>
+            {Object.entries(stats.byRole).map(([role, count]) => {
+              const config = ADMIN_ROLE_CONFIG[role as AdminUserRole];
+              return (
+                <View key={role} style={styles.roleStatCard}>
+                  <View style={[styles.roleStatDot, { backgroundColor: config?.color ?? SA.accent }]} />
+                  <Text style={styles.roleStatLabel}>{config?.label ?? (role === 'all' ? 'Tous' : role)}</Text>
+                  <Text style={styles.roleStatCount}>{count}</Text>
+                </View>
+              );
+            })}
+          </View>
+
           <Text style={styles.sectionTitle}>Top 10 questions les plus posées</Text>
           {stats.topQuestions.map((faq, i) => (
             <View key={faq.id} style={styles.topQuestionRow}>
@@ -209,7 +339,7 @@ export default function ChatbotAdminScreen() {
               </View>
               <View style={styles.topQuestionInfo}>
                 <Text style={styles.topQuestionText} numberOfLines={2}>{faq.question}</Text>
-                <Text style={styles.topQuestionMeta}>{faq.category} · {faq.usageCount} utilisations</Text>
+                <Text style={styles.topQuestionMeta}>{faq.id} · {faq.category} · {faq.usageCount}x</Text>
               </View>
               <View style={styles.topQuestionBadge}>
                 <TrendingUp size={12} color={SA.success} />
@@ -227,7 +357,7 @@ export default function ChatbotAdminScreen() {
                 <Search size={16} color={SA.textMuted} />
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="Rechercher..."
+                  placeholder="Rechercher par ID, question, mot-clé..."
                   placeholderTextColor={SA.textMuted}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -273,6 +403,7 @@ export default function ChatbotAdminScreen() {
                 <View key={item.id} style={[styles.faqCard, !item.isActive && styles.faqCardInactive]}>
                   <View style={styles.faqCardHeader}>
                     <View style={styles.faqCardMeta}>
+                      <Text style={styles.faqId}>{item.id}</Text>
                       <View style={[styles.categoryBadge, { backgroundColor: SA.accent + '15' }]}>
                         <Text style={[styles.categoryBadgeText, { color: SA.accent }]}>{item.category}</Text>
                       </View>
@@ -281,6 +412,9 @@ export default function ChatbotAdminScreen() {
                           <Text style={[styles.categoryBadgeText, { color: SA.danger }]}>Inactive</Text>
                         </View>
                       )}
+                      <View style={[styles.priorityBadge, { backgroundColor: item.priority >= 10 ? SA.success + '15' : SA.warning + '15' }]}>
+                        <Text style={[styles.categoryBadgeText, { color: item.priority >= 10 ? SA.success : SA.warning }]}>P{item.priority}</Text>
+                      </View>
                       <Text style={styles.faqUsage}>{item.usageCount}x</Text>
                     </View>
                     <View style={styles.faqCardActions}>
@@ -312,7 +446,13 @@ export default function ChatbotAdminScreen() {
                     </View>
                   )}
                   {item.keywords.length > 0 && (
-                    <Text style={styles.faqKeywords}>Mots-clés : {item.keywords.join(', ')}</Text>
+                    <Text style={styles.faqKeywords}>✅ Mots-clés : {item.keywords.join(', ')}</Text>
+                  )}
+                  {item.forbiddenKeywords.length > 0 && (
+                    <Text style={[styles.faqKeywords, { color: SA.danger }]}>❌ Interdits : {item.forbiddenKeywords.join(', ')}</Text>
+                  )}
+                  {item.relatedIds.length > 0 && (
+                    <Text style={[styles.faqKeywords, { color: SA.info }]}>🔗 Liés : {item.relatedIds.join(', ')}</Text>
                   )}
                 </View>
               ))
@@ -354,7 +494,7 @@ export default function ChatbotAdminScreen() {
                 textAlignVertical="top"
               />
 
-              <Text style={styles.formLabel}>Mots-clés (séparés par des virgules)</Text>
+              <Text style={styles.formLabel}>Mots-clés obligatoires (séparés par des virgules)</Text>
               <TextInput
                 style={styles.formInput}
                 placeholder="assigner, chambre, femme de chambre"
@@ -362,6 +502,39 @@ export default function ChatbotAdminScreen() {
                 value={formKeywords}
                 onChangeText={setFormKeywords}
               />
+
+              <Text style={styles.formLabel}>Mots-clés interdits (séparés par des virgules)</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="stock, maintenance"
+                placeholderTextColor={SA.textMuted}
+                value={formForbiddenKeywords}
+                onChangeText={setFormForbiddenKeywords}
+              />
+
+              <View style={styles.formRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.formLabel}>Priorité</Text>
+                  <TextInput
+                    style={styles.formInput}
+                    placeholder="10"
+                    placeholderTextColor={SA.textMuted}
+                    value={formPriority}
+                    onChangeText={setFormPriority}
+                    keyboardType="numeric"
+                  />
+                </View>
+                <View style={{ flex: 2 }}>
+                  <Text style={styles.formLabel}>IDs liés (séparés par des virgules)</Text>
+                  <TextInput
+                    style={styles.formInput}
+                    placeholder="RCP-01, GEN-05"
+                    placeholderTextColor={SA.textMuted}
+                    value={formRelatedIds}
+                    onChangeText={setFormRelatedIds}
+                  />
+                </View>
+              </View>
 
               <Text style={styles.formLabel}>Catégorie</Text>
               <TouchableOpacity
@@ -453,12 +626,14 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 12 },
   emptyState: { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 14, color: SA.textMuted },
-  faqCard: { backgroundColor: SA.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: SA.border, gap: 8 },
+  faqCard: { backgroundColor: SA.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: SA.border, gap: 6 },
   faqCardInactive: { opacity: 0.5 },
   faqCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  faqCardMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  faqCardMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1, flexWrap: 'wrap' },
+  faqId: { fontSize: 10, fontWeight: '700' as const, color: SA.textMuted, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
   categoryBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   categoryBadgeText: { fontSize: 10, fontWeight: '600' as const },
+  priorityBadge: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6 },
   faqUsage: { fontSize: 11, color: SA.textMuted },
   faqCardActions: { flexDirection: 'row', gap: 4 },
   faqActionBtn: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center', backgroundColor: SA.surfaceLight },
@@ -472,7 +647,13 @@ const styles = StyleSheet.create({
   statCard: { flex: 1, minWidth: '45%' as unknown as number, backgroundColor: SA.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: SA.border, alignItems: 'center', gap: 4 },
   statValue: { fontSize: 28, fontWeight: '800' as const, color: SA.text },
   statLabel: { fontSize: 11, color: SA.textSec, textAlign: 'center' as const },
-  sectionTitle: { fontSize: 16, fontWeight: '700' as const, color: SA.text, marginBottom: 12 },
+  sectionTitle: { fontSize: 16, fontWeight: '700' as const, color: SA.text, marginBottom: 8 },
+  sectionDesc: { fontSize: 13, color: SA.textSec, marginBottom: 16, lineHeight: 20 },
+  roleStatsGrid: { gap: 6, marginBottom: 24 },
+  roleStatCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: SA.surface, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: SA.border },
+  roleStatDot: { width: 10, height: 10, borderRadius: 5 },
+  roleStatLabel: { flex: 1, fontSize: 13, color: SA.text },
+  roleStatCount: { fontSize: 16, fontWeight: '700' as const, color: SA.accent },
   topQuestionRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: SA.surface, borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: SA.border, gap: 12 },
   topQuestionRank: { width: 32, height: 32, borderRadius: 8, backgroundColor: SA.accent + '15', justifyContent: 'center', alignItems: 'center' },
   topQuestionRankText: { fontSize: 12, fontWeight: '700' as const, color: SA.accent },
@@ -481,6 +662,12 @@ const styles = StyleSheet.create({
   topQuestionMeta: { fontSize: 11, color: SA.textMuted },
   topQuestionBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: SA.success + '15', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   topQuestionCount: { fontSize: 12, fontWeight: '700' as const, color: SA.success },
+  testBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: SA.accent, borderRadius: 12, paddingVertical: 14, marginTop: 12 },
+  testBtnText: { fontSize: 15, fontWeight: '600' as const, color: '#FFFFFF' },
+  testResultCard: { backgroundColor: SA.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: SA.border, gap: 8, marginTop: 16 },
+  testResultTitle: { fontSize: 14, fontWeight: '700' as const, color: SA.accent },
+  testResultText: { fontSize: 13, color: SA.text, lineHeight: 20 },
+  testResultMeta: { fontSize: 11, color: SA.textMuted, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
   formOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   formContainer: { backgroundColor: SA.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '90%' },
   formHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: SA.border },
@@ -489,6 +676,7 @@ const styles = StyleSheet.create({
   formLabel: { fontSize: 13, fontWeight: '600' as const, color: SA.textSec, marginTop: 16, marginBottom: 8 },
   formInput: { backgroundColor: SA.surface, borderRadius: 12, padding: 14, fontSize: 14, color: SA.text, borderWidth: 1, borderColor: SA.border },
   formTextarea: { minHeight: 120 },
+  formRow: { flexDirection: 'row', gap: 12 },
   formSelect: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: SA.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: SA.border },
   formSelectText: { fontSize: 14, color: SA.text },
   pickerDropdown: { backgroundColor: SA.surface, borderRadius: 10, marginTop: 4, borderWidth: 1, borderColor: SA.border, overflow: 'hidden' },
