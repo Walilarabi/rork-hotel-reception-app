@@ -89,10 +89,10 @@ export default function DirectionDashboard() {
         options={{
           headerTitle: () => (
             <FlowtymHeader
-              hotelName={currentUser?.hotelName ?? 'Direction'}
+              hotelName={currentUser?.hotelName ?? t.direction.title}
               navItems={[
-                { label: 'Statistiques', icon: '📊' },
-                { label: 'Rapports', icon: '📋' },
+                { label: t.settings.statistics, icon: '📊', onPress: () => router.push('/breakfast-stats') },
+                { label: t.reception.reports, icon: '📋', onPress: () => router.push('/history') },
               ]}
             />
           ),
@@ -113,7 +113,7 @@ export default function DirectionDashboard() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.greetingRow}>
           <View>
-            <Text style={styles.greeting}>Bonjour, {currentUser?.firstName ?? 'Direction'}</Text>
+            <Text style={styles.greeting}>{t.direction.greeting}, {currentUser?.firstName ?? t.direction.title}</Text>
             <Text style={styles.dateText}>{today}</Text>
           </View>
         </View>
@@ -124,7 +124,7 @@ export default function DirectionDashboard() {
               <TrendingUp size={18} color={FT.brand} />
             </View>
             <Text style={styles.kpiValue}>{roomStats.occupancyRate}%</Text>
-            <Text style={styles.kpiLabel}>Occupation</Text>
+            <Text style={styles.kpiLabel}>{t.direction.occupation}</Text>
             <View style={styles.kpiBar}>
               <View style={[styles.kpiBarFill, { width: `${roomStats.occupancyRate}%`, backgroundColor: FT.brand }]} />
             </View>
@@ -134,46 +134,46 @@ export default function DirectionDashboard() {
               <BedDouble size={18} color={FT.danger} />
             </View>
             <Text style={styles.kpiValue}>{roomStats.depart}</Text>
-            <Text style={styles.kpiLabel}>Départs</Text>
+            <Text style={styles.kpiLabel}>{t.direction.departures}</Text>
           </View>
           <View style={styles.kpiCard}>
             <View style={[styles.kpiIconCircle, { backgroundColor: FT.successSoft }]}>
               <Sparkles size={18} color={FT.success} />
             </View>
             <Text style={styles.kpiValue}>{roomStats.cleaningRate}%</Text>
-            <Text style={styles.kpiLabel}>Propreté</Text>
+            <Text style={styles.kpiLabel}>{t.direction.cleanliness}</Text>
           </View>
           <View style={styles.kpiCard}>
             <View style={[styles.kpiIconCircle, { backgroundColor: FT.warningSoft }]}>
               <Wrench size={18} color={FT.warning} />
             </View>
             <Text style={styles.kpiValue}>{maintenanceStats.pending + maintenanceStats.inProgress}</Text>
-            <Text style={styles.kpiLabel}>Maintenance</Text>
+            <Text style={styles.kpiLabel}>{t.maintenance.title}</Text>
           </View>
         </View>
 
         {(maintenanceStats.urgent > 0 || pendingInspections.length > 0 || breakfastStats.toPrepare > 0) && (
           <View style={styles.alertsCard}>
-            <Text style={styles.widgetTitle}>Alertes du jour</Text>
+            <Text style={styles.widgetTitle}>{t.direction.todayAlerts}</Text>
             {maintenanceStats.urgent > 0 && (
               <View style={styles.alertRow}>
                 <View style={[styles.alertDot, { backgroundColor: FT.danger }]} />
                 <AlertTriangle size={14} color={FT.danger} />
-                <Text style={styles.alertText}>{maintenanceStats.urgent} intervention(s) urgente(s)</Text>
+                <Text style={styles.alertText}>{maintenanceStats.urgent} {t.direction.urgentInterventions}</Text>
               </View>
             )}
             {pendingInspections.length > 0 && (
               <View style={styles.alertRow}>
                 <View style={[styles.alertDot, { backgroundColor: FT.warning }]} />
                 <Clock size={14} color={FT.warning} />
-                <Text style={styles.alertText}>{pendingInspections.length} chambre(s) à valider</Text>
+                <Text style={styles.alertText}>{pendingInspections.length} {t.direction.roomsToValidate}</Text>
               </View>
             )}
             {breakfastStats.toPrepare > 0 && (
               <View style={styles.alertRow}>
                 <View style={[styles.alertDot, { backgroundColor: FT.info }]} />
                 <Coffee size={14} color={FT.info} />
-                <Text style={styles.alertText}>{breakfastStats.toPrepare} PDJ à préparer</Text>
+                <Text style={styles.alertText}>{breakfastStats.toPrepare} {t.direction.pdjToPrepare}</Text>
               </View>
             )}
           </View>
@@ -181,8 +181,8 @@ export default function DirectionDashboard() {
 
         <View style={styles.widgetCard}>
           <View style={styles.widgetHeader}>
-            <Text style={styles.widgetTitle}>Statuts des chambres</Text>
-            <Text style={styles.widgetSub}>{roomStats.total} chambres</Text>
+            <Text style={styles.widgetTitle}>{t.direction.roomStatuses}</Text>
+            <Text style={styles.widgetSub}>{roomStats.total} {t.rooms.rooms}</Text>
           </View>
           <View style={styles.statusChipsRow}>
             {(['libre', 'occupe', 'depart', 'recouche', 'hors_service'] as const).map((status) => {
@@ -201,11 +201,11 @@ export default function DirectionDashboard() {
 
         <View style={styles.widgetCard}>
           <View style={styles.widgetHeader}>
-            <Text style={styles.widgetTitle}>Plan des étages</Text>
+            <Text style={styles.widgetTitle}>{t.direction.floorPlan}</Text>
           </View>
           {groupedByFloor.map(({ floor, rooms: floorRooms }) => (
             <View key={floor} style={styles.floorBlock}>
-              <Text style={styles.floorLabel}>Étage {floor}</Text>
+              <Text style={styles.floorLabel}>{t.rooms.floorN} {floor}</Text>
               <View style={styles.roomChipGrid}>
                 {floorRooms.map((room) => (
                   <DeskRoomChip
@@ -225,39 +225,39 @@ export default function DirectionDashboard() {
         <View style={styles.twoColRow}>
           <View style={[styles.widgetCard, styles.twoColCard]}>
             <View style={styles.widgetHeader}>
-              <Text style={styles.widgetTitle}>PDJ</Text>
+              <Text style={styles.widgetTitle}>{t.direction.pdj}</Text>
             </View>
             <View style={styles.pdjStatsCol}>
               <View style={styles.pdjStatRow}>
                 <Coffee size={14} color={FT.warning} />
                 <Text style={styles.pdjStatValue}>{breakfastStats.toPrepare}</Text>
-                <Text style={styles.pdjStatLabel}>À préparer</Text>
+                <Text style={styles.pdjStatLabel}>{t.direction.toPrepare}</Text>
               </View>
               <View style={styles.pdjStatRow}>
                 <CheckCircle size={14} color={FT.success} />
                 <Text style={styles.pdjStatValue}>{breakfastStats.served}</Text>
-                <Text style={styles.pdjStatLabel}>Servis</Text>
+                <Text style={styles.pdjStatLabel}>{t.direction.served}</Text>
               </View>
               <View style={styles.pdjStatRow}>
                 <Text style={styles.pdjEmoji}>💰</Text>
                 <Text style={styles.pdjStatValue}>{breakfastStats.paid}</Text>
-                <Text style={styles.pdjStatLabel}>Payants</Text>
+                <Text style={styles.pdjStatLabel}>{t.direction.paying}</Text>
               </View>
             </View>
           </View>
 
           <View style={[styles.widgetCard, styles.twoColCard]}>
             <View style={styles.widgetHeader}>
-              <Text style={styles.widgetTitle}>Économat</Text>
+              <Text style={styles.widgetTitle}>{t.economat.title}</Text>
             </View>
             <Text style={styles.economatValue}>{todayConsumptionTotal.toFixed(0)}€</Text>
-            <Text style={styles.economatLabel}>Consommations du jour</Text>
+            <Text style={styles.economatLabel}>{t.direction.consumptionsOfDay}</Text>
             <TouchableOpacity
               style={styles.economatBtn}
               onPress={() => router.push('/economat')}
               activeOpacity={0.7}
             >
-              <Text style={styles.economatBtnText}>Voir détails</Text>
+              <Text style={styles.economatBtnText}>{t.common.seeDetails}</Text>
               <ArrowRight size={12} color={FT.brand} />
             </TouchableOpacity>
           </View>
@@ -265,9 +265,9 @@ export default function DirectionDashboard() {
 
         <View style={styles.widgetCard}>
           <View style={styles.widgetHeader}>
-            <Text style={styles.widgetTitle}>Équipe du jour</Text>
+            <Text style={styles.widgetTitle}>{t.direction.todayTeam}</Text>
             <TouchableOpacity onPress={() => router.push('/team')} style={styles.seeAllBtn}>
-              <Text style={styles.seeAllText}>Voir tout</Text>
+              <Text style={styles.seeAllText}>{t.common.seeAll}</Text>
               <ArrowRight size={12} color={FT.brand} />
             </TouchableOpacity>
           </View>
@@ -298,7 +298,7 @@ export default function DirectionDashboard() {
           {activeHousekeepers.length === 0 && (
             <View style={styles.emptyStaff}>
               <Users size={20} color={FT.textMuted} />
-              <Text style={styles.emptyStaffText}>Aucune femme de chambre active</Text>
+              <Text style={styles.emptyStaffText}>{t.gouvernante.noActiveHousekeeper}</Text>
             </View>
           )}
         </View>

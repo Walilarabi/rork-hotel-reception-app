@@ -1,18 +1,20 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useQuery } from '@tanstack/react-query';
 import createContextHook from '@nkzw/create-context-hook';
 import { LanguageId, TRANSLATION_MAP } from '@/constants/i18n';
 
 const THEME_KEY_PREFIX = 'app_theme_preference_';
 const DARK_MODE_KEY_PREFIX = 'app_dark_mode_';
 const LANGUAGE_KEY_PREFIX = 'app_language_';
-const GLOBAL_THEME_KEY = 'app_theme_preference';
-const GLOBAL_DARK_KEY = 'app_dark_mode';
-const GLOBAL_LANG_KEY = 'app_language';
 
 function getUserKeys(userId: string | null) {
-  if (!userId) return { themeKey: GLOBAL_THEME_KEY, darkKey: GLOBAL_DARK_KEY, langKey: GLOBAL_LANG_KEY };
+  if (!userId) {
+    return {
+      themeKey: THEME_KEY_PREFIX + '__guest__',
+      darkKey: DARK_MODE_KEY_PREFIX + '__guest__',
+      langKey: LANGUAGE_KEY_PREFIX + '__guest__',
+    };
+  }
   return {
     themeKey: THEME_KEY_PREFIX + userId,
     darkKey: DARK_MODE_KEY_PREFIX + userId,
@@ -136,20 +138,17 @@ export const [ThemeProvider, useTheme] = createContextHook(() => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [languageId, setLanguageId] = useState<LanguageId>('fr');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const keysRef = useRef(getUserKeys(null));
-
   const loadUserPrefs = useCallback(async (userId: string | null) => {
     console.log('[ThemeProvider] Loading prefs for user:', userId);
-    const keys = getUserKeys(userId);
-    keysRef.current = keys;
     setCurrentUserId(userId);
+    const keys = getUserKeys(userId);
     try {
       const [storedTheme, storedDark, storedLang] = await Promise.all([
         AsyncStorage.getItem(keys.themeKey),
         AsyncStorage.getItem(keys.darkKey),
         AsyncStorage.getItem(keys.langKey),
       ]);
-      console.log('[ThemeProvider] Loaded prefs:', { storedTheme, storedDark, storedLang });
+      console.log('[ThemeProvider] Loaded prefs:', { storedTheme, storedDark, storedLang, userId });
       setThemeId((storedTheme && storedTheme in MOBILE_THEMES) ? storedTheme as MobileThemeId : 'ocean');
       setIsDarkMode(storedDark === 'true');
       setLanguageId((storedLang && storedLang in TRANSLATION_MAP) ? storedLang as LanguageId : 'fr');
@@ -161,58 +160,35 @@ export const [ThemeProvider, useTheme] = createContextHook(() => {
     }
   }, []);
 
-  const prefsQuery = useQuery({
-    queryKey: ['user_preferences', currentUserId, keysRef.current.themeKey],
-    queryFn: async () => {
-      const keys = getUserKeys(currentUserId);
-      try {
-        const [storedTheme, storedDark, storedLang] = await Promise.all([
-          AsyncStorage.getItem(keys.themeKey),
-          AsyncStorage.getItem(keys.darkKey),
-          AsyncStorage.getItem(keys.langKey),
-        ]);
-        return {
-          theme: (storedTheme && storedTheme in MOBILE_THEMES) ? storedTheme as MobileThemeId : 'ocean' as MobileThemeId,
-          darkMode: storedDark === 'true',
-          language: (storedLang && storedLang in TRANSLATION_MAP) ? storedLang as LanguageId : 'fr' as LanguageId,
-        };
-      } catch (e) {
-        console.log('[ThemeProvider] Error reading preferences:', e);
-        return { theme: 'ocean' as MobileThemeId, darkMode: false, language: 'fr' as LanguageId };
-      }
-    },
-  });
-
-  useEffect(() => {
-    if (prefsQuery.data) {
-      setThemeId(prefsQuery.data.theme);
-      setIsDarkMode(prefsQuery.data.darkMode);
-      setLanguageId(prefsQuery.data.language);
-    }
-  }, [prefsQuery.data]);
-
   const setMobileTheme = useCallback(async (id: MobileThemeId) => {
+    console.log('[ThemeProvider] Setting theme:', id, 'for user:', currentUserId);
     setThemeId(id);
-    await AsyncStorage.setItem(keysRef.current.themeKey, id);
-  }, []);
+    const keys = getUserKeys(currentUserId);
+    await AsyncStorage.setItem(keys.themeKey, id);
+  }, [currentUserId]);
 
   const toggleDarkMode = useCallback(async () => {
     setIsDarkMode((prev) => {
       const next = !prev;
-      AsyncStorage.setItem(keysRef.current.darkKey, String(next));
+      const keys = getUserKeys(currentUserId);
+      console.log('[ThemeProvider] Toggling dark mode to:', next, 'for user:', currentUserId);
+      AsyncStorage.setItem(keys.darkKey, String(next));
       return next;
     });
-  }, []);
+  }, [currentUserId]);
 
   const setDarkMode = useCallback(async (value: boolean) => {
     setIsDarkMode(value);
-    await AsyncStorage.setItem(keysRef.current.darkKey, String(value));
-  }, []);
+    const keys = getUserKeys(currentUserId);
+    await AsyncStorage.setItem(keys.darkKey, String(value));
+  }, [currentUserId]);
 
   const setLanguage = useCallback(async (id: LanguageId) => {
+    console.log('[ThemeProvider] Setting language:', id, 'for user:', currentUserId);
     setLanguageId(id);
-    await AsyncStorage.setItem(keysRef.current.langKey, id);
-  }, []);
+    const keys = getUserKeys(currentUserId);
+    await AsyncStorage.setItem(keys.langKey, id);
+  }, [currentUserId]);
 
   const theme = MOBILE_THEMES[themeId];
   const modeColors = isDarkMode ? DARK_COLORS : LIGHT_COLORS;

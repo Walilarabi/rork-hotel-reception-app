@@ -10,6 +10,7 @@ import {
   Platform,
   RefreshControl,
   TextInput,
+  Alert,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Bell, Search, ChevronRight } from 'lucide-react-native';
@@ -377,14 +378,27 @@ export default function HousekeepingScreen() {
           ),
           headerRight: () => (
             <View style={styles.headerRight}>
-              <View style={styles.notifContainer}>
+              <TouchableOpacity
+                style={styles.notifContainer}
+                onPress={() => {
+                  const pending = assignedRooms.filter((r) => r.cleaningStatus === 'none' || r.cleaningStatus === 'refusee');
+                  if (pending.length === 0) {
+                    Alert.alert(t.housekeeping.allDone, t.housekeeping.noAssigned);
+                  } else {
+                    Alert.alert(
+                      `${pendingCount} ${t.housekeeping.roomsToday}`,
+                      pending.slice(0, 5).map((r) => `${t.rooms.room} ${r.roomNumber}`).join('\n') + (pending.length > 5 ? '\n...' : '')
+                    );
+                  }
+                }}
+              >
                 <Bell size={20} color="#FFF" />
                 {pendingCount > 0 && (
                   <View style={[styles.notifBadge, { borderColor: theme.headerBg }]}>
                     <Text style={styles.notifBadgeText}>{pendingCount}</Text>
                   </View>
                 )}
-              </View>
+              </TouchableOpacity>
               <UserMenuButton />
             </View>
           ),

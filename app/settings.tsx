@@ -142,7 +142,7 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Palette size={18} color={Colors.primary} />
-            <Text style={[styles.sectionTitle, { color: textColor }]}>Personnalisation</Text>
+            <Text style={[styles.sectionTitle, { color: textColor }]}>{t.menu.colorTheme}</Text>
           </View>
 
           <View style={[styles.prefCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
@@ -243,14 +243,14 @@ export default function SettingsScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <BedDouble size={18} color={Colors.primary} />
-              <Text style={[styles.sectionTitle, { color: textColor }]}>Configuration</Text>
+              <Text style={[styles.sectionTitle, { color: textColor }]}>{t.hotel.hotelConfig}</Text>
             </View>
             <TouchableOpacity style={[styles.menuBtn, { backgroundColor: cardBg, borderColor: borderCol }]} onPress={() => router.push('/add-room')}>
               <View style={styles.menuBtnLeft}>
                 <BedDouble size={18} color={Colors.primary} />
                 <View>
-                  <Text style={[styles.menuBtnTitle, { color: textColor }]}>Gestion des chambres</Text>
-                  <Text style={[styles.menuBtnSub, { color: textSec }]}>Ajouter, modifier les chambres</Text>
+                  <Text style={[styles.menuBtnTitle, { color: textColor }]}>{t.rooms.rooms}</Text>
+                  <Text style={[styles.menuBtnSub, { color: textSec }]}>{t.rooms.addRoom}</Text>
                 </View>
               </View>
               <ChevronRight size={16} color={textMut} />
@@ -260,8 +260,8 @@ export default function SettingsScreen() {
               <View style={styles.menuBtnLeft}>
                 <History size={18} color={Colors.primary} />
                 <View>
-                  <Text style={[styles.menuBtnTitle, { color: textColor }]}>Historique</Text>
-                  <Text style={[styles.menuBtnSub, { color: textSec }]}>Activité journalière, performance</Text>
+                  <Text style={[styles.menuBtnTitle, { color: textColor }]}>{t.direction.historyLabel}</Text>
+                  <Text style={[styles.menuBtnSub, { color: textSec }]}>{t.gouvernante.economatDesc}</Text>
                 </View>
               </View>
               <ChevronRight size={16} color={textMut} />

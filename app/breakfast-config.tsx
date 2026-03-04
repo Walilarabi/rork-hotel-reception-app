@@ -15,6 +15,7 @@ import { Stack } from 'expo-router';
 import { Settings, Users, Package, Plus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useHotel } from '@/providers/HotelProvider';
+import { useAuth } from '@/providers/AuthProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { Colors } from '@/constants/colors';
 import {
@@ -27,7 +28,8 @@ import {
 type TabKey = 'pricing' | 'staff' | 'products';
 
 export default function BreakfastConfigScreen() {
-  const { theme } = useTheme();
+  const { currentUser } = useAuth();
+  const { theme, t } = useTheme();
   const {
     breakfastConfig,
     breakfastStaff,
@@ -59,6 +61,9 @@ export default function BreakfastConfigScreen() {
   const [prodPrice, setProdPrice] = useState('');
   const [prodUnit, setProdUnit] = useState('pièce');
   const [prodSupplier, setProdSupplier] = useState('');
+
+  const allowedRoles = ['direction', 'reception', 'super_admin', 'support'] as const;
+  const hasAccess = currentUser && (allowedRoles as readonly string[]).includes(currentUser.role);
 
   const activeStaff = useMemo(() => breakfastStaff.filter((s) => s.active), [breakfastStaff]);
   const inactiveStaff = useMemo(() => breakfastStaff.filter((s) => !s.active), [breakfastStaff]);
@@ -119,11 +124,26 @@ export default function BreakfastConfigScreen() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [prodName, prodCategory, prodPrice, prodUnit, prodSupplier, addBreakfastProduct]);
 
+  if (!hasAccess) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 40 }]}>
+        <Stack.Screen options={{ title: 'Config. PDJ', headerStyle: { backgroundColor: theme.headerBg }, headerTintColor: '#FFF' }} />
+        <Text style={{ fontSize: 48, marginBottom: 16 }}>🔒</Text>
+        <Text style={{ fontSize: 16, fontWeight: '600' as const, color: Colors.text, textAlign: 'center' as const }}>
+          {t.reception.actionImpossible}
+        </Text>
+        <Text style={{ fontSize: 13, color: Colors.textSecondary, textAlign: 'center' as const, marginTop: 8 }}>
+          Direction / Reception only
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Config. Petit-déjeuner',
+          title: 'Config. Petit-dejeuner',
           headerStyle: { backgroundColor: theme.headerBg },
           headerTintColor: '#FFF',
         }}

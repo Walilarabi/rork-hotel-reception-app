@@ -24,10 +24,12 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/providers/AuthProvider';
 import { useSuperAdmin } from '@/providers/SuperAdminProvider';
+import { useTheme } from '@/providers/ThemeProvider';
 import { Colors } from '@/constants/colors';
 import { AdminUserRole, AdminUser, ADMIN_ROLE_CONFIG } from '@/constants/types';
 
 export default function TeamScreen() {
+  const { t } = useTheme();
   const { currentUser, canInviteRoles } = useAuth();
   const { users, inviteUser, toggleUserStatus } = useSuperAdmin();
   const [searchText, setSearchText] = useState('');
@@ -86,11 +88,11 @@ export default function TeamScreen() {
 
     Alert.alert(
       'Confirmer',
-      `Inviter ${inviteFirstName} ${inviteLastName} en tant que ${ADMIN_ROLE_CONFIG[inviteRole].label} ?`,
+      `${inviteFirstName} ${inviteLastName} - ${ADMIN_ROLE_CONFIG[inviteRole].label}`,
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t.common.cancel, style: 'cancel' },
         {
-          text: 'Inviter',
+          text: t.common.confirm,
           onPress: () => {
             inviteUser({
               email: inviteEmail,
@@ -110,12 +112,12 @@ export default function TeamScreen() {
         },
       ]
     );
-  }, [inviteFirstName, inviteLastName, inviteEmail, inviteRole, currentUser, inviteUser]);
+  }, [inviteFirstName, inviteLastName, inviteEmail, inviteRole, currentUser, inviteUser, t]);
 
   const handleToggleStatus = useCallback((user: AdminUser) => {
-    const action = user.active ? 'Suspendre' : 'Réactiver';
-    Alert.alert(action, `${action} ${user.firstName} ${user.lastName} ?`, [
-      { text: 'Annuler', style: 'cancel' },
+    const action = user.active ? t.common.delete : t.common.confirm;
+    Alert.alert(action, `${user.firstName} ${user.lastName}?`, [
+      { text: t.common.cancel, style: 'cancel' },
       {
         text: action,
         style: user.active ? 'destructive' : 'default',
@@ -125,7 +127,7 @@ export default function TeamScreen() {
         },
       },
     ]);
-  }, [toggleUserStatus]);
+  }, [toggleUserStatus, t]);
 
   const renderMember = useCallback(({ item }: { item: AdminUser }) => {
     const roleConfig = ADMIN_ROLE_CONFIG[item.role];
@@ -148,13 +150,13 @@ export default function TeamScreen() {
             {isPending && (
               <View style={styles.pendingBadge}>
                 <Mail size={10} color={Colors.warning} />
-                <Text style={styles.pendingText}>En attente</Text>
+                <Text style={styles.pendingText}>{t.maintenance.pending}</Text>
               </View>
             )}
             {!item.active && (
               <View style={styles.inactiveBadge}>
                 <XCircle size={10} color={Colors.danger} />
-                <Text style={styles.inactiveText}>Inactif</Text>
+                <Text style={styles.inactiveText}>{t.hotel.suspended}</Text>
               </View>
             )}
           </View>
@@ -187,18 +189,18 @@ export default function TeamScreen() {
         </View>
       </View>
     );
-  }, [currentUser, handleToggleStatus]);
+  }, [currentUser, handleToggleStatus, t]);
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: 'Gestion d\'équipe' }} />
+      <Stack.Screen options={{ title: t.menu.teamManagement }} />
 
       <View style={styles.searchRow}>
         <View style={styles.searchBar}>
           <Search size={16} color={Colors.textMuted} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher un membre..."
+            placeholder={`${t.common.search}...`}
             placeholderTextColor={Colors.textMuted}
             value={searchText}
             onChangeText={setSearchText}
@@ -212,12 +214,12 @@ export default function TeamScreen() {
           onPress={() => setShowRoleDropdown(!showRoleDropdown)}
         >
           <Text style={styles.filterText}>
-            {roleFilter === 'all' ? 'Tous les rôles' : ADMIN_ROLE_CONFIG[roleFilter].label}
+            {roleFilter === 'all' ? t.common.all : ADMIN_ROLE_CONFIG[roleFilter].label}
           </Text>
           <ChevronDown size={14} color={Colors.textSecondary} />
         </TouchableOpacity>
         <View style={styles.countBadge}>
-          <Text style={styles.countText}>{teamMembers.length} membre(s)</Text>
+          <Text style={styles.countText}>{teamMembers.length}</Text>
         </View>
         {availableRoles.length > 0 && (
           <TouchableOpacity
@@ -225,7 +227,7 @@ export default function TeamScreen() {
             onPress={() => setShowInviteForm(!showInviteForm)}
           >
             <UserPlus size={14} color={Colors.white} />
-            <Text style={styles.inviteBtnText}>Inviter</Text>
+            <Text style={styles.inviteBtnText}>{t.common.add}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -236,7 +238,7 @@ export default function TeamScreen() {
             style={styles.dropdownItem}
             onPress={() => { setRoleFilter('all'); setShowRoleDropdown(false); }}
           >
-            <Text style={styles.dropdownText}>Tous les rôles</Text>
+            <Text style={styles.dropdownText}>{t.common.all}</Text>
           </TouchableOpacity>
           {(['direction', 'reception', 'gouvernante', 'femme_de_chambre', 'maintenance', 'breakfast'] as AdminUserRole[]).map((role) => (
             <TouchableOpacity
@@ -253,7 +255,7 @@ export default function TeamScreen() {
 
       {showInviteForm && (
         <View style={styles.inviteForm}>
-          <Text style={styles.inviteFormTitle}>Nouvelle invitation</Text>
+          <Text style={styles.inviteFormTitle}>{t.common.add}</Text>
           <View style={styles.inviteNameRow}>
             <View style={[styles.inviteInputGroup, { flex: 1 }]}>
               <User size={14} color={Colors.textMuted} />
@@ -306,11 +308,11 @@ export default function TeamScreen() {
           </View>
           <View style={styles.inviteActions}>
             <TouchableOpacity style={styles.inviteCancelBtn} onPress={() => setShowInviteForm(false)}>
-              <Text style={styles.inviteCancelText}>Annuler</Text>
+              <Text style={styles.inviteCancelText}>{t.common.cancel}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.inviteSubmitBtn} onPress={handleInvite}>
               <Mail size={14} color={Colors.white} />
-              <Text style={styles.inviteSubmitText}>Envoyer</Text>
+              <Text style={styles.inviteSubmitText}>{t.common.confirm}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -325,7 +327,7 @@ export default function TeamScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>👥</Text>
-            <Text style={styles.emptyTitle}>Aucun membre trouvé</Text>
+            <Text style={styles.emptyTitle}>{t.common.noData}</Text>
           </View>
         }
       />

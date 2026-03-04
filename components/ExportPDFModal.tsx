@@ -108,26 +108,23 @@ export default function ExportPDFModal({
 
     setTimeout(() => {
       try {
+        const html = generateHTMLReport();
+
         if (Platform.OS === 'web') {
-          const html = generateHTMLReport();
-          const blob = new Blob([html], { type: 'text/html' });
+          const fileName = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_rapport.html`;
+          const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
           const url = URL.createObjectURL(blob);
-          const printWindow = window.open(url, '_blank');
-          if (printWindow) {
-            printWindow.onload = () => {
-              setTimeout(() => {
-                printWindow.print();
-              }, 500);
-            };
-          } else {
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_rapport.html`;
-            document.body.appendChild(link);
-            link.click();
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = fileName;
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          link.click();
+          setTimeout(() => {
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
-          }
+          }, 100);
+          console.log('[ExportPDF] File downloaded:', fileName);
         } else {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
@@ -135,27 +132,27 @@ export default function ExportPDFModal({
         setIsGenerating(false);
         setGenerated(true);
 
-        if (Platform.OS !== 'web') {
-          setTimeout(() => {
-            Alert.alert(
-              'Rapport g\u00e9n\u00e9r\u00e9',
-              `Le rapport "${title}" a \u00e9t\u00e9 g\u00e9n\u00e9r\u00e9 avec succ\u00e8s.\n\nP\u00e9riode : ${PERIOD_OPTIONS.find((p) => p.id === period)?.label}\nOrientation : ${orientation === 'portrait' ? 'Portrait' : 'Paysage'}`,
-              [
-                {
-                  text: 'OK',
-                  onPress: () => {
-                    setGenerated(false);
-                    onClose();
-                  },
+        setTimeout(() => {
+          Alert.alert(
+            'Rapport disponible',
+            Platform.OS === 'web'
+              ? `Le rapport "${title}" a ete telecharge.`
+              : `Le rapport "${title}" a ete genere avec succes.\n\nPeriode : ${PERIOD_OPTIONS.find((p) => p.id === period)?.label}\nOrientation : ${orientation === 'portrait' ? 'Portrait' : 'Paysage'}`,
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  setGenerated(false);
+                  onClose();
                 },
-              ]
-            );
-          }, 300);
-        }
+              },
+            ]
+          );
+        }, 300);
       } catch (e) {
         console.log('[ExportPDF] Error generating report:', e);
         setIsGenerating(false);
-        Alert.alert('Erreur', 'Impossible de g\u00e9n\u00e9rer le rapport. Veuillez r\u00e9essayer.');
+        Alert.alert('Erreur', 'Impossible de generer le rapport. Veuillez reessayer.');
       }
     }, 800);
   }, [title, period, orientation, onClose, generateHTMLReport]);

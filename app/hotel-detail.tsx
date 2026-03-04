@@ -1030,6 +1030,15 @@ export default function HotelDetailScreen() {
         </TouchableOpacity>
         {isEditing && (
           <TouchableOpacity
+            style={[styles.tab, activeTab === 'contract' && styles.tabActive]}
+            onPress={() => setActiveTab('contract')}
+          >
+            <FileText size={15} color={activeTab === 'contract' ? SA.accent : SA.textMuted} />
+            <Text style={[styles.tab_text_inner, activeTab === 'contract' && styles.tabTextActive]}>Contrat</Text>
+          </TouchableOpacity>
+        )}
+        {isEditing && (
+          <TouchableOpacity
             style={[styles.tab, activeTab === 'config' && styles.tabActive]}
             onPress={() => setActiveTab('config')}
           >
@@ -1053,15 +1062,6 @@ export default function HotelDetailScreen() {
           >
             <CreditCard size={15} color={activeTab === 'billing' ? SA.accent : SA.textMuted} />
             <Text style={[styles.tab_text_inner, activeTab === 'billing' && styles.tabTextActive]}>Factu.</Text>
-          </TouchableOpacity>
-        )}
-        {isEditing && (
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'contract' && styles.tabActive]}
-            onPress={() => setActiveTab('contract')}
-          >
-            <FileText size={15} color={activeTab === 'contract' ? SA.accent : SA.textMuted} />
-            <Text style={[styles.tab_text_inner, activeTab === 'contract' && styles.tabTextActive]}>Contrat</Text>
           </TouchableOpacity>
         )}
       </View>
