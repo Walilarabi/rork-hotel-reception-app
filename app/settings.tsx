@@ -29,6 +29,7 @@ import {
   Check,
   BedDouble,
   History,
+  Settings,
 } from 'lucide-react-native';
 import { Stack, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -239,12 +240,23 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        {(currentUser?.role === 'direction' || currentUser?.role === 'gouvernante' || currentUser?.role === 'super_admin') && (
+        {(currentUser?.role === 'direction' || currentUser?.role === 'gouvernante' || currentUser?.role === 'reception' || currentUser?.role === 'super_admin') && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <BedDouble size={18} color={Colors.primary} />
               <Text style={[styles.sectionTitle, { color: textColor }]}>{t.hotel.hotelConfig}</Text>
             </View>
+            <TouchableOpacity style={[styles.menuBtn, { backgroundColor: cardBg, borderColor: borderCol }]} onPress={() => router.push('/configuration' as any)}>
+              <View style={styles.menuBtnLeft}>
+                <Settings size={18} color={Colors.teal} />
+                <View>
+                  <Text style={[styles.menuBtnTitle, { color: textColor }]}>Configuration</Text>
+                  <Text style={[styles.menuBtnSub, { color: textSec }]}>Produits, checklists, signalements, types de chambres, personnel</Text>
+                </View>
+              </View>
+              <ChevronRight size={16} color={textMut} />
+            </TouchableOpacity>
+            <View style={{ height: 8 }} />
             <TouchableOpacity style={[styles.menuBtn, { backgroundColor: cardBg, borderColor: borderCol }]} onPress={() => router.push('/add-room')}>
               <View style={styles.menuBtnLeft}>
                 <BedDouble size={18} color={Colors.primary} />

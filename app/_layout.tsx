@@ -12,6 +12,7 @@ import { AuthProvider } from '@/providers/AuthProvider';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import { ChatbotProvider } from '@/providers/ChatbotProvider';
 import { ForecastProvider } from '@/providers/ForecastProvider';
+import { ConfigurationProvider } from '@/providers/ConfigurationProvider';
 import ChatBot from '@/components/ChatBot';
 import { Colors } from '@/constants/colors';
 import { FT } from '@/constants/flowtym';
@@ -107,6 +108,7 @@ function RootLayoutNav() {
       <Stack.Screen name="chatbot-admin" options={{ presentation: 'modal', title: 'FAQ Assistant' }} />
       <Stack.Screen name="forecast-config" options={{ presentation: 'modal', title: 'Planification' }} />
       <Stack.Screen name="import-reservations" options={{ presentation: 'modal', title: 'Import réservations' }} />
+      <Stack.Screen name="configuration" options={{ presentation: 'modal', title: 'Configuration' }} />
     </Stack>
   );
 }
@@ -165,10 +167,12 @@ export default function RootLayout() {
                 <ForecastProvider>
                   <SuperAdminProvider>
                     <SubscriptionProvider>
-                      <ChatbotProvider>
-                        <RootLayoutNav />
-                        <ChatBot />
-                      </ChatbotProvider>
+                      <ConfigurationProvider>
+                        <ChatbotProvider>
+                          <RootLayoutNav />
+                          <ChatBot />
+                        </ChatbotProvider>
+                      </ConfigurationProvider>
                     </SubscriptionProvider>
                   </SuperAdminProvider>
                 </ForecastProvider>
