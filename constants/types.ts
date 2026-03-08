@@ -848,6 +848,64 @@ export interface DayForecast {
   status: 'ok' | 'warning' | 'critical';
 }
 
+export type ImportFileType = 'csv' | 'excel' | 'image' | 'pdf' | 'manual';
+export type ImportStatus = 'success' | 'partial' | 'failed';
+
+export interface ImportLog {
+  id: string;
+  filename: string;
+  fileType: ImportFileType;
+  importedBy: string;
+  importedAt: string;
+  recordsImported: number;
+  recordsFailed: number;
+  errorLog: string;
+  status: ImportStatus;
+}
+
+export interface ImportedReservation {
+  id: string;
+  guestName: string;
+  checkInDate: string;
+  checkOutDate: string;
+  roomNumber: string;
+  adults: number;
+  children: number;
+  preferences: string;
+  selected: boolean;
+  error: string | null;
+}
+
+export interface ColumnMapping {
+  guestName: number | null;
+  checkInDate: number | null;
+  checkOutDate: number | null;
+  roomNumber: number | null;
+  adults: number | null;
+  children: number | null;
+  preferences: number | null;
+}
+
+export const DEFAULT_COLUMN_MAPPING: ColumnMapping = {
+  guestName: null,
+  checkInDate: null,
+  checkOutDate: null,
+  roomNumber: null,
+  adults: null,
+  children: null,
+  preferences: null,
+};
+
+export type DateFormatOption = 'dd/mm/yyyy' | 'mm/dd/yyyy' | 'yyyy-mm-dd' | 'dd-mm-yyyy' | 'dd.mm.yyyy';
+
+export const DATE_FORMAT_OPTIONS: { value: DateFormatOption; label: string }[] = [
+  { value: 'dd/mm/yyyy', label: 'JJ/MM/AAAA' },
+  { value: 'mm/dd/yyyy', label: 'MM/DD/YYYY' },
+  { value: 'yyyy-mm-dd', label: 'AAAA-MM-JJ' },
+  { value: 'dd-mm-yyyy', label: 'JJ-MM-AAAA' },
+  { value: 'dd.mm.yyyy', label: 'JJ.MM.AAAA' },
+];
+
 export const LOG_ACTION_CONFIG: Record<LogAction, { label: string; icon: string }> = {
   hotel_created: { label: 'Hôtel créé', icon: '🏨' },
   hotel_updated: { label: 'Hôtel modifié', icon: '✏️' },

@@ -394,6 +394,62 @@ type TranslationKeys = {
     trendStable: string;
     noData: string;
   };
+  fileImport: {
+    title: string;
+    importFile: string;
+    importReservations: string;
+    selectFile: string;
+    dragDrop: string;
+    supportedFormats: string;
+    step1SelectFile: string;
+    step2MapColumns: string;
+    step3Preview: string;
+    step4Result: string;
+    fileSelected: string;
+    fileSize: string;
+    columnMapping: string;
+    guestName: string;
+    checkInDate: string;
+    checkOutDate: string;
+    roomNumber: string;
+    adults: string;
+    children: string;
+    preferences: string;
+    selectColumn: string;
+    dateFormat: string;
+    preview: string;
+    previewDesc: string;
+    linesDetected: string;
+    duplicateHandling: string;
+    ignore: string;
+    replace: string;
+    merge: string;
+    importBtn: string;
+    importing: string;
+    importSuccess: string;
+    importPartial: string;
+    importFailed: string;
+    reservationsImported: string;
+    linesIgnored: string;
+    roomNotFound: string;
+    invalidDate: string;
+    missingRequired: string;
+    downloadErrorReport: string;
+    viewReservations: string;
+    manualEntry: string;
+    manualEntryDesc: string;
+    addRow: string;
+    removeRow: string;
+    noFileSelected: string;
+    parseError: string;
+    noPms: string;
+    noPmsDesc: string;
+    separator: string;
+    autoDetect: string;
+    column: string;
+    optional: string;
+    required: string;
+  };
 };
 
 export type Translations = TranslationKeys;
@@ -775,6 +831,62 @@ const fr: Translations = {
     compliance: 'Conformité',
     complianceDesc: 'FLOWTYM est conforme au RGPD (UE 2016/679), à la loi Informatique et Libertés, et aux recommandations de la CNIL. Les données sont hébergées dans l\'Union Européenne.',
   },
+  fileImport: {
+    title: 'Import de fichier',
+    importFile: 'Importer un fichier',
+    importReservations: 'Importer des réservations',
+    selectFile: 'Sélectionner un fichier',
+    dragDrop: 'Glissez votre fichier ici ou cliquez pour parcourir',
+    supportedFormats: 'Formats acceptés : CSV',
+    step1SelectFile: 'Sélection du fichier',
+    step2MapColumns: 'Correspondance des colonnes',
+    step3Preview: 'Aperçu et validation',
+    step4Result: 'Résultat',
+    fileSelected: 'Fichier sélectionné',
+    fileSize: 'Taille',
+    columnMapping: 'Correspondance des colonnes',
+    guestName: 'Nom du client',
+    checkInDate: "Date d'arrivée",
+    checkOutDate: 'Date de départ',
+    roomNumber: 'Numéro de chambre',
+    adults: 'Adultes',
+    children: 'Enfants',
+    preferences: 'Préférences',
+    selectColumn: 'Sélectionner une colonne',
+    dateFormat: 'Format de date',
+    preview: 'Aperçu',
+    previewDesc: 'Vérifiez les réservations détectées avant import',
+    linesDetected: 'réservation(s) détectée(s)',
+    duplicateHandling: 'Gestion des doublons',
+    ignore: 'Ignorer',
+    replace: 'Remplacer',
+    merge: 'Fusionner',
+    importBtn: 'Importer',
+    importing: 'Import en cours...',
+    importSuccess: 'Import terminé avec succès',
+    importPartial: 'Import partiel',
+    importFailed: "Échec de l'import",
+    reservationsImported: 'réservation(s) importée(s)',
+    linesIgnored: 'ligne(s) ignorée(s)',
+    roomNotFound: 'Chambre introuvable',
+    invalidDate: 'Date invalide',
+    missingRequired: 'Champ obligatoire manquant',
+    downloadErrorReport: "Télécharger le rapport d'erreurs",
+    viewReservations: 'Voir les réservations',
+    manualEntry: 'Saisie manuelle',
+    manualEntryDesc: 'Ajoutez les réservations manuellement',
+    addRow: 'Ajouter une ligne',
+    removeRow: 'Supprimer',
+    noFileSelected: 'Aucun fichier sélectionné',
+    parseError: 'Erreur de lecture du fichier',
+    noPms: 'Import manuel (sans PMS)',
+    noPmsDesc: 'Importez vos réservations depuis un fichier CSV ou saisissez-les manuellement',
+    separator: 'Séparateur',
+    autoDetect: 'Détection auto',
+    column: 'Colonne',
+    optional: 'Optionnel',
+    required: 'Requis',
+  },
 };
 
 const en: Translations = {
@@ -1104,6 +1216,62 @@ const en: Translations = {
     activateSupport: 'Activate support mode',
     exitSupport: 'Exit support mode',
   },
+  fileImport: {
+    title: 'File Import',
+    importFile: 'Import a file',
+    importReservations: 'Import reservations',
+    selectFile: 'Select a file',
+    dragDrop: 'Drag your file here or click to browse',
+    supportedFormats: 'Supported formats: CSV',
+    step1SelectFile: 'Select file',
+    step2MapColumns: 'Map columns',
+    step3Preview: 'Preview & validate',
+    step4Result: 'Result',
+    fileSelected: 'File selected',
+    fileSize: 'Size',
+    columnMapping: 'Column mapping',
+    guestName: 'Guest name',
+    checkInDate: 'Check-in date',
+    checkOutDate: 'Check-out date',
+    roomNumber: 'Room number',
+    adults: 'Adults',
+    children: 'Children',
+    preferences: 'Preferences',
+    selectColumn: 'Select a column',
+    dateFormat: 'Date format',
+    preview: 'Preview',
+    previewDesc: 'Review detected reservations before import',
+    linesDetected: 'reservation(s) detected',
+    duplicateHandling: 'Duplicate handling',
+    ignore: 'Ignore',
+    replace: 'Replace',
+    merge: 'Merge',
+    importBtn: 'Import',
+    importing: 'Importing...',
+    importSuccess: 'Import completed successfully',
+    importPartial: 'Partial import',
+    importFailed: 'Import failed',
+    reservationsImported: 'reservation(s) imported',
+    linesIgnored: 'line(s) ignored',
+    roomNotFound: 'Room not found',
+    invalidDate: 'Invalid date',
+    missingRequired: 'Required field missing',
+    downloadErrorReport: 'Download error report',
+    viewReservations: 'View reservations',
+    manualEntry: 'Manual entry',
+    manualEntryDesc: 'Add reservations manually',
+    addRow: 'Add a row',
+    removeRow: 'Remove',
+    noFileSelected: 'No file selected',
+    parseError: 'File reading error',
+    noPms: 'Manual import (no PMS)',
+    noPmsDesc: 'Import your reservations from a CSV file or enter them manually',
+    separator: 'Separator',
+    autoDetect: 'Auto-detect',
+    column: 'Column',
+    optional: 'Optional',
+    required: 'Required',
+  },
   forecast: {
     title: 'Staff Forecast',
     staffNeeds: 'Housekeeper Needs',
@@ -1174,6 +1342,7 @@ const de: Translations = {
   breakfast: { title: 'Frühstück', toPrepare: 'Vorzubereiten', prepared: 'Zubereitet', delivering: 'In Zustellung', served: 'Serviert', walkIn: 'Laufkundschaft', kitchen: 'Küche', delivery: 'Lieferung', servedTab: 'Serviert', noOrderToPrepare: 'Keine Bestellungen vorzubereiten', noDeliveryInProgress: 'Keine laufenden Lieferungen', noHistory: 'Kein Verlauf', markAs: 'Markieren als', confirmMark: 'Bestätigen', paid: 'Zahlend', persons: 'Pers.' },
   superadmin: { dashboard: 'Dashboard', hotels: 'Hotels', users: 'Benutzer', support: 'Support', logs: 'Protokolle', supportMode: 'Supportmodus', activateSupport: 'Supportmodus aktivieren', exitSupport: 'Supportmodus verlassen' },
   security: { title: 'Sicherheits- und Datenschutzrichtlinie', intro: 'FLOWTYM verpflichtet sich, Ihre persönlichen Daten gemäß der Datenschutz-Grundverordnung (DSGVO) und den geltenden Datenschutzgesetzen zu schützen.', dataCollection: 'Datenerhebung', dataCollectionDesc: 'Wir erheben nur die für den Hotelverwaltungsdienst notwendigen Daten: Informationen über Hotels, Zimmer, Mitarbeiter und den täglichen Betrieb.', purposes: 'Verarbeitungszwecke', purposesDesc: 'Die Daten werden ausschließlich für die operative Hotelverwaltung, Abrechnung und Qualitätsverbesserung verwendet.', rights: 'Rechte der Betroffenen', rightsDesc: 'Gemäß der DSGVO haben Sie das Recht auf Zugang, Berichtigung, Löschung, Übertragbarkeit und Widerspruch gegen die Verarbeitung Ihrer Daten.', measures: 'Sicherheitsmaßnahmen', measuresDesc: 'Wir implementieren angemessene technische und organisatorische Maßnahmen: Datenverschlüsselung, rollenbasierte Zugriffskontrolle (RBAC), Aktionsprotokollierung und regelmäßige Sicherheitsaudits.', contact: 'DSB Kontakt', contactDesc: 'Für Fragen zum Datenschutz kontaktieren Sie unseren DSB: dpo@flowtym.com', compliance: 'Compliance', complianceDesc: 'FLOWTYM entspricht der DSGVO (EU 2016/679). Die Daten werden innerhalb der EU gehostet.' },
+  fileImport: { title: 'Dateiimport', importFile: 'Datei importieren', importReservations: 'Reservierungen importieren', selectFile: 'Datei auswählen', dragDrop: 'Datei hierhin ziehen oder klicken', supportedFormats: 'Unterstützte Formate: CSV', step1SelectFile: 'Datei auswählen', step2MapColumns: 'Spalten zuordnen', step3Preview: 'Vorschau & Validierung', step4Result: 'Ergebnis', fileSelected: 'Datei ausgewählt', fileSize: 'Größe', columnMapping: 'Spaltenzuordnung', guestName: 'Gastname', checkInDate: 'Check-in Datum', checkOutDate: 'Check-out Datum', roomNumber: 'Zimmernummer', adults: 'Erwachsene', children: 'Kinder', preferences: 'Präferenzen', selectColumn: 'Spalte auswählen', dateFormat: 'Datumsformat', preview: 'Vorschau', previewDesc: 'Erkannte Reservierungen vor dem Import prüfen', linesDetected: 'Reservierung(en) erkannt', duplicateHandling: 'Duplikatbehandlung', ignore: 'Ignorieren', replace: 'Ersetzen', merge: 'Zusammenführen', importBtn: 'Importieren', importing: 'Wird importiert...', importSuccess: 'Import erfolgreich abgeschlossen', importPartial: 'Teilimport', importFailed: 'Import fehlgeschlagen', reservationsImported: 'Reservierung(en) importiert', linesIgnored: 'Zeile(n) ignoriert', roomNotFound: 'Zimmer nicht gefunden', invalidDate: 'Ungültiges Datum', missingRequired: 'Pflichtfeld fehlt', downloadErrorReport: 'Fehlerbericht herunterladen', viewReservations: 'Reservierungen anzeigen', manualEntry: 'Manuelle Eingabe', manualEntryDesc: 'Reservierungen manuell hinzufügen', addRow: 'Zeile hinzufügen', removeRow: 'Entfernen', noFileSelected: 'Keine Datei ausgewählt', parseError: 'Fehler beim Lesen der Datei', noPms: 'Manueller Import (ohne PMS)', noPmsDesc: 'Importieren Sie Reservierungen aus einer CSV-Datei oder geben Sie sie manuell ein', separator: 'Trennzeichen', autoDetect: 'Automatisch erkennen', column: 'Spalte', optional: 'Optional', required: 'Erforderlich' },
 };
 
 const es: Translations = {
@@ -1194,6 +1363,7 @@ const es: Translations = {
   breakfast: { title: 'Desayuno', toPrepare: 'Por preparar', prepared: 'Preparado', delivering: 'En entrega', served: 'Servido', walkIn: 'Sin reserva', kitchen: 'Cocina', delivery: 'Entrega', servedTab: 'Servidos', noOrderToPrepare: 'Sin pedidos por preparar', noDeliveryInProgress: 'Sin entregas en curso', noHistory: 'Sin historial', markAs: 'Marcar como', confirmMark: 'Confirmar', paid: 'De pago', persons: 'pers.' },
   superadmin: { dashboard: 'Panel de control', hotels: 'Hoteles', users: 'Usuarios', support: 'Soporte', logs: 'Registros', supportMode: 'Modo soporte', activateSupport: 'Activar modo soporte', exitSupport: 'Salir del modo soporte' },
   security: { title: 'Política de seguridad y privacidad', intro: 'FLOWTYM se compromete a proteger sus datos personales de acuerdo con el Reglamento General de Protección de Datos (RGPD) y las leyes aplicables.', dataCollection: 'Recopilación de datos', dataCollectionDesc: 'Solo recopilamos datos necesarios para el servicio de gestión hotelera.', purposes: 'Fines del tratamiento', purposesDesc: 'Los datos se utilizan exclusivamente para la gestión operativa del hotel, facturación y mejora de la calidad.', rights: 'Derechos individuales', rightsDesc: 'De acuerdo con el RGPD, usted tiene derecho de acceso, rectificación, supresión, portabilidad y oposición.', measures: 'Medidas de seguridad', measuresDesc: 'Implementamos medidas técnicas y organizativas apropiadas: cifrado de datos, control de acceso basado en roles, registro de acciones y auditorías de seguridad.', contact: 'Contacto DPD', contactDesc: 'Para preguntas sobre protección de datos, contacte a nuestro DPD: dpo@flowtym.com', compliance: 'Cumplimiento', complianceDesc: 'FLOWTYM cumple con el RGPD (UE 2016/679). Los datos se alojan en la Unión Europea.' },
+  fileImport: { title: 'Importar archivo', importFile: 'Importar un archivo', importReservations: 'Importar reservas', selectFile: 'Seleccionar archivo', dragDrop: 'Arrastre su archivo aquí o haga clic para explorar', supportedFormats: 'Formatos aceptados: CSV', step1SelectFile: 'Seleccionar archivo', step2MapColumns: 'Mapear columnas', step3Preview: 'Vista previa y validación', step4Result: 'Resultado', fileSelected: 'Archivo seleccionado', fileSize: 'Tamaño', columnMapping: 'Mapeo de columnas', guestName: 'Nombre del huésped', checkInDate: 'Fecha de entrada', checkOutDate: 'Fecha de salida', roomNumber: 'Número de habitación', adults: 'Adultos', children: 'Niños', preferences: 'Preferencias', selectColumn: 'Seleccionar columna', dateFormat: 'Formato de fecha', preview: 'Vista previa', previewDesc: 'Revise las reservas detectadas antes de importar', linesDetected: 'reserva(s) detectada(s)', duplicateHandling: 'Gestión de duplicados', ignore: 'Ignorar', replace: 'Reemplazar', merge: 'Fusionar', importBtn: 'Importar', importing: 'Importando...', importSuccess: 'Importación completada con éxito', importPartial: 'Importación parcial', importFailed: 'Error en la importación', reservationsImported: 'reserva(s) importada(s)', linesIgnored: 'línea(s) ignorada(s)', roomNotFound: 'Habitación no encontrada', invalidDate: 'Fecha inválida', missingRequired: 'Campo obligatorio faltante', downloadErrorReport: 'Descargar informe de errores', viewReservations: 'Ver reservas', manualEntry: 'Entrada manual', manualEntryDesc: 'Añadir reservas manualmente', addRow: 'Añadir fila', removeRow: 'Eliminar', noFileSelected: 'Sin archivo seleccionado', parseError: 'Error de lectura del archivo', noPms: 'Importación manual (sin PMS)', noPmsDesc: 'Importe sus reservas desde un archivo CSV o introdúzcalas manualmente', separator: 'Separador', autoDetect: 'Detección automática', column: 'Columna', optional: 'Opcional', required: 'Obligatorio' },
 };
 
 const it: Translations = {
@@ -1214,6 +1384,7 @@ const it: Translations = {
   breakfast: { title: 'Colazione', toPrepare: 'Da preparare', prepared: 'Preparata', delivering: 'In consegna', served: 'Servita', walkIn: 'Walk-in', kitchen: 'Cucina', delivery: 'Consegna', servedTab: 'Serviti', noOrderToPrepare: 'Nessun ordine da preparare', noDeliveryInProgress: 'Nessuna consegna in corso', noHistory: 'Nessuna cronologia', markAs: 'Segna come', confirmMark: 'Conferma', paid: 'A pagamento', persons: 'pers.' },
   superadmin: { dashboard: 'Dashboard', hotels: 'Hotel', users: 'Utenti', support: 'Supporto', logs: 'Log', supportMode: 'Modalità supporto', activateSupport: 'Attivare modalità supporto', exitSupport: 'Uscire dalla modalità supporto' },
   security: { title: 'Politica di sicurezza e privacy', intro: 'FLOWTYM si impegna a proteggere i vostri dati personali in conformità con il GDPR e le leggi applicabili sulla protezione dei dati.', dataCollection: 'Raccolta dati', dataCollectionDesc: 'Raccogliamo solo i dati necessari per il servizio di gestione alberghiera.', purposes: 'Finalità del trattamento', purposesDesc: 'I dati sono utilizzati esclusivamente per la gestione operativa dell\'hotel, la fatturazione e il miglioramento della qualità.', rights: 'Diritti individuali', rightsDesc: 'Ai sensi del GDPR, avete il diritto di accesso, rettifica, cancellazione, portabilità e opposizione.', measures: 'Misure di sicurezza', measuresDesc: 'Implementiamo misure tecniche e organizzative appropriate: crittografia dei dati, controllo degli accessi basato sui ruoli, registrazione delle azioni e audit di sicurezza.', contact: 'Contatto DPO', contactDesc: 'Per domande sulla protezione dei dati, contattate il nostro DPO: dpo@flowtym.com', compliance: 'Conformità', complianceDesc: 'FLOWTYM è conforme al GDPR (UE 2016/679). I dati sono ospitati nell\'Unione Europea.' },
+  fileImport: { title: 'Importazione file', importFile: 'Importare un file', importReservations: 'Importare prenotazioni', selectFile: 'Selezionare file', dragDrop: 'Trascina il file qui o clicca per sfogliare', supportedFormats: 'Formati accettati: CSV', step1SelectFile: 'Seleziona file', step2MapColumns: 'Mappa colonne', step3Preview: 'Anteprima e validazione', step4Result: 'Risultato', fileSelected: 'File selezionato', fileSize: 'Dimensione', columnMapping: 'Mappatura colonne', guestName: 'Nome ospite', checkInDate: 'Data check-in', checkOutDate: 'Data check-out', roomNumber: 'Numero camera', adults: 'Adulti', children: 'Bambini', preferences: 'Preferenze', selectColumn: 'Seleziona colonna', dateFormat: 'Formato data', preview: 'Anteprima', previewDesc: 'Verifica le prenotazioni rilevate prima dell\'importazione', linesDetected: 'prenotazione/i rilevata/e', duplicateHandling: 'Gestione duplicati', ignore: 'Ignora', replace: 'Sostituisci', merge: 'Unisci', importBtn: 'Importa', importing: 'Importazione in corso...', importSuccess: 'Importazione completata con successo', importPartial: 'Importazione parziale', importFailed: 'Importazione fallita', reservationsImported: 'prenotazione/i importata/e', linesIgnored: 'riga/e ignorata/e', roomNotFound: 'Camera non trovata', invalidDate: 'Data non valida', missingRequired: 'Campo obbligatorio mancante', downloadErrorReport: 'Scarica report errori', viewReservations: 'Vedi prenotazioni', manualEntry: 'Inserimento manuale', manualEntryDesc: 'Aggiungi prenotazioni manualmente', addRow: 'Aggiungi riga', removeRow: 'Rimuovi', noFileSelected: 'Nessun file selezionato', parseError: 'Errore di lettura del file', noPms: 'Importazione manuale (senza PMS)', noPmsDesc: 'Importa le prenotazioni da un file CSV o inseriscile manualmente', separator: 'Separatore', autoDetect: 'Rilevamento automatico', column: 'Colonna', optional: 'Opzionale', required: 'Obbligatorio' },
 };
 
 const pt: Translations = {
@@ -1234,6 +1405,7 @@ const pt: Translations = {
   breakfast: { title: 'Pequeno-almoço', toPrepare: 'A preparar', prepared: 'Preparado', delivering: 'Em entrega', served: 'Servido', walkIn: 'Walk-in', kitchen: 'Cozinha', delivery: 'Entrega', servedTab: 'Servidos', noOrderToPrepare: 'Sem pedidos para preparar', noDeliveryInProgress: 'Sem entregas em curso', noHistory: 'Sem histórico', markAs: 'Marcar como', confirmMark: 'Confirmar', paid: 'Pago', persons: 'pes.' },
   superadmin: { dashboard: 'Painel', hotels: 'Hotéis', users: 'Utilizadores', support: 'Suporte', logs: 'Registos', supportMode: 'Modo suporte', activateSupport: 'Ativar modo suporte', exitSupport: 'Sair do modo suporte' },
   security: { title: 'Política de segurança e privacidade', intro: 'A FLOWTYM compromete-se a proteger os seus dados pessoais de acordo com o RGPD e as leis aplicáveis de proteção de dados.', dataCollection: 'Recolha de dados', dataCollectionDesc: 'Recolhemos apenas os dados necessários para o serviço de gestão hoteleira.', purposes: 'Finalidades do tratamento', purposesDesc: 'Os dados são utilizados exclusivamente para a gestão operacional do hotel, faturação e melhoria da qualidade.', rights: 'Direitos individuais', rightsDesc: 'De acordo com o RGPD, tem o direito de acesso, retificação, eliminação, portabilidade e oposição.', measures: 'Medidas de segurança', measuresDesc: 'Implementamos medidas técnicas e organizativas apropriadas: encriptação de dados, controlo de acesso baseado em funções, registo de ações e auditorias de segurança.', contact: 'Contacto EPD', contactDesc: 'Para questões sobre proteção de dados, contacte o nosso EPD: dpo@flowtym.com', compliance: 'Conformidade', complianceDesc: 'A FLOWTYM está em conformidade com o RGPD (UE 2016/679). Os dados são alojados na União Europeia.' },
+  fileImport: { title: 'Importação de ficheiro', importFile: 'Importar ficheiro', importReservations: 'Importar reservas', selectFile: 'Selecionar ficheiro', dragDrop: 'Arraste o ficheiro aqui ou clique para explorar', supportedFormats: 'Formatos aceites: CSV', step1SelectFile: 'Selecionar ficheiro', step2MapColumns: 'Mapear colunas', step3Preview: 'Pré-visualização e validação', step4Result: 'Resultado', fileSelected: 'Ficheiro selecionado', fileSize: 'Tamanho', columnMapping: 'Mapeamento de colunas', guestName: 'Nome do hóspede', checkInDate: 'Data de entrada', checkOutDate: 'Data de saída', roomNumber: 'Número do quarto', adults: 'Adultos', children: 'Crianças', preferences: 'Preferências', selectColumn: 'Selecionar coluna', dateFormat: 'Formato de data', preview: 'Pré-visualização', previewDesc: 'Verifique as reservas detetadas antes de importar', linesDetected: 'reserva(s) detetada(s)', duplicateHandling: 'Gestão de duplicados', ignore: 'Ignorar', replace: 'Substituir', merge: 'Fundir', importBtn: 'Importar', importing: 'A importar...', importSuccess: 'Importação concluída com sucesso', importPartial: 'Importação parcial', importFailed: 'Erro na importação', reservationsImported: 'reserva(s) importada(s)', linesIgnored: 'linha(s) ignorada(s)', roomNotFound: 'Quarto não encontrado', invalidDate: 'Data inválida', missingRequired: 'Campo obrigatório em falta', downloadErrorReport: 'Descarregar relatório de erros', viewReservations: 'Ver reservas', manualEntry: 'Entrada manual', manualEntryDesc: 'Adicionar reservas manualmente', addRow: 'Adicionar linha', removeRow: 'Remover', noFileSelected: 'Nenhum ficheiro selecionado', parseError: 'Erro de leitura do ficheiro', noPms: 'Importação manual (sem PMS)', noPmsDesc: 'Importe as suas reservas a partir de um ficheiro CSV ou introduza-as manualmente', separator: 'Separador', autoDetect: 'Deteção automática', column: 'Coluna', optional: 'Opcional', required: 'Obrigatório' },
 };
 
 const ar: Translations = {
@@ -1254,6 +1426,7 @@ const ar: Translations = {
   breakfast: { title: 'الإفطار', toPrepare: 'للتحضير', prepared: 'جاهز', delivering: 'قيد التوصيل', served: 'تم التقديم', walkIn: 'بدون حجز', kitchen: 'المطبخ', delivery: 'التوصيل', servedTab: 'مقدم', noOrderToPrepare: 'لا توجد طلبات للتحضير', noDeliveryInProgress: 'لا توجد عمليات توصيل', noHistory: 'لا يوجد سجل', markAs: 'وضع علامة كـ', confirmMark: 'تأكيد', paid: 'مدفوع', persons: 'أشخاص' },
   superadmin: { dashboard: 'لوحة التحكم', hotels: 'الفنادق', users: 'المستخدمون', support: 'الدعم', logs: 'السجلات', supportMode: 'وضع الدعم', activateSupport: 'تفعيل وضع الدعم', exitSupport: 'الخروج من وضع الدعم' },
   security: { title: 'سياسة الأمان والخصوصية', intro: 'تلتزم FLOWTYM بحماية بياناتك الشخصية وفقاً للائحة العامة لحماية البيانات (GDPR) وقوانين حماية البيانات المعمول بها.', dataCollection: 'جمع البيانات', dataCollectionDesc: 'نجمع فقط البيانات الضرورية لخدمة إدارة الفنادق.', purposes: 'أغراض المعالجة', purposesDesc: 'تُستخدم البيانات حصرياً للإدارة التشغيلية للفندق والفوترة وتحسين الجودة.', rights: 'حقوق الأفراد', rightsDesc: 'وفقاً للائحة GDPR، لديك حق الوصول والتصحيح والحذف والنقل والاعتراض.', measures: 'إجراءات الأمان', measuresDesc: 'ننفذ إجراءات تقنية وتنظيمية مناسبة: تشفير البيانات، التحكم في الوصول، تسجيل الإجراءات والتدقيق الأمني.', contact: 'الاتصال بمسؤول حماية البيانات', contactDesc: 'للاستفسارات حول حماية البيانات، تواصل مع مسؤول حماية البيانات: dpo@flowtym.com', compliance: 'الامتثال', complianceDesc: 'FLOWTYM متوافق مع GDPR (EU 2016/679). البيانات مستضافة في الاتحاد الأوروبي.' },
+  fileImport: { title: 'استيراد ملف', importFile: 'استيراد ملف', importReservations: 'استيراد حجوزات', selectFile: 'اختيار ملف', dragDrop: 'اسحب الملف هنا أو انقر للتصفح', supportedFormats: 'التنسيقات المقبولة: CSV', step1SelectFile: 'اختيار الملف', step2MapColumns: 'تعيين الأعمدة', step3Preview: 'معاينة وتحقق', step4Result: 'النتيجة', fileSelected: 'تم اختيار الملف', fileSize: 'الحجم', columnMapping: 'تعيين الأعمدة', guestName: 'اسم الضيف', checkInDate: 'تاريخ الوصول', checkOutDate: 'تاريخ المغادرة', roomNumber: 'رقم الغرفة', adults: 'بالغون', children: 'أطفال', preferences: 'تفضيلات', selectColumn: 'اختيار عمود', dateFormat: 'تنسيق التاريخ', preview: 'معاينة', previewDesc: 'راجع الحجوزات المكتشفة قبل الاستيراد', linesDetected: 'حجز(حجوزات) مكتشفة', duplicateHandling: 'إدارة التكرارات', ignore: 'تجاهل', replace: 'استبدال', merge: 'دمج', importBtn: 'استيراد', importing: 'جاري الاستيراد...', importSuccess: 'تم الاستيراد بنجاح', importPartial: 'استيراد جزئي', importFailed: 'فشل الاستيراد', reservationsImported: 'حجز(حجوزات) مستوردة', linesIgnored: 'سطر(أسطر) متجاهلة', roomNotFound: 'الغرفة غير موجودة', invalidDate: 'تاريخ غير صالح', missingRequired: 'حقل إلزامي مفقود', downloadErrorReport: 'تحميل تقرير الأخطاء', viewReservations: 'عرض الحجوزات', manualEntry: 'إدخال يدوي', manualEntryDesc: 'إضافة حجوزات يدوياً', addRow: 'إضافة سطر', removeRow: 'إزالة', noFileSelected: 'لم يتم اختيار ملف', parseError: 'خطأ في قراءة الملف', noPms: 'استيراد يدوي (بدون PMS)', noPmsDesc: 'استورد حجوزاتك من ملف CSV أو أدخلها يدوياً', separator: 'فاصل', autoDetect: 'كشف تلقائي', column: 'عمود', optional: 'اختياري', required: 'إلزامي' },
 };
 
 export const TRANSLATION_MAP: Record<LanguageId, Translations> = {

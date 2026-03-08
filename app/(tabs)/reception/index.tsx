@@ -225,7 +225,7 @@ export default function ReceptionDashboard() {
         onPress: () => {
           const ids = rooms.filter((r) => selectedRoomIds.has(r.id) && r.status === 'occupe').map((r) => r.id);
           bulkDeparture(ids);
-          if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         },
       },
     ]);
@@ -265,7 +265,7 @@ export default function ReceptionDashboard() {
   const handleToggleBreakfast = useCallback((roomId: string, newValue: boolean) => {
     console.log('[Reception] Toggle breakfast for room', roomId, 'to', newValue);
     updateRoom({ roomId, updates: { breakfastIncluded: newValue } });
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [updateRoom]);
 
   const renderTableRow = useCallback(({ item: room }: { item: Room }) => {
@@ -281,7 +281,7 @@ export default function ReceptionDashboard() {
         onPress={() => handleRoomPress(room)}
         onLongPress={() => {
           toggleRoomSelection(room.id);
-          if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }}
         activeOpacity={0.7}
         testID={`table-row-${room.roomNumber}`}
@@ -290,7 +290,7 @@ export default function ReceptionDashboard() {
           style={tableStyles.checkCell}
           onPress={() => {
             toggleRoomSelection(room.id);
-            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           }}
         >
           <View style={[tableStyles.checkbox, isSelected && tableStyles.checkboxActive]}>
@@ -375,7 +375,7 @@ export default function ReceptionDashboard() {
                 onPress={() => handleRoomPress(room)}
                 onLongPress={() => {
                   toggleRoomSelection(room.id);
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 }}
                 activeOpacity={0.7}
                 testID={`room-card-${room.roomNumber}`}
@@ -530,6 +530,10 @@ export default function ReceptionDashboard() {
           <TouchableOpacity style={styles.moreMenuItem} onPress={() => { router.push('/economat'); setShowMoreMenu(false); }}>
             <Text style={styles.moreMenuIcon}>📦</Text>
             <Text style={styles.moreMenuText}>{t.economat.title}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.moreMenuItem} onPress={() => { router.push('/import-reservations'); setShowMoreMenu(false); }}>
+            <Text style={styles.moreMenuIcon}>📥</Text>
+            <Text style={styles.moreMenuText}>{t.fileImport.importReservations}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.moreMenuItem} onPress={() => { router.push('/settings'); setShowMoreMenu(false); }}>
             <Text style={styles.moreMenuIcon}>⚙️</Text>

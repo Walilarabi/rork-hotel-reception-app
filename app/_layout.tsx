@@ -20,7 +20,7 @@ const DATA_VERSION_KEY = 'flowtym_data_version';
 const CURRENT_DATA_VERSION = '4';
 
 try {
-  SplashScreen.preventAutoHideAsync();
+  void SplashScreen.preventAutoHideAsync();
 } catch (e) {
   console.log('[RootLayout] SplashScreen.preventAutoHideAsync failed:', e);
 }
@@ -106,6 +106,7 @@ function RootLayoutNav() {
       <Stack.Screen name="client-review" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="chatbot-admin" options={{ presentation: 'modal', title: 'FAQ Assistant' }} />
       <Stack.Screen name="forecast-config" options={{ presentation: 'modal', title: 'Planification' }} />
+      <Stack.Screen name="import-reservations" options={{ presentation: 'modal', title: 'Import réservations' }} />
     </Stack>
   );
 }
@@ -143,7 +144,7 @@ export default function RootLayout() {
         }
       }
     }
-    initData();
+    void initData();
   }, []);
 
   if (!isDataReady) {
