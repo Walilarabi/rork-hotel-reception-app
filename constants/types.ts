@@ -9,7 +9,10 @@ export type CleaningStatus =
   | 'validee'
   | 'refusee';
 
-export type RoomType = 'Simple' | 'Double' | 'Suite' | 'Deluxe' | 'Familiale';
+export type RoomType = 'Simple' | 'Double' | 'Suite' | 'Deluxe' | 'Familiale' | 'Twin';
+
+export type RoomViewType = 'Rue' | 'Cour' | 'Jardin' | 'Mer' | 'Piscine';
+export type RoomBathroomType = 'Douche' | 'Baignoire' | 'Douche+Baignoire';
 
 export type ReservationStatus = 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled';
 
@@ -52,6 +55,10 @@ export interface Room {
   cleaningStartedAt: string | null;
   cleaningCompletedAt: string | null;
   breakfastIncluded: boolean;
+  viewType: RoomViewType;
+  bathroomType: RoomBathroomType;
+  roomCategory: string;
+  roomSize: number;
 }
 
 export interface StaffMember {

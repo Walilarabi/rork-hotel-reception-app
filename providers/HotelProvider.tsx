@@ -466,6 +466,10 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
         cleaningStartedAt: null,
         cleaningCompletedAt: null,
         breakfastIncluded: false,
+        viewType: 'Rue',
+        bathroomType: 'Douche',
+        roomCategory: 'Classique',
+        roomSize: 16,
         currentReservation: null,
         history: [{
           id: `h-${Date.now()}`,
@@ -908,7 +912,7 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
       .reduce((sum, l) => sum + l.totalPrice, 0);
   }, [consumptionLogs]);
 
-  return {
+  return useMemo(() => ({
     rooms,
     staff: staff.filter((s) => s.role === 'femme_de_chambre' && s.active),
     allStaff: staff,
@@ -967,7 +971,27 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
     toggleRoomSelection,
     toggleFloorSelection,
     clearSelection,
-  };
+  }), [
+    rooms, staff, selectedRoomIds, pmsSync, isLoading,
+    maintenanceTasks, breakfastOrders, inspections, inventoryItems, lostFoundItems,
+    housekeepingRooms, pendingInspections, lowStockItems,
+    consumableProducts, consumptionLogs, stockMovements, lowStockConsumables, todayConsumptionTotal,
+    updateRoomMutation.mutate, addRoomMutation.mutate, bulkDepartureMutation.mutate, bulkAssignMutation.mutate,
+    syncPmsMutation.mutate, syncPmsMutation.isPending,
+    startCleaningMutation.mutate, completeCleaningMutation.mutate, validateInspectionMutation.mutate,
+    updateMaintenanceMutation.mutate, addMaintenanceMutation.mutate,
+    updateBreakfastMutation.mutate, addBreakfastMutation.mutate,
+    updateInventoryMutation.mutate, reportProblemMutation.mutate,
+    addConsumptionsMutation.mutate, addStockEntryMutation.mutate, updateConsumableProductMutation.mutate,
+    maintenanceTypes, maintenanceSchedules,
+    breakfastStaff, breakfastServices, breakfastConfig, breakfastProducts,
+    addMaintenanceTypeMutation.mutate, updateMaintenanceTypeMutation.mutate,
+    addMaintenanceScheduleMutation.mutate, updateMaintenanceScheduleMutation.mutate, addMaintenanceCostMutation.mutate,
+    addBreakfastStaffMutation.mutate, updateBreakfastStaffMutation.mutate,
+    addBreakfastServiceMutation.mutate, updateBreakfastConfigMutation.mutate,
+    addBreakfastProductMutation.mutate, updateBreakfastProductMutation.mutate,
+    toggleRoomSelection, toggleFloorSelection, clearSelection,
+  ]);
 });
 
 export function useFilteredRooms(filters: {

@@ -13,11 +13,10 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { DoorOpen, UserPlus, X, ChevronDown, Coffee, MoreHorizontal, List, LayoutGrid, Eye, Star, Pencil, Upload, Check, Search, Users, TrendingUp, ArrowRightLeft, Wrench } from 'lucide-react-native';
+import { DoorOpen, UserPlus, X, ChevronDown, Coffee, List, LayoutGrid, Eye, Star, Pencil, Upload, Check, Search, ArrowRightLeft, Clock, CheckCircle, AlertCircle, BedDouble, FileText, Image, Download } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
 import DeskFloorSection from '@/components/DeskFloorSection';
-
 import StaffForecastCard from '@/components/StaffForecastCard';
 import * as Haptics from 'expo-haptics';
 import { useHotel, useFilteredRooms } from '@/providers/HotelProvider';
@@ -73,30 +72,12 @@ const PdjToggleButtons = React.memo(function PdjToggleButtons({ included, onTogg
 });
 
 const pdjStyles = StyleSheet.create({
-  container: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 4,
-  },
-  btn: {
-    width: 26,
-    height: 26,
-    borderRadius: 6,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  btnRed: {
-    backgroundColor: 'rgba(239,68,68,0.12)',
-  },
-  btnGreen: {
-    backgroundColor: 'rgba(34,197,94,0.12)',
-  },
-  btnActiveRed: {
-    backgroundColor: FT.danger,
-  },
-  btnActiveGreen: {
-    backgroundColor: FT.success,
-  },
+  container: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4 },
+  btn: { width: 26, height: 26, borderRadius: 6, justifyContent: 'center' as const, alignItems: 'center' as const },
+  btnRed: { backgroundColor: 'rgba(239,68,68,0.12)' },
+  btnGreen: { backgroundColor: 'rgba(34,197,94,0.12)' },
+  btnActiveRed: { backgroundColor: FT.danger },
+  btnActiveGreen: { backgroundColor: FT.success },
 });
 
 interface MiniCalendarProps {
@@ -122,7 +103,6 @@ const MiniCalendar = React.memo(function MiniCalendar({ month, selectedDate, onS
 
   const prevMonth = () => onChangeMonth(new Date(year, mo - 1, 1));
   const nextMonth = () => onChangeMonth(new Date(year, mo + 1, 1));
-
   const pad = (n: number) => n.toString().padStart(2, '0');
 
   return (
@@ -185,6 +165,32 @@ const calStyles = StyleSheet.create({
   cellTextToday: { color: FT.brand, fontWeight: '700' as const },
 });
 
+const KPI_CARDS_CONFIG = [
+  { key: 'chambres', label: 'CHAMBRES', color: FT.brand, borderColor: FT.brand, iconBg: FT.brandSoft },
+  { key: 'departs', label: 'DÉPARTS', color: '#E53935', borderColor: '#E53935', iconBg: 'rgba(229,57,53,0.10)' },
+  { key: 'recouches', label: 'RECOUCHES', color: '#FB8C00', borderColor: '#FB8C00', iconBg: 'rgba(251,140,0,0.10)' },
+  { key: 'en_cours', label: 'EN COURS', color: '#1E88E5', borderColor: '#1E88E5', iconBg: 'rgba(30,136,229,0.10)' },
+  { key: 'terminees', label: 'TERMINÉES', color: '#43A047', borderColor: '#43A047', iconBg: 'rgba(67,160,71,0.10)' },
+  { key: 'a_valider', label: 'À VALIDER', color: '#F59E0B', borderColor: '#F59E0B', iconBg: 'rgba(245,158,11,0.10)' },
+  { key: 'pdj_inclus', label: 'PDJ INCLUS', color: FT.brand, borderColor: FT.brand, iconBg: FT.brandSoft },
+  { key: 'eta_urgents', label: 'ETA URGENTS', color: '#EF4444', borderColor: '#EF4444', iconBg: 'rgba(239,68,68,0.10)' },
+] as const;
+
+function KpiIcon({ kpiKey, color }: { kpiKey: string; color: string }) {
+  const size = 18;
+  switch (kpiKey) {
+    case 'chambres': return <BedDouble size={size} color={color} />;
+    case 'departs': return <DoorOpen size={size} color={color} />;
+    case 'recouches': return <ArrowRightLeft size={size} color={color} />;
+    case 'en_cours': return <Clock size={size} color={color} />;
+    case 'terminees': return <CheckCircle size={size} color={color} />;
+    case 'a_valider': return <AlertCircle size={size} color={color} />;
+    case 'pdj_inclus': return <Coffee size={size} color={color} />;
+    case 'eta_urgents': return <Clock size={size} color={color} />;
+    default: return null;
+  }
+}
+
 export default function ReceptionDashboard() {
   const router = useRouter();
   const { t } = useTheme();
@@ -197,7 +203,6 @@ export default function ReceptionDashboard() {
     syncPms,
     bulkDeparture,
     breakfastOrders,
-    maintenanceTasks,
     toggleRoomSelection,
     toggleFloorSelection,
     clearSelection,
@@ -216,6 +221,8 @@ export default function ReceptionDashboard() {
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [viewMode, setViewMode] = useState<'plan' | 'table'>('plan');
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importMode, setImportMode] = useState<'csv' | 'excel' | 'pdf' | 'image'>('csv');
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
@@ -264,24 +271,30 @@ export default function ReceptionDashboard() {
     [rooms, selectedRoomIds]
   );
 
-  const statusCounts = useMemo(() => {
-    const counts = { libre: 0, occupe: 0, depart: 0, recouche: 0, hors_service: 0 };
-    rooms.forEach((r) => { counts[r.status]++; });
-    return counts;
-  }, [rooms]);
-
   const kpiData = useMemo(() => {
     const totalRooms = rooms.length;
-    const occupiedCount = rooms.filter((r) => r.status === 'occupe' || r.status === 'recouche').length;
-    const occupancyRate = totalRooms > 0 ? Math.round((occupiedCount / totalRooms) * 100) : 0;
-    const departCount = statusCounts.depart;
-    const recoucheCount = statusCounts.recouche;
-    const incidentCount = maintenanceTasks.filter((t) => t.status !== 'resolu').length;
-    const housekeeperCount = rooms.filter((r) => r.cleaningAssignee).map((r) => r.cleaningAssignee).filter((v, i, a) => a.indexOf(v) === i).length;
-    return { occupancyRate, departCount, recoucheCount, incidentCount, housekeeperCount };
-  }, [rooms, statusCounts, maintenanceTasks]);
-
-  const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const departCount = rooms.filter((r) => r.status === 'depart').length;
+    const recoucheCount = rooms.filter((r) => r.status === 'recouche').length;
+    const enCoursCount = rooms.filter((r) => r.cleaningStatus === 'en_cours').length;
+    const termineeCount = rooms.filter((r) => r.cleaningStatus === 'nettoyee' || r.cleaningStatus === 'validee').length;
+    const aValiderCount = rooms.filter((r) => r.cleaningStatus === 'nettoyee').length;
+    const pdjInclusCount = rooms.filter((r) => r.breakfastIncluded).length;
+    const etaUrgentCount = rooms.filter((r) => {
+      if (!r.cleaningStartedAt) return false;
+      const elapsed = Math.floor((Date.now() - new Date(r.cleaningStartedAt).getTime()) / 60000);
+      return elapsed > 30;
+    }).length;
+    return {
+      chambres: totalRooms,
+      departs: departCount,
+      recouches: recoucheCount,
+      en_cours: enCoursCount,
+      terminees: termineeCount,
+      a_valider: aValiderCount,
+      pdj_inclus: pdjInclusCount,
+      eta_urgents: etaUrgentCount,
+    };
+  }, [rooms]);
 
   const closeAllDropdowns = useCallback(() => {
     setShowFloorDrop(false);
@@ -437,6 +450,21 @@ export default function ReceptionDashboard() {
     updateRoom({ roomId, updates: { breakfastIncluded: newValue } });
   }, [updateRoom]);
 
+  const handleImportPress = useCallback(() => {
+    setShowImportModal(true);
+    setImportMode('csv');
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
+
+  const handleImportFile = useCallback(() => {
+    setShowImportModal(false);
+    router.push('/import-reservations');
+  }, [router]);
+
+  const handleDownloadTemplate = useCallback(() => {
+    Alert.alert('Modèle CSV', 'Le modèle CSV contient les colonnes :\nNom client, Date arrivée, Date départ, N° chambre, Adultes, Enfants\n\nFormat de date : JJ/MM/AAAA');
+  }, []);
+
   const groupedByFloor = useMemo(() => {
     const groups: Record<number, Room[]> = {};
     filtered.forEach((room) => {
@@ -510,7 +538,7 @@ export default function ReceptionDashboard() {
           <View>
             <Text style={tableStyles.roomTypeText}>{room.roomType}</Text>
             <Text style={tableStyles.roomCatText} numberOfLines={1}>
-              {'Classique'}
+              {room.roomCategory ?? 'Classique'} {'·'} {room.roomSize ?? 16}{'m²'}
             </Text>
           </View>
         </View>
@@ -521,7 +549,7 @@ export default function ReceptionDashboard() {
               <View style={tableStyles.clientNameRow}>
                 {room.clientBadge === 'vip' && (
                   <View style={tableStyles.vipBadgeInline}>
-                    <Text style={tableStyles.vipBadgeInlineText}>VIP</Text>
+                    <Text style={tableStyles.vipBadgeInlineText}>{'VIP'}</Text>
                   </View>
                 )}
                 {room.clientBadge === 'prioritaire' && <Text style={tableStyles.priorityStar}>{'★'}</Text>}
@@ -531,7 +559,7 @@ export default function ReceptionDashboard() {
                 <Pencil size={10} color={FT.textMuted} style={{ marginLeft: 3 }} />
               </View>
               <Text style={tableStyles.clientDates} numberOfLines={1}>
-                {formatShortDate(room.currentReservation?.checkInDate ?? '')} {'→'} {formatShortDate(room.currentReservation?.checkOutDate ?? '')}
+                {formatShortDate(room.currentReservation?.checkInDate ?? '')} {'–'} {formatShortDate(room.currentReservation?.checkOutDate ?? '')}
               </Text>
             </>
           ) : (
@@ -575,6 +603,14 @@ export default function ReceptionDashboard() {
           ) : (
             <Text style={tableStyles.emptyDash}>{'—'}</Text>
           )}
+        </View>
+
+        <View style={tableStyles.vueSdbCell}>
+          <Text style={tableStyles.vueSdbIcon}>{'↗'}</Text>
+          <View>
+            <Text style={tableStyles.vueSdbText}>{room.viewType ?? 'Rue'}</Text>
+            <Text style={tableStyles.vueSdbSubtext}>{'↳'} {room.bathroomType ?? 'Douche'}</Text>
+          </View>
         </View>
 
         <View style={tableStyles.pdjCell}>
@@ -716,6 +752,17 @@ export default function ReceptionDashboard() {
                     </TouchableOpacity>
                   )}
                   <PMSStatusIndicator syncState={pmsSync} isSyncing={isSyncing} onSync={syncPms} />
+                  <TouchableOpacity style={styles.csvTemplateBtn} onPress={handleDownloadTemplate}>
+                    <Download size={12} color={FT.textSec} />
+                    <Text style={styles.csvTemplateBtnText}>{'CSV modèle'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.importClientBtn}
+                    onPress={handleImportPress}
+                    testID="import-clients-btn"
+                  >
+                    <Text style={styles.importClientBtnText}>{'Import clients'}</Text>
+                  </TouchableOpacity>
                   <UserMenuButton />
                 </View>
               }
@@ -725,74 +772,20 @@ export default function ReceptionDashboard() {
         }}
       />
 
-      <View style={styles.dashHeader}>
-        <View>
-          <Text style={styles.dashTitle}>{'Flowboard'}</Text>
-          <Text style={styles.dashSubtitle}>{today}</Text>
-        </View>
-        <View style={styles.dashActions}>
-          <TouchableOpacity
-            style={styles.importBtn}
-            onPress={() => router.push('/import-reservations')}
-            testID="import-btn"
-          >
-            <Upload size={14} color="#FFF" />
-            <Text style={styles.importBtnText}>{'Import'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.viewToggle, viewMode === 'plan' && styles.viewToggleActive]}
-            onPress={() => setViewMode('plan')}
-          >
-            <LayoutGrid size={14} color={viewMode === 'plan' ? '#FFF' : FT.textSec} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.viewToggle, viewMode === 'table' && styles.viewToggleActive]}
-            onPress={() => setViewMode('table')}
-          >
-            <List size={14} color={viewMode === 'table' ? '#FFF' : FT.textSec} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => { setShowMoreMenu(!showMoreMenu); }}>
-            <MoreHorizontal size={16} color={showMoreMenu ? FT.brand : FT.textSec} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.kpiRow} contentContainerStyle={styles.kpiRowContent}>
-        <View style={styles.kpiCard}>
-          <View style={[styles.kpiIcon, { backgroundColor: FT.brandSoft }]}>
-            <TrendingUp size={16} color={FT.brand} />
+        {KPI_CARDS_CONFIG.map((cfg) => (
+          <View key={cfg.key} style={[styles.kpiCard, { borderTopColor: cfg.borderColor }]}>
+            <View style={styles.kpiCardInner}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.kpiValue}>{kpiData[cfg.key]}</Text>
+                <Text style={styles.kpiLabel}>{cfg.label}</Text>
+              </View>
+              <View style={[styles.kpiIconCircle, { backgroundColor: cfg.iconBg }]}>
+                <KpiIcon kpiKey={cfg.key} color={cfg.color} />
+              </View>
+            </View>
           </View>
-          <Text style={styles.kpiValue}>{kpiData.occupancyRate}{'%'}</Text>
-          <Text style={styles.kpiLabel}>{'TO'}</Text>
-        </View>
-        <View style={styles.kpiCard}>
-          <View style={[styles.kpiIcon, { backgroundColor: FT.dangerSoft }]}>
-            <DoorOpen size={16} color={FT.danger} />
-          </View>
-          <Text style={styles.kpiValue}>{kpiData.departCount}</Text>
-          <Text style={styles.kpiLabel}>{'Départs'}</Text>
-        </View>
-        <View style={styles.kpiCard}>
-          <View style={[styles.kpiIcon, { backgroundColor: FT.orangeSoft }]}>
-            <ArrowRightLeft size={16} color={FT.orange} />
-          </View>
-          <Text style={styles.kpiValue}>{kpiData.recoucheCount}</Text>
-          <Text style={styles.kpiLabel}>{'Recouches'}</Text>
-        </View>
-        <View style={styles.kpiCard}>
-          <View style={[styles.kpiIcon, { backgroundColor: FT.warningSoft }]}>
-            <Wrench size={16} color={FT.warning} />
-          </View>
-          <Text style={styles.kpiValue}>{kpiData.incidentCount}</Text>
-          <Text style={styles.kpiLabel}>{'Incidents'}</Text>
-        </View>
-        <View style={styles.kpiCard}>
-          <View style={[styles.kpiIcon, { backgroundColor: FT.tealSoft }]}>
-            <Users size={16} color={FT.teal} />
-          </View>
-          <Text style={styles.kpiValue}>{kpiData.housekeeperCount}</Text>
-          <Text style={styles.kpiLabel}>{'F. de chambre'}</Text>
-        </View>
+        ))}
       </ScrollView>
 
       <View style={styles.searchFilterRow}>
@@ -812,44 +805,61 @@ export default function ReceptionDashboard() {
             </TouchableOpacity>
           )}
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterPillsContent}>
-          <TouchableOpacity
-            style={[styles.filterPill, floorFilter !== 'all' && styles.filterPillActive]}
-            onPress={() => { closeAllDropdowns(); setShowFloorDrop(!showFloorDrop); }}
-          >
-            <Text style={[styles.filterPillText, floorFilter !== 'all' && styles.filterPillTextActive]}>
-              {floorFilter === 'all' ? 'Tous étages' : `Étage ${floorFilter}`}
-            </Text>
-            <ChevronDown size={10} color={floorFilter !== 'all' ? FT.brand : FT.textMuted} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.filterPill, statusFilter !== 'all' && styles.filterPillActive]}
-            onPress={() => { closeAllDropdowns(); setShowStatusDrop(!showStatusDrop); }}
-          >
-            <Text style={[styles.filterPillText, statusFilter !== 'all' && styles.filterPillTextActive]}>
-              {statusFilter === 'all' ? 'Tous statuts' : ROOM_STATUS_CONFIG[statusFilter].label}
-            </Text>
-            <ChevronDown size={10} color={statusFilter !== 'all' ? FT.brand : FT.textMuted} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.filterPill, badgeFilter !== 'all' && styles.filterPillActive]}
-            onPress={() => { closeAllDropdowns(); setShowBadgeDrop(!showBadgeDrop); }}
-          >
-            <Text style={[styles.filterPillText, badgeFilter !== 'all' && styles.filterPillTextActive]}>
-              {badgeFilter === 'all' ? 'Toutes catégories' : badgeFilter === 'vip' ? 'VIP' : 'Prioritaire'}
-            </Text>
-            <ChevronDown size={10} color={badgeFilter !== 'all' ? FT.brand : FT.textMuted} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.filterPill, assigneeFilter !== 'all' && styles.filterPillActive]}
-            onPress={() => { closeAllDropdowns(); setShowAssigneeDrop(!showAssigneeDrop); }}
-          >
-            <Text style={[styles.filterPillText, assigneeFilter !== 'all' && styles.filterPillTextActive]}>
-              {assigneeFilter === 'all' ? 'Toutes assignées' : assigneeFilter === 'none' ? 'Non assignées' : assigneeFilter}
-            </Text>
-            <ChevronDown size={10} color={assigneeFilter !== 'all' ? FT.brand : FT.textMuted} />
-          </TouchableOpacity>
-        </ScrollView>
+        <View style={styles.filterRow2}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterPillsContent}>
+            <TouchableOpacity
+              style={[styles.filterPill, floorFilter !== 'all' && styles.filterPillActive]}
+              onPress={() => { closeAllDropdowns(); setShowFloorDrop(!showFloorDrop); }}
+            >
+              <Text style={[styles.filterPillText, floorFilter !== 'all' && styles.filterPillTextActive]}>
+                {floorFilter === 'all' ? 'Tous étages' : `Étage ${floorFilter}`}
+              </Text>
+              <ChevronDown size={10} color={floorFilter !== 'all' ? FT.brand : FT.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterPill, statusFilter !== 'all' && styles.filterPillActive]}
+              onPress={() => { closeAllDropdowns(); setShowStatusDrop(!showStatusDrop); }}
+            >
+              <Text style={[styles.filterPillText, statusFilter !== 'all' && styles.filterPillTextActive]}>
+                {statusFilter === 'all' ? 'Tous statuts' : ROOM_STATUS_CONFIG[statusFilter].label}
+              </Text>
+              <ChevronDown size={10} color={statusFilter !== 'all' ? FT.brand : FT.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterPill, badgeFilter !== 'all' && styles.filterPillActive]}
+              onPress={() => { closeAllDropdowns(); setShowBadgeDrop(!showBadgeDrop); }}
+            >
+              <Text style={[styles.filterPillText, badgeFilter !== 'all' && styles.filterPillTextActive]}>
+                {badgeFilter === 'all' ? 'Toutes catégories' : badgeFilter === 'vip' ? 'VIP' : 'Prioritaire'}
+              </Text>
+              <ChevronDown size={10} color={badgeFilter !== 'all' ? FT.brand : FT.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterPill, assigneeFilter !== 'all' && styles.filterPillActive]}
+              onPress={() => { closeAllDropdowns(); setShowAssigneeDrop(!showAssigneeDrop); }}
+            >
+              <Text style={[styles.filterPillText, assigneeFilter !== 'all' && styles.filterPillTextActive]}>
+                {assigneeFilter === 'all' ? 'Toutes assignées' : assigneeFilter === 'none' ? 'Non assignées' : assigneeFilter}
+              </Text>
+              <ChevronDown size={10} color={assigneeFilter !== 'all' ? FT.brand : FT.textMuted} />
+            </TouchableOpacity>
+          </ScrollView>
+          <View style={styles.filterRightBlock}>
+            <TouchableOpacity
+              style={[styles.viewToggle, viewMode === 'plan' && styles.viewToggleActive]}
+              onPress={() => setViewMode('plan')}
+            >
+              <LayoutGrid size={14} color={viewMode === 'plan' ? '#FFF' : FT.textSec} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewToggle, viewMode === 'table' && styles.viewToggleActive]}
+              onPress={() => setViewMode('table')}
+            >
+              <List size={14} color={viewMode === 'table' ? '#FFF' : FT.textSec} />
+            </TouchableOpacity>
+            <Text style={styles.roomCounterText}>{filtered.length} / {total} {t.rooms.rooms}</Text>
+          </View>
+        </View>
       </View>
 
       {showFloorDrop && (
@@ -906,10 +916,6 @@ export default function ReceptionDashboard() {
         </View>
       )}
 
-      <View style={styles.roomCounterRow}>
-        <Text style={styles.roomCounterText}>{filtered.length} / {total} {t.rooms.rooms}</Text>
-      </View>
-
       {showMoreMenu && (
         <View style={styles.moreMenu}>
           <TouchableOpacity style={styles.moreMenuItem} onPress={() => { router.push('/history'); setShowMoreMenu(false); }}>
@@ -923,10 +929,6 @@ export default function ReceptionDashboard() {
           <TouchableOpacity style={styles.moreMenuItem} onPress={() => { router.push('/economat'); setShowMoreMenu(false); }}>
             <Text style={styles.moreMenuIcon}>{'📦'}</Text>
             <Text style={styles.moreMenuText}>{t.economat.title}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.moreMenuItem} onPress={() => { router.push('/import-reservations'); setShowMoreMenu(false); }}>
-            <Text style={styles.moreMenuIcon}>{'📥'}</Text>
-            <Text style={styles.moreMenuText}>{t.fileImport.importReservations}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.moreMenuItem} onPress={() => { router.push('/settings'); setShowMoreMenu(false); }}>
             <Text style={styles.moreMenuIcon}>{'⚙️'}</Text>
@@ -979,7 +981,7 @@ export default function ReceptionDashboard() {
           }
         />
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableScrollH}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScrollH}>
           <View style={styles.tableInner}>
             <View style={tableStyles.stickyHeader}>
               <View style={tableStyles.headerRow}>
@@ -1000,6 +1002,9 @@ export default function ReceptionDashboard() {
                 </View>
                 <View style={tableStyles.assignCell}>
                   <Text style={tableStyles.headerText}>{'ASSIGNÉE'}</Text>
+                </View>
+                <View style={tableStyles.vueSdbCell}>
+                  <Text style={tableStyles.headerText}>{'VUE / SDB'}</Text>
                 </View>
                 <View style={tableStyles.pdjCell}>
                   <Text style={tableStyles.headerText}>{'PDJ'}</Text>
@@ -1150,20 +1155,104 @@ export default function ReceptionDashboard() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      <Modal
+        visible={showImportModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowImportModal(false)}
+      >
+        <TouchableOpacity
+          style={importModalStyles.overlay}
+          activeOpacity={1}
+          onPress={() => setShowImportModal(false)}
+        >
+          <TouchableOpacity style={importModalStyles.card} activeOpacity={1} onPress={() => {}}>
+            <View style={importModalStyles.headerGradient}>
+              <View style={importModalStyles.headerContent}>
+                <View>
+                  <Text style={importModalStyles.headerLabel}>{'IMPORT CLIENTS'}</Text>
+                  <Text style={importModalStyles.headerTitle}>{'Import intelligent par IA'}</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowImportModal(false)}
+                  style={importModalStyles.closeBtn}
+                >
+                  <X size={20} color={FT.textMuted} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={importModalStyles.body}>
+              <Text style={importModalStyles.desc}>
+                {"Importez vos données clients depuis "}
+                <Text style={importModalStyles.descBold}>{"n'importe quel format"}</Text>
+                {". L'IA extrait et normalise automatiquement les données."}
+              </Text>
+
+              <View style={importModalStyles.modeRow}>
+                {([
+                  { key: 'csv' as const, label: 'CSV / TXT', color: FT.brand, icon: 'csv' },
+                  { key: 'excel' as const, label: 'Excel', color: '#43A047', icon: 'excel' },
+                  { key: 'pdf' as const, label: 'PDF', color: '#E53935', icon: 'pdf' },
+                  { key: 'image' as const, label: 'Image (photo / scan)', color: '#FB8C00', icon: 'image' },
+                ] as const).map((opt) => (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={[
+                      importModalStyles.modeChip,
+                      importMode === opt.key && { borderColor: opt.color, backgroundColor: opt.color + '10' },
+                    ]}
+                    onPress={() => setImportMode(opt.key)}
+                    activeOpacity={0.7}
+                  >
+                    {opt.icon === 'csv' && <FileText size={14} color={importMode === opt.key ? opt.color : FT.textSec} />}
+                    {opt.icon === 'excel' && <FileText size={14} color={importMode === opt.key ? opt.color : FT.textSec} />}
+                    {opt.icon === 'pdf' && <FileText size={14} color={importMode === opt.key ? opt.color : FT.textSec} />}
+                    {opt.icon === 'image' && <Image size={14} color={importMode === opt.key ? opt.color : FT.textSec} />}
+                    <Text style={[
+                      importModalStyles.modeChipText,
+                      importMode === opt.key && { color: opt.color, fontWeight: '700' as const },
+                    ]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TouchableOpacity
+                style={importModalStyles.dropzone}
+                onPress={handleImportFile}
+                activeOpacity={0.7}
+                testID="import-dropzone"
+              >
+                <View style={importModalStyles.dropzoneIcon}>
+                  <Upload size={28} color={FT.textMuted} />
+                </View>
+                <Text style={importModalStyles.dropzoneTitle}>{'Glissez votre fichier ici'}</Text>
+                <Text style={importModalStyles.dropzoneDesc}>
+                  {'CSV · Excel · PDF · Image — ou cliquez pour parcourir'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={importModalStyles.templateBtn}
+                onPress={handleDownloadTemplate}
+                activeOpacity={0.7}
+              >
+                <Download size={14} color={FT.textSec} />
+                <Text style={importModalStyles.templateBtnText}>{'Modèle CSV'}</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
 
 const ftStyles = StyleSheet.create({
-  roomChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: FT.chipRadius,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    minWidth: 56,
-  },
+  roomChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: FT.chipRadius, flexDirection: 'row', alignItems: 'center', gap: 3, minWidth: 56 },
   roomChipSelected: { borderWidth: 2, borderColor: '#FFF' },
   roomCheck: { width: 14, height: 14, borderRadius: 7, backgroundColor: 'rgba(255,255,255,0.4)', justifyContent: 'center', alignItems: 'center' },
   roomCheckText: { fontSize: 8, color: '#FFF', fontWeight: '700' as const },
@@ -1175,55 +1264,21 @@ const ftStyles = StyleSheet.create({
 });
 
 const tableStyles = StyleSheet.create({
-  stickyHeader: {
-    backgroundColor: FT.headerBg,
-    borderBottomWidth: 2,
-    borderBottomColor: FT.brand,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-  },
-  headerText: {
-    fontSize: 10,
-    fontWeight: '700' as const,
-    color: '#FFF',
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    backgroundColor: FT.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: FT.borderLight,
-    minHeight: 60,
-  },
+  stickyHeader: { backgroundColor: FT.headerBg, borderBottomWidth: 2, borderBottomColor: FT.brand },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 8 },
+  headerText: { fontSize: 10, fontWeight: '700' as const, color: '#FFF', textTransform: 'uppercase' as const, letterSpacing: 0.5 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 8, backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.borderLight, minHeight: 60 },
   rowSelected: { backgroundColor: FT.brandSoft },
   checkCell: { width: 32, alignItems: 'center', justifyContent: 'center' },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    borderWidth: 1.5,
-    borderColor: FT.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  checkbox: { width: 18, height: 18, borderRadius: 4, borderWidth: 1.5, borderColor: FT.border, justifyContent: 'center', alignItems: 'center' },
   checkboxActive: { backgroundColor: FT.brand, borderColor: FT.brand },
   checkMark: { fontSize: 10, color: '#FFF', fontWeight: '700' as const },
-
-  chambreCell: { width: 130, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
-  roomBadge: { width: 38, height: 38, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  chambreCell: { width: 140, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
+  roomBadge: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   roomBadgeText: { fontSize: 13, fontWeight: '800' as const, color: '#FFF' },
   roomTypeText: { fontSize: 12, fontWeight: '600' as const, color: FT.text },
   roomCatText: { fontSize: 9, color: FT.textMuted },
-
-  clientCell: { width: 180, paddingHorizontal: 6, justifyContent: 'center' },
+  clientCell: { width: 190, paddingHorizontal: 6, justifyContent: 'center' },
   clientNameRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   clientName: { fontSize: 12, fontWeight: '600' as const, color: FT.text, flexShrink: 1 },
   clientDates: { fontSize: 10, color: FT.textSec, marginTop: 2 },
@@ -1232,240 +1287,133 @@ const tableStyles = StyleSheet.create({
   vipBadgeInline: { backgroundColor: '#F59E0B', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 },
   vipBadgeInlineText: { fontSize: 8, fontWeight: '800' as const, color: '#FFF' },
   priorityStar: { fontSize: 12, color: '#F59E0B' },
-
-  hkCell: { width: 120, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
+  hkCell: { width: 130, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
   hkDot: { width: 14, alignItems: 'center' },
   dot: { width: 8, height: 8, borderRadius: 4 },
   hkLabel: { fontSize: 11, fontWeight: '600' as const },
-
-  gouvCell: { width: 100, paddingHorizontal: 4, justifyContent: 'center' },
+  gouvCell: { width: 110, paddingHorizontal: 4, justifyContent: 'center' },
   gouvBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start' as const },
   gouvText: { fontSize: 10, fontWeight: '600' as const },
-
   assignCell: { width: 130, paddingHorizontal: 4, justifyContent: 'center' },
   assignRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   assignAvatar: { width: 26, height: 26, borderRadius: 13, backgroundColor: FT.brand, justifyContent: 'center', alignItems: 'center' },
   assignAvatarText: { fontSize: 9, fontWeight: '700' as const, color: '#FFF' },
   assignName: { fontSize: 11, color: FT.textSec, flexShrink: 1 },
-
+  vueSdbCell: { width: 120, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  vueSdbIcon: { fontSize: 10, color: FT.textMuted },
+  vueSdbText: { fontSize: 11, fontWeight: '500' as const, color: FT.text },
+  vueSdbSubtext: { fontSize: 9, color: FT.textMuted },
   pdjCell: { width: 70, alignItems: 'center', justifyContent: 'center' },
-
-  etaCell: { width: 50, alignItems: 'center', justifyContent: 'center' },
+  etaCell: { width: 55, alignItems: 'center', justifyContent: 'center' },
   etaText: { fontSize: 12, fontWeight: '700' as const, color: FT.brand },
-
   actionsCell: { width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  actionIconBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: FT.surfaceAlt,
-    borderWidth: 1,
-    borderColor: FT.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionIconDeparture: {
-    backgroundColor: 'rgba(249,115,22,0.08)',
-    borderColor: 'rgba(249,115,22,0.2)',
-  },
+  actionIconBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: FT.surfaceAlt, borderWidth: 1, borderColor: FT.border, justifyContent: 'center', alignItems: 'center' },
+  actionIconDeparture: { backgroundColor: 'rgba(249,115,22,0.08)', borderColor: 'rgba(249,115,22,0.2)' },
   emptyDash: { fontSize: 12, color: FT.textMuted },
 });
 
 const modalStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  card: {
-    backgroundColor: FT.surface,
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 420,
-    ...FT.shadowMedium,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    color: FT.text,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: FT.textSec,
-    marginTop: 2,
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: FT.textSec,
-    marginBottom: 6,
-    marginTop: 12,
-  },
-  input: {
-    backgroundColor: FT.surfaceAlt,
-    borderWidth: 1,
-    borderColor: FT.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: FT.text,
-  },
-  dateRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  dateField: {
-    flex: 1,
-  },
-  moveToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 18,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    backgroundColor: FT.brandSoft,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: FT.brand + '20',
-  },
-  moveToggleText: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-    color: FT.brand,
-  },
-  roomPickerScroll: {
-    maxHeight: 150,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: FT.border,
-    borderRadius: 10,
-    backgroundColor: FT.surfaceAlt,
-  },
-  roomOption: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: FT.borderLight,
-  },
-  roomOptionActive: {
-    backgroundColor: FT.brandSoft,
-  },
-  roomOptionText: {
-    fontSize: 13,
-    color: FT.text,
-  },
-  roomOptionTextActive: {
-    color: FT.brand,
-    fontWeight: '600' as const,
-  },
-  noRoomsText: {
-    fontSize: 12,
-    color: FT.textMuted,
-    padding: 14,
-    textAlign: 'center' as const,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 24,
-  },
-  saveBtn: {
-    flex: 1,
-    backgroundColor: FT.brand,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  saveBtnText: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-    color: '#FFF',
-  },
-  cancelBtn: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: FT.border,
-  },
-  cancelBtnText: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: FT.textSec,
-  },
-  dateBtn: {
-    justifyContent: 'center' as const,
-  },
-  dateBtnActive: {
-    borderColor: FT.brand,
-    backgroundColor: FT.brandSoft,
-  },
-  dateBtnText: {
-    fontSize: 14,
-    color: FT.text,
-  },
-  calendarWrap: {
-    marginTop: 4,
-  },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  card: { backgroundColor: FT.surface, borderRadius: 16, padding: 24, width: '100%', maxWidth: 420, ...FT.shadowMedium },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+  title: { fontSize: 18, fontWeight: '700' as const, color: FT.text },
+  subtitle: { fontSize: 13, color: FT.textSec, marginTop: 2 },
+  closeBtn: { padding: 4 },
+  label: { fontSize: 12, fontWeight: '600' as const, color: FT.textSec, marginBottom: 6, marginTop: 12 },
+  input: { backgroundColor: FT.surfaceAlt, borderWidth: 1, borderColor: FT.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: FT.text },
+  dateRow: { flexDirection: 'row', gap: 12 },
+  dateField: { flex: 1 },
+  moveToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: FT.brandSoft, borderRadius: 10, borderWidth: 1, borderColor: FT.brand + '20' },
+  moveToggleText: { fontSize: 13, fontWeight: '600' as const, color: FT.brand },
+  roomPickerScroll: { maxHeight: 150, marginTop: 8, borderWidth: 1, borderColor: FT.border, borderRadius: 10, backgroundColor: FT.surfaceAlt },
+  roomOption: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: FT.borderLight },
+  roomOptionActive: { backgroundColor: FT.brandSoft },
+  roomOptionText: { fontSize: 13, color: FT.text },
+  roomOptionTextActive: { color: FT.brand, fontWeight: '600' as const },
+  noRoomsText: { fontSize: 12, color: FT.textMuted, padding: 14, textAlign: 'center' as const },
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 24 },
+  saveBtn: { flex: 1, backgroundColor: FT.brand, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  saveBtnText: { fontSize: 15, fontWeight: '700' as const, color: '#FFF' },
+  cancelBtn: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: FT.border },
+  cancelBtnText: { fontSize: 14, fontWeight: '600' as const, color: FT.textSec },
+  dateBtn: { justifyContent: 'center' as const },
+  dateBtnActive: { borderColor: FT.brand, backgroundColor: FT.brandSoft },
+  dateBtnText: { fontSize: 14, color: FT.text },
+  calendarWrap: { marginTop: 4 },
+});
+
+const importModalStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  card: { backgroundColor: FT.surface, borderRadius: 20, width: '100%', maxWidth: 500, overflow: 'hidden' as const, ...FT.shadowMedium },
+  headerGradient: { backgroundColor: FT.headerBg, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 16 },
+  headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  headerLabel: { fontSize: 10, fontWeight: '700' as const, color: FT.brandLight, letterSpacing: 1, textTransform: 'uppercase' as const },
+  headerTitle: { fontSize: 20, fontWeight: '800' as const, color: '#FFF', marginTop: 4 },
+  closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center' },
+  body: { padding: 24, gap: 16 },
+  desc: { fontSize: 14, color: FT.textSec, lineHeight: 20 },
+  descBold: { fontWeight: '700' as const, color: FT.text },
+  modeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  modeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1.5, borderColor: FT.border, backgroundColor: FT.surfaceAlt },
+  modeChipText: { fontSize: 12, fontWeight: '500' as const, color: FT.textSec },
+  dropzone: { borderWidth: 2, borderColor: FT.borderLight, borderStyle: 'dashed' as const, borderRadius: 16, paddingVertical: 32, alignItems: 'center', gap: 8, backgroundColor: FT.surfaceAlt },
+  dropzoneIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: FT.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: FT.borderLight },
+  dropzoneTitle: { fontSize: 15, fontWeight: '700' as const, color: FT.text },
+  dropzoneDesc: { fontSize: 12, color: FT.textMuted },
+  templateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: FT.border, backgroundColor: FT.surface },
+  templateBtnText: { fontSize: 13, fontWeight: '600' as const, color: FT.textSec },
 });
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: FT.bg },
   loadingContainer: { flex: 1, backgroundColor: FT.bg, justifyContent: 'center', alignItems: 'center', gap: 12 },
   loadingText: { color: FT.textSec, fontSize: 14 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   billingBtn: { position: 'relative', padding: 4 },
   billingBadge: { position: 'absolute', top: -2, right: -4, backgroundColor: FT.warning, width: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   billingBadgeText: { fontSize: 9, fontWeight: '700' as const, color: '#FFF' },
 
-  dashHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
-  dashTitle: { fontSize: 22, fontWeight: '800' as const, color: FT.text, letterSpacing: -0.3 },
-  dashSubtitle: { fontSize: 11, color: FT.textMuted, marginTop: 1, textTransform: 'capitalize' as const },
-  dashActions: { flexDirection: 'row', gap: 6, alignItems: 'center' },
-  importBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: FT.brand, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
-  importBtnText: { fontSize: 12, fontWeight: '600' as const, color: '#FFF' },
-  viewToggle: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center', backgroundColor: FT.surfaceAlt, borderWidth: 1, borderColor: FT.border },
-  viewToggleActive: { backgroundColor: FT.brand, borderColor: FT.brand },
-  iconBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: FT.surfaceAlt, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: FT.border },
+  csvTemplateBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.1)' },
+  csvTemplateBtnText: { fontSize: 10, color: '#CCC', fontWeight: '500' as const },
+  importClientBtn: { backgroundColor: FT.brand, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 },
+  importClientBtnText: { fontSize: 12, fontWeight: '700' as const, color: '#FFF' },
 
   kpiRow: { backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.borderLight },
-  kpiRowContent: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
-  kpiCard: { backgroundColor: FT.surfaceAlt, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', minWidth: 90, gap: 4, borderWidth: 1, borderColor: FT.borderLight },
-  kpiIcon: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  kpiValue: { fontSize: 18, fontWeight: '800' as const, color: FT.text },
-  kpiLabel: { fontSize: 10, fontWeight: '500' as const, color: FT.textMuted },
+  kpiRowContent: { paddingHorizontal: 12, paddingVertical: 12, gap: 10 },
+  kpiCard: {
+    backgroundColor: FT.surface,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minWidth: 120,
+    borderWidth: 1,
+    borderColor: FT.borderLight,
+    borderTopWidth: 3,
+    borderTopColor: FT.brand,
+  },
+  kpiCardInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  kpiIconCircle: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  kpiValue: { fontSize: 24, fontWeight: '800' as const, color: FT.text },
+  kpiLabel: { fontSize: 9, fontWeight: '700' as const, color: FT.textMuted, letterSpacing: 0.5, marginTop: 2, textTransform: 'uppercase' as const },
 
   searchFilterRow: { backgroundColor: FT.surface, paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: FT.borderLight, gap: 8 },
   searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: FT.surfaceAlt, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, gap: 8, borderWidth: 1, borderColor: FT.borderLight },
   searchInput: { flex: 1, fontSize: 13, color: FT.text, padding: 0 },
-  filterPillsContent: { gap: 6, paddingTop: 4 },
+  filterRow2: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  filterPillsContent: { gap: 6, paddingRight: 8 },
   filterPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: FT.surfaceAlt, borderWidth: 1, borderColor: FT.borderLight },
   filterPillActive: { borderColor: FT.brand, backgroundColor: FT.brandSoft },
   filterPillText: { fontSize: 12, fontWeight: '500' as const, color: FT.textSec },
   filterPillTextActive: { color: FT.brand, fontWeight: '600' as const },
+  filterRightBlock: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  roomCounterText: { fontSize: 11, color: FT.textMuted, fontWeight: '600' as const },
+  viewToggle: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center', backgroundColor: FT.surfaceAlt, borderWidth: 1, borderColor: FT.border },
+  viewToggleActive: { backgroundColor: FT.brand, borderColor: FT.brand },
 
   moreMenu: { backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.border, paddingVertical: 4, position: 'absolute' as const, top: 52, right: 14, zIndex: 200, borderRadius: 12, shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 20 },
   moreMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12 },
   moreMenuIcon: { fontSize: 16 },
   moreMenuText: { fontSize: 14, color: FT.text, fontWeight: '500' as const },
-
-  roomCounterRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 6, backgroundColor: FT.bg },
-  roomCounterText: { fontSize: 11, color: FT.textMuted, fontWeight: '600' as const },
 
   dropdown: { position: 'absolute', top: 200, left: 14, right: 14, backgroundColor: FT.surface, borderRadius: 12, borderWidth: 1, borderColor: FT.border, zIndex: 100, elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12 },
   dropItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: FT.border, gap: 8 },
