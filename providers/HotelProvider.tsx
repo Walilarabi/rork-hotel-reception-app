@@ -451,7 +451,7 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
   });
 
   const addRoomMutation = useMutation({
-    mutationFn: async (params: { roomNumber: string; floor: number; roomType: RoomType; status: RoomStatus }) => {
+    mutationFn: async (params: { roomNumber: string; floor: number; roomType: RoomType; status: RoomStatus; roomCategory?: string; roomSize?: number; capacity?: number; equipment?: string[]; dotation?: string[]; viewType?: Room['viewType']; bathroomType?: Room['bathroomType'] }) => {
       const newRoom: Room = {
         id: Date.now().toString(),
         roomNumber: params.roomNumber,
@@ -466,10 +466,13 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
         cleaningStartedAt: null,
         cleaningCompletedAt: null,
         breakfastIncluded: false,
-        viewType: 'Rue',
-        bathroomType: 'Douche',
-        roomCategory: 'Classique',
-        roomSize: 16,
+        viewType: params.viewType ?? 'Rue',
+        bathroomType: params.bathroomType ?? 'Douche',
+        roomCategory: params.roomCategory ?? 'Classique',
+        roomSize: params.roomSize ?? 16,
+        capacity: params.capacity ?? 2,
+        equipment: params.equipment ?? [],
+        dotation: params.dotation ?? [],
         currentReservation: null,
         history: [{
           id: `h-${Date.now()}`,
@@ -483,6 +486,77 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
       const updated = [...rooms, newRoom];
       await persistRooms(updated);
       return newRoom;
+    },
+  });
+
+  const bulkImportRoomsMutation = useMutation({
+    mutationFn: async (importedRooms: Array<{ roomNumber: string; floor: number; roomType: RoomType; roomCategory: string; roomSize: number; capacity: number; equipment: string[]; dotation: string[] }>) => {
+      console.log('[HotelProvider] Bulk importing rooms:', importedRooms.length);
+      const now = Date.now();
+      const newRooms: Room[] = importedRooms.map((r, idx) => {
+        const existingRoom = rooms.find((er) => er.roomNumber === r.roomNumber);
+        if (existingRoom) {
+          return {
+            ...existingRoom,
+            floor: r.floor,
+            roomType: r.roomType,
+            roomCategory: r.roomCategory,
+            roomSize: r.roomSize,
+            capacity: r.capacity,
+            equipment: r.equipment,
+            dotation: r.dotation,
+            history: [...existingRoom.history, {
+              id: `h-${now}-${idx}`,
+              roomId: existingRoom.id,
+              action: 'Import mise à jour',
+              performedBy: 'Configuration',
+              date: new Date().toISOString(),
+              details: 'Chambre mise à jour via import Excel',
+            }],
+          };
+        }
+        const roomId = `${now}-${idx}`;
+        return {
+          id: roomId,
+          roomNumber: r.roomNumber,
+          floor: r.floor,
+          roomType: r.roomType,
+          status: 'libre' as RoomStatus,
+          clientBadge: 'normal' as ClientBadge,
+          vipInstructions: '',
+          cleaningStatus: 'none' as const,
+          cleaningAssignee: null,
+          assignedTo: null,
+          cleaningStartedAt: null,
+          cleaningCompletedAt: null,
+          breakfastIncluded: false,
+          viewType: 'Rue' as const,
+          bathroomType: 'Douche' as const,
+          roomCategory: r.roomCategory,
+          roomSize: r.roomSize,
+          capacity: r.capacity,
+          equipment: r.equipment,
+          dotation: r.dotation,
+          currentReservation: null,
+          history: [{
+            id: `h-${now}-${idx}`,
+            roomId,
+            action: 'Création (import)',
+            performedBy: 'Configuration',
+            date: new Date().toISOString(),
+            details: 'Chambre créée via import Excel',
+          }],
+        };
+      });
+      const existingNumbers = new Set(newRooms.map((r) => r.roomNumber));
+      const kept = rooms.filter((r) => !existingNumbers.has(r.roomNumber));
+      const merged = [...kept, ...newRooms].sort((a, b) => {
+        if (a.floor !== b.floor) return a.floor - b.floor;
+        return a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true });
+      });
+      await persistRooms(merged);
+      console.log('[HotelProvider] Bulk import complete. Total rooms:', merged.length);
+      return { created: newRooms.filter((r) => !rooms.find((er) => er.roomNumber === r.roomNumber)).length, updated: newRooms.filter((r) => rooms.find((er) => er.roomNumber === r.roomNumber)).length };
     },
   });
 
@@ -935,6 +1009,8 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
     todayConsumptionTotal,
     updateRoom: updateRoomMutation.mutate,
     addRoom: addRoomMutation.mutate,
+    bulkImportRooms: bulkImportRoomsMutation.mutateAsync,
+    isBulkImporting: bulkImportRoomsMutation.isPending,
     bulkDeparture: bulkDepartureMutation.mutate,
     bulkAssign: bulkAssignMutation.mutate,
     syncPms: syncPmsMutation.mutate,
@@ -976,7 +1052,7 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
     maintenanceTasks, breakfastOrders, inspections, inventoryItems, lostFoundItems,
     housekeepingRooms, pendingInspections, lowStockItems,
     consumableProducts, consumptionLogs, stockMovements, lowStockConsumables, todayConsumptionTotal,
-    updateRoomMutation.mutate, addRoomMutation.mutate, bulkDepartureMutation.mutate, bulkAssignMutation.mutate,
+    updateRoomMutation.mutate, addRoomMutation.mutate, bulkImportRoomsMutation.mutateAsync, bulkImportRoomsMutation.isPending, bulkDepartureMutation.mutate, bulkAssignMutation.mutate,
     syncPmsMutation.mutate, syncPmsMutation.isPending,
     startCleaningMutation.mutate, completeCleaningMutation.mutate, validateInspectionMutation.mutate,
     updateMaintenanceMutation.mutate, addMaintenanceMutation.mutate,

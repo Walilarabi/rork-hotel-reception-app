@@ -59,6 +59,9 @@ export interface Room {
   bathroomType: RoomBathroomType;
   roomCategory: string;
   roomSize: number;
+  capacity: number;
+  equipment: string[];
+  dotation: string[];
 }
 
 export interface StaffMember {

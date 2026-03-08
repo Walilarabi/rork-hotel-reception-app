@@ -27,9 +27,15 @@ import {
   ToggleLeft,
   ToggleRight,
   Search,
+  Upload,
+  FileSpreadsheet,
+  CheckCircle2,
 } from 'lucide-react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import * as Haptics from 'expo-haptics';
 import { useConfiguration } from '@/providers/ConfigurationProvider';
 import { useAuth } from '@/providers/AuthProvider';
+import { useHotel } from '@/providers/HotelProvider';
 import { Colors } from '@/constants/colors';
 import { FT } from '@/constants/flowtym';
 import {
@@ -43,6 +49,7 @@ import {
   PROBLEM_ICONS,
   CONTRACT_TYPES,
 } from '@/constants/configTypes';
+import { RoomType } from '@/constants/types';
 
 type TabId = 'products' | 'checklists' | 'problems' | 'roomTypes' | 'staff';
 
@@ -738,9 +745,116 @@ function ProblemFormModal({ template, onSave, onClose }: ProblemFormModalProps) 
   );
 }
 
+interface ImportedRoom {
+  id: string;
+  roomNumber: string;
+  floor: number;
+  roomType: RoomType;
+  roomCategory: string;
+  capacity: number;
+  roomSize: number;
+  equipment: string[];
+  dotation: string[];
+  selected: boolean;
+  error: string | null;
+}
+
+interface RoomColumnMapping {
+  roomNumber: number | null;
+  floor: number | null;
+  roomType: number | null;
+  roomCategory: number | null;
+  capacity: number | null;
+  roomSize: number | null;
+  equipment: number | null;
+  dotation: number | null;
+}
+
+const ROOM_COLUMN_LABELS: Record<keyof RoomColumnMapping, string> = {
+  roomNumber: 'N° Chambre',
+  floor: 'Étage',
+  roomType: 'Type',
+  roomCategory: 'Catégorie',
+  capacity: 'Capacité',
+  roomSize: 'Surface (m²)',
+  equipment: 'Équipement',
+  dotation: 'Dotation',
+};
+
+const ROOM_TYPE_VALUES: RoomType[] = ['Simple', 'Double', 'Suite', 'Deluxe', 'Familiale', 'Twin'];
+
+function parseCSVLine(line: string, separator: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === separator && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function detectSeparator(text: string): string {
+  const firstLine = text.split('\n')[0] ?? '';
+  const semicolons = (firstLine.match(/;/g) ?? []).length;
+  const commas = (firstLine.match(/,/g) ?? []).length;
+  const tabs = (firstLine.match(/\t/g) ?? []).length;
+  if (tabs > commas && tabs > semicolons) return '\t';
+  if (semicolons > commas) return ';';
+  return ',';
+}
+
+function autoDetectRoomColumns(headers: string[]): RoomColumnMapping {
+  const mapping: RoomColumnMapping = {
+    roomNumber: null, floor: null, roomType: null, roomCategory: null,
+    capacity: null, roomSize: null, equipment: null, dotation: null,
+  };
+  const lower = headers.map((h) => h.toLowerCase().trim());
+  lower.forEach((h, i) => {
+    if (/n.*chambre|room.*n|numero|number|chambre/.test(h)) mapping.roomNumber = i;
+    else if (/etage|étage|floor|niveau/.test(h)) mapping.floor = i;
+    else if (/type.*chambre|room.*type|type/.test(h)) mapping.roomType = i;
+    else if (/cat[ée]gorie|category|classe/.test(h)) mapping.roomCategory = i;
+    else if (/capacit[ée]|capacity|pers|places/.test(h)) mapping.capacity = i;
+    else if (/surface|taille|size|m2|m²/.test(h)) mapping.roomSize = i;
+    else if (/[ée]quipement|equipment|equip/.test(h)) mapping.equipment = i;
+    else if (/dotation|fourniture|supply|supplies|linge/.test(h)) mapping.dotation = i;
+  });
+  return mapping;
+}
+
+function matchRoomType(value: string): RoomType {
+  const v = value.toLowerCase().trim();
+  for (const rt of ROOM_TYPE_VALUES) {
+    if (rt.toLowerCase() === v) return rt;
+  }
+  if (/simple|sgl|single/.test(v)) return 'Simple';
+  if (/double|dbl|twin/.test(v)) return v.includes('twin') ? 'Twin' : 'Double';
+  if (/suite|ste/.test(v)) return 'Suite';
+  if (/deluxe|dlx|luxe/.test(v)) return 'Deluxe';
+  if (/famil/.test(v)) return 'Familiale';
+  return 'Simple';
+}
+
+type ImportStep = 1 | 2 | 3 | 4;
+
 function RoomTypesTab({ config, search, canWrite }: TabProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingType, setEditingType] = useState<ConfigRoomType | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -752,6 +866,25 @@ function RoomTypesTab({ config, search, canWrite }: TabProps) {
   return (
     <View style={styles.tabContent}>
       <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollPadding}>
+        {canWrite && (
+          <TouchableOpacity
+            style={styles.importBanner}
+            onPress={() => setShowImportModal(true)}
+            testID="import-rooms-btn"
+          >
+            <View style={styles.importBannerLeft}>
+              <View style={styles.importBannerIcon}>
+                <FileSpreadsheet size={20} color={Colors.primary} />
+              </View>
+              <View>
+                <Text style={styles.importBannerTitle}>Import Excel / CSV</Text>
+                <Text style={styles.importBannerSub}>Importer les chambres depuis un fichier</Text>
+              </View>
+            </View>
+            <Upload size={18} color={Colors.primary} />
+          </TouchableOpacity>
+        )}
+
         <View style={styles.roomTypesList}>
           {filtered.map((rt) => (
             <View key={rt.id} style={[styles.roomTypeCard, !rt.active && styles.tableRowInactive]}>
@@ -809,6 +942,10 @@ function RoomTypesTab({ config, search, canWrite }: TabProps) {
           }}
           onClose={() => { setShowAddModal(false); setEditingType(null); }}
         />
+      )}
+
+      {showImportModal && (
+        <RoomImportModal onClose={() => setShowImportModal(false)} />
       )}
     </View>
   );
@@ -1039,6 +1176,476 @@ function StaffFormModal({ housekeeper, onSave, onClose }: StaffFormModalProps) {
     </Modal>
   );
 }
+
+function RoomImportModal({ onClose }: { onClose: () => void }) {
+  const { bulkImportRooms, isBulkImporting, rooms } = useHotel();
+  const [step, setStep] = useState<ImportStep>(1);
+  const [rawData, setRawData] = useState<string[][]>([]);
+  const [headers, setHeaders] = useState<string[]>([]);
+  const [fileName, setFileName] = useState('');
+  const [mapping, setMapping] = useState<RoomColumnMapping>({
+    roomNumber: null, floor: null, roomType: null, roomCategory: null,
+    capacity: null, roomSize: null, equipment: null, dotation: null,
+  });
+  const [importedRooms, setImportedRooms] = useState<ImportedRoom[]>([]);
+  const [importResult, setImportResult] = useState<{ created: number; updated: number } | null>(null);
+
+  const processCSVText = useCallback((text: string) => {
+    const separator = detectSeparator(text);
+    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length < 2) {
+      Alert.alert('Erreur', 'Le fichier doit contenir au moins un en-t\u00eate et une ligne de donn\u00e9es');
+      return;
+    }
+    const headerRow = parseCSVLine(lines[0], separator);
+    setHeaders(headerRow);
+    const dataRows = lines.slice(1).map((l) => parseCSVLine(l, separator));
+    setRawData(dataRows);
+    const autoMapping = autoDetectRoomColumns(headerRow);
+    setMapping(autoMapping);
+    console.log('[RoomImport] Parsed', dataRows.length, 'rows. Headers:', headerRow);
+    setStep(2);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
+
+  const handlePickFile = useCallback(async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['text/csv', 'text/plain', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '*/*'],
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const file = result.assets[0];
+      setFileName(file.name);
+      console.log('[RoomImport] File selected:', file.name, file.mimeType);
+      const response = await fetch(file.uri);
+      const text = await response.text();
+      processCSVText(text);
+    } catch (e) {
+      console.log('[RoomImport] Error picking file:', e);
+      Alert.alert('Erreur', 'Impossible de lire le fichier');
+    }
+  }, [processCSVText]);
+
+  const handleValidateMapping = useCallback(() => {
+    if (mapping.roomNumber === null) {
+      Alert.alert('Erreur', 'Le mapping du num\u00e9ro de chambre est obligatoire');
+      return;
+    }
+    const parsed: ImportedRoom[] = rawData.map((row, idx) => {
+      const roomNumber = mapping.roomNumber !== null ? (row[mapping.roomNumber] ?? '').trim() : '';
+      const floorRaw = mapping.floor !== null ? (row[mapping.floor] ?? '') : '';
+      const typeRaw = mapping.roomType !== null ? (row[mapping.roomType] ?? '') : 'Simple';
+      const categoryRaw = mapping.roomCategory !== null ? (row[mapping.roomCategory] ?? '') : 'Classique';
+      const capacityRaw = mapping.capacity !== null ? (row[mapping.capacity] ?? '') : '2';
+      const sizeRaw = mapping.roomSize !== null ? (row[mapping.roomSize] ?? '') : '20';
+      const equipRaw = mapping.equipment !== null ? (row[mapping.equipment] ?? '') : '';
+      const dotaRaw = mapping.dotation !== null ? (row[mapping.dotation] ?? '') : '';
+      let error: string | null = null;
+      if (!roomNumber) error = 'Num\u00e9ro manquant';
+      const floor = parseInt(floorRaw, 10) || 0;
+      if (floor <= 0 && !error) error = '\u00c9tage invalide';
+      return {
+        id: `ir-${idx}`,
+        roomNumber,
+        floor,
+        roomType: matchRoomType(typeRaw),
+        roomCategory: categoryRaw.trim() || 'Classique',
+        capacity: parseInt(capacityRaw, 10) || 2,
+        roomSize: parseFloat(sizeRaw) || 20,
+        equipment: equipRaw ? equipRaw.split(/[,;|]/).map((s) => s.trim()).filter(Boolean) : [],
+        dotation: dotaRaw ? dotaRaw.split(/[,;|]/).map((s) => s.trim()).filter(Boolean) : [],
+        selected: !error,
+        error,
+      };
+    });
+    setImportedRooms(parsed);
+    setStep(3);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [rawData, mapping]);
+
+  const selectedCount = useMemo(() => importedRooms.filter((r) => r.selected && !r.error).length, [importedRooms]);
+  const existingNumbers = useMemo(() => new Set(rooms.map((r) => r.roomNumber)), [rooms]);
+
+  const handleImport = useCallback(async () => {
+    const toImport = importedRooms.filter((r) => r.selected && !r.error);
+    if (toImport.length === 0) { Alert.alert('Erreur', 'Aucune chambre valide'); return; }
+    try {
+      const result = await bulkImportRooms(toImport.map((r) => ({
+        roomNumber: r.roomNumber, floor: r.floor, roomType: r.roomType,
+        roomCategory: r.roomCategory, roomSize: r.roomSize, capacity: r.capacity,
+        equipment: r.equipment, dotation: r.dotation,
+      })));
+      setImportResult(result);
+      setStep(4);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) {
+      console.log('[RoomImport] Import error:', e);
+      Alert.alert('Erreur', "L'import a \u00e9chou\u00e9");
+    }
+  }, [importedRooms, bulkImportRooms]);
+
+  const toggleRoom = useCallback((id: string) => {
+    setImportedRooms((prev) => prev.map((r) => r.id === id ? { ...r, selected: !r.selected } : r));
+  }, []);
+
+  const updateMappingField = useCallback((field: keyof RoomColumnMapping, value: number | null) => {
+    setMapping((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const stepTitle = step === 1 ? 'S\u00e9lection du fichier' : step === 2 ? 'Mapping des colonnes' : step === 3 ? 'Aper\u00e7u et validation' : 'Import termin\u00e9';
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalCard, { maxHeight: '92%' as any }]}>
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.modalTitle}>{stepTitle}</Text>
+              <Text style={impStyles.stepIndicator}>{'\u00c9tape'} {step}/4</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <X size={20} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {step === 1 && (
+            <View style={impStyles.stepBody}>
+              <View style={impStyles.dropZone}>
+                <FileSpreadsheet size={48} color={Colors.primary} />
+                <Text style={impStyles.dropTitle}>Importer un fichier de chambres</Text>
+                <Text style={impStyles.dropSub}>Formats : CSV, Excel (.xlsx, .xls)</Text>
+                <TouchableOpacity style={impStyles.selectFileBtn} onPress={handlePickFile} testID="pick-room-file-btn">
+                  <Upload size={16} color="#FFF" />
+                  <Text style={impStyles.selectFileBtnText}>S\u00e9lectionner un fichier</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={impStyles.templateInfo}>
+                <Text style={impStyles.templateTitle}>Colonnes attendues :</Text>
+                <Text style={impStyles.templateText}>N\u00b0 Chambre, \u00c9tage, Type, Cat\u00e9gorie, Capacit\u00e9, Surface (m\u00b2), \u00c9quipement, Dotation</Text>
+                <Text style={impStyles.templateHint}>S\u00e9parez les \u00e9quipements/dotations par des virgules, points-virgules ou barres verticales.</Text>
+              </View>
+            </View>
+          )}
+
+          {step === 2 && (
+            <ScrollView style={impStyles.stepBodyScroll} showsVerticalScrollIndicator={false}>
+              <View style={impStyles.fileInfo}>
+                <FileSpreadsheet size={16} color={Colors.primary} />
+                <Text style={impStyles.fileInfoText}>{fileName} - {rawData.length} lignes</Text>
+              </View>
+              <Text style={impStyles.sectionLabel}>Aper\u00e7u des donn\u00e9es</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={true} style={impStyles.previewScroll}>
+                <View>
+                  <View style={impStyles.previewHeaderRow}>
+                    {headers.map((h, i) => (
+                      <View key={i} style={impStyles.previewHeaderCell}>
+                        <Text style={impStyles.previewHeaderText} numberOfLines={1}>{h}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  {rawData.slice(0, 3).map((row, ri) => (
+                    <View key={ri} style={impStyles.previewRow}>
+                      {row.map((cell, ci) => (
+                        <View key={ci} style={impStyles.previewCell}>
+                          <Text style={impStyles.previewCellText} numberOfLines={1}>{cell}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+              <Text style={impStyles.sectionLabel}>Correspondance des colonnes</Text>
+              {(Object.keys(mapping) as Array<keyof RoomColumnMapping>).map((field) => (
+                <View key={field} style={impStyles.mappingRow}>
+                  <Text style={impStyles.mappingLabel}>{ROOM_COLUMN_LABELS[field]}{field === 'roomNumber' ? ' *' : ''}</Text>
+                  <View style={impStyles.mappingPicker}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <TouchableOpacity
+                        style={[impStyles.mappingChip, mapping[field] === null && impStyles.mappingChipActive]}
+                        onPress={() => updateMappingField(field, null)}
+                      >
+                        <Text style={[impStyles.mappingChipText, mapping[field] === null && impStyles.mappingChipTextActive]}>-</Text>
+                      </TouchableOpacity>
+                      {headers.map((h, i) => (
+                        <TouchableOpacity
+                          key={i}
+                          style={[impStyles.mappingChip, mapping[field] === i && impStyles.mappingChipActive]}
+                          onPress={() => updateMappingField(field, i)}
+                        >
+                          <Text style={[impStyles.mappingChipText, mapping[field] === i && impStyles.mappingChipTextActive]} numberOfLines={1}>{h}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+              ))}
+              <View style={{ height: 20 }} />
+            </ScrollView>
+          )}
+
+          {step === 3 && (
+            <ScrollView style={impStyles.stepBodyScroll} showsVerticalScrollIndicator={false}>
+              <View style={impStyles.summaryBar}>
+                <Text style={impStyles.summaryText}>{selectedCount} chambre{selectedCount > 1 ? 's' : ''} s\u00e9lectionn\u00e9e{selectedCount > 1 ? 's' : ''}</Text>
+                {importedRooms.filter((r) => r.error).length > 0 && (
+                  <View style={impStyles.errorBadge}>
+                    <Text style={impStyles.errorBadgeText}>{importedRooms.filter((r) => r.error).length} erreur{importedRooms.filter((r) => r.error).length > 1 ? 's' : ''}</Text>
+                  </View>
+                )}
+              </View>
+              {importedRooms.map((room) => (
+                <TouchableOpacity
+                  key={room.id}
+                  style={[impStyles.importRoomCard, room.error ? impStyles.importRoomCardError : undefined]}
+                  onPress={() => !room.error && toggleRoom(room.id)}
+                  activeOpacity={room.error ? 1 : 0.7}
+                >
+                  <View style={[impStyles.importCheckbox, room.selected && !room.error ? impStyles.importCheckboxActive : undefined]}>
+                    {room.selected && !room.error && <CheckCircle2 size={14} color="#FFF" />}
+                  </View>
+                  <View style={impStyles.importRoomInfo}>
+                    <View style={impStyles.importRoomHeader}>
+                      <Text style={impStyles.importRoomNumber}>{room.roomNumber}</Text>
+                      <View style={impStyles.importRoomTypeBadge}>
+                        <Text style={impStyles.importRoomTypeText}>{room.roomType}</Text>
+                      </View>
+                      {existingNumbers.has(room.roomNumber) && (
+                        <View style={impStyles.updateBadge}>
+                          <Text style={impStyles.updateBadgeText}>MAJ</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={impStyles.importRoomDetails}>{'\u00c9tage'} {room.floor} | {room.roomCategory} | {room.capacity} pers. | {room.roomSize}m\u00b2</Text>
+                    {room.equipment.length > 0 && (
+                      <Text style={impStyles.importRoomEquip} numberOfLines={1}>{'\ud83d\udd27'} {room.equipment.join(', ')}</Text>
+                    )}
+                    {room.dotation.length > 0 && (
+                      <Text style={impStyles.importRoomEquip} numberOfLines={1}>{'\ud83d\udce6'} {room.dotation.join(', ')}</Text>
+                    )}
+                    {room.error && <Text style={impStyles.importRoomError}>{room.error}</Text>}
+                  </View>
+                </TouchableOpacity>
+              ))}
+              <View style={{ height: 20 }} />
+            </ScrollView>
+          )}
+
+          {step === 4 && (
+            <View style={impStyles.stepBody}>
+              <View style={impStyles.successContainer}>
+                <View style={impStyles.successIcon}>
+                  <CheckCircle2 size={48} color={Colors.success} />
+                </View>
+                <Text style={impStyles.successTitle}>Import termin\u00e9 !</Text>
+                <View style={impStyles.resultRow}>
+                  <View style={impStyles.resultCard}>
+                    <Text style={impStyles.resultNumber}>{importResult?.created ?? 0}</Text>
+                    <Text style={impStyles.resultLabel}>Cr\u00e9\u00e9es</Text>
+                  </View>
+                  <View style={impStyles.resultCard}>
+                    <Text style={[impStyles.resultNumber, { color: Colors.info }]}>{importResult?.updated ?? 0}</Text>
+                    <Text style={impStyles.resultLabel}>Mises \u00e0 jour</Text>
+                  </View>
+                </View>
+                <Text style={impStyles.successSub}>Le tableau des chambres a \u00e9t\u00e9 mis \u00e0 jour automatiquement.</Text>
+              </View>
+            </View>
+          )}
+
+          <View style={styles.modalFooter}>
+            {step === 1 && (
+              <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+                <Text style={styles.cancelBtnText}>Fermer</Text>
+              </TouchableOpacity>
+            )}
+            {step === 2 && (
+              <>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setStep(1)}>
+                  <Text style={styles.cancelBtnText}>Retour</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.saveBtn} onPress={handleValidateMapping}>
+                  <Text style={styles.saveBtnText}>Valider le mapping</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {step === 3 && (
+              <>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setStep(2)}>
+                  <Text style={styles.cancelBtnText}>Retour</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.saveBtn, (selectedCount === 0 || isBulkImporting) && { opacity: 0.5 }]}
+                  onPress={handleImport}
+                  disabled={selectedCount === 0 || isBulkImporting}
+                >
+                  {isBulkImporting ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <Text style={styles.saveBtnText}>Importer {selectedCount} chambre{selectedCount > 1 ? 's' : ''}</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+            {step === 4 && (
+              <TouchableOpacity style={styles.saveBtn} onPress={onClose}>
+                <Text style={styles.saveBtnText}>Fermer</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const impStyles = StyleSheet.create({
+  stepIndicator: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  stepBody: { paddingHorizontal: 20, paddingVertical: 20 },
+  stepBodyScroll: { paddingHorizontal: 20, maxHeight: 500 },
+  dropZone: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 36,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: Colors.primary + '40',
+    borderRadius: 16,
+    backgroundColor: Colors.primarySoft,
+    gap: 10,
+  },
+  dropTitle: { fontSize: 16, fontWeight: '700' as const, color: Colors.text, marginTop: 8 },
+  dropSub: { fontSize: 12, color: Colors.textMuted },
+  selectFileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 12,
+  },
+  selectFileBtnText: { fontSize: 14, fontWeight: '600' as const, color: '#FFF' },
+  templateInfo: {
+    marginTop: 20,
+    backgroundColor: Colors.surfaceLight,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  templateTitle: { fontSize: 13, fontWeight: '700' as const, color: Colors.text, marginBottom: 6 },
+  templateText: { fontSize: 12, color: Colors.textSecondary, lineHeight: 18 },
+  templateHint: { fontSize: 11, color: Colors.textMuted, marginTop: 8, fontStyle: 'italic' as const },
+  fileInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.primarySoft,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  fileInfoText: { fontSize: 12, fontWeight: '600' as const, color: Colors.primary },
+  sectionLabel: { fontSize: 13, fontWeight: '700' as const, color: Colors.text, marginBottom: 10, marginTop: 16 },
+  previewScroll: { marginBottom: 8 },
+  previewHeaderRow: { flexDirection: 'row' },
+  previewHeaderCell: {
+    width: 100,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    backgroundColor: Colors.primary + '12',
+    borderWidth: 0.5,
+    borderColor: Colors.border,
+  },
+  previewHeaderText: { fontSize: 10, fontWeight: '700' as const, color: Colors.primary },
+  previewRow: { flexDirection: 'row' },
+  previewCell: {
+    width: 100,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderWidth: 0.5,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.surface,
+  },
+  previewCellText: { fontSize: 10, color: Colors.text },
+  mappingRow: { marginBottom: 12 },
+  mappingLabel: { fontSize: 12, fontWeight: '600' as const, color: Colors.textSecondary, marginBottom: 6 },
+  mappingPicker: { flexDirection: 'row' },
+  mappingChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: Colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginRight: 6,
+  },
+  mappingChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  mappingChipText: { fontSize: 11, fontWeight: '600' as const, color: Colors.textSecondary },
+  mappingChipTextActive: { color: '#FFF' },
+  summaryBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    paddingVertical: 8,
+  },
+  summaryText: { fontSize: 14, fontWeight: '700' as const, color: Colors.text },
+  errorBadge: { backgroundColor: Colors.danger + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  errorBadgeText: { fontSize: 11, fontWeight: '600' as const, color: Colors.danger },
+  importRoomCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 10,
+  },
+  importRoomCardError: { borderColor: Colors.danger + '40', backgroundColor: Colors.danger + '05' },
+  importCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  importCheckboxActive: { backgroundColor: Colors.success, borderColor: Colors.success },
+  importRoomInfo: { flex: 1 },
+  importRoomHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  importRoomNumber: { fontSize: 16, fontWeight: '800' as const, color: Colors.text },
+  importRoomTypeBadge: { backgroundColor: Colors.primarySoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  importRoomTypeText: { fontSize: 10, fontWeight: '700' as const, color: Colors.primary },
+  updateBadge: { backgroundColor: Colors.info + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  updateBadgeText: { fontSize: 9, fontWeight: '700' as const, color: Colors.info },
+  importRoomDetails: { fontSize: 11, color: Colors.textSecondary, marginBottom: 2 },
+  importRoomEquip: { fontSize: 10, color: Colors.textMuted, marginTop: 2 },
+  importRoomError: { fontSize: 11, color: Colors.danger, fontWeight: '600' as const, marginTop: 4 },
+  successContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 24, gap: 12 },
+  successIcon: { marginBottom: 8 },
+  successTitle: { fontSize: 20, fontWeight: '800' as const, color: Colors.text },
+  resultRow: { flexDirection: 'row', gap: 16, marginTop: 8 },
+  resultCard: {
+    alignItems: 'center',
+    backgroundColor: Colors.surfaceLight,
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  resultNumber: { fontSize: 28, fontWeight: '800' as const, color: Colors.success },
+  resultLabel: { fontSize: 11, fontWeight: '600' as const, color: Colors.textMuted, marginTop: 4 },
+  successSub: { fontSize: 13, color: Colors.textSecondary, textAlign: 'center' as const, marginTop: 8 },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
@@ -1315,4 +1922,27 @@ const styles = StyleSheet.create({
   cancelBtnText: { fontSize: 14, fontWeight: '600' as const, color: Colors.textSecondary },
   saveBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.primary },
   saveBtnText: { fontSize: 14, fontWeight: '600' as const, color: '#FFF' },
+
+  importBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.primarySoft,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: Colors.primary + '30',
+  },
+  importBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  importBannerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: Colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  importBannerTitle: { fontSize: 14, fontWeight: '700' as const, color: Colors.primary },
+  importBannerSub: { fontSize: 11, color: Colors.textSecondary, marginTop: 1 },
 });
