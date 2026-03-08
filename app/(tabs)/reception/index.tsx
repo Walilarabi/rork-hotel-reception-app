@@ -13,7 +13,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { DoorOpen, UserPlus, X, ChevronDown, Coffee, List, LayoutGrid, Eye, Star, Pencil, Upload, Check, Search, ArrowRightLeft, Clock, CheckCircle, AlertCircle, BedDouble, FileText, Image, Download } from 'lucide-react-native';
+import { DoorOpen, UserPlus, X, ChevronDown, Coffee, List, LayoutGrid, Eye, Star, Pencil, Upload, Check, Search, FileText, Image, Download } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
 import DeskFloorSection from '@/components/DeskFloorSection';
@@ -176,21 +176,6 @@ const KPI_CARDS_CONFIG = [
   { key: 'eta_urgents', label: 'ETA URGENTS', color: '#EF4444', borderColor: '#EF4444', iconBg: 'rgba(239,68,68,0.10)' },
 ] as const;
 
-function KpiIcon({ kpiKey, color }: { kpiKey: string; color: string }) {
-  const size = 18;
-  switch (kpiKey) {
-    case 'chambres': return <BedDouble size={size} color={color} />;
-    case 'departs': return <DoorOpen size={size} color={color} />;
-    case 'recouches': return <ArrowRightLeft size={size} color={color} />;
-    case 'en_cours': return <Clock size={size} color={color} />;
-    case 'terminees': return <CheckCircle size={size} color={color} />;
-    case 'a_valider': return <AlertCircle size={size} color={color} />;
-    case 'pdj_inclus': return <Coffee size={size} color={color} />;
-    case 'eta_urgents': return <Clock size={size} color={color} />;
-    default: return null;
-  }
-}
-
 export default function ReceptionDashboard() {
   const router = useRouter();
   const { t } = useTheme();
@@ -234,6 +219,7 @@ export default function ReceptionDashboard() {
   const [calendarField, setCalendarField] = useState<'checkIn' | 'checkOut' | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
 
+  const [showKpi, setShowKpi] = useState(true);
   const [showFloorDrop, setShowFloorDrop] = useState(false);
   const [showStatusDrop, setShowStatusDrop] = useState(false);
   const [showBadgeDrop, setShowBadgeDrop] = useState(false);
@@ -772,21 +758,32 @@ export default function ReceptionDashboard() {
         }}
       />
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.kpiRow} contentContainerStyle={styles.kpiRowContent}>
-        {KPI_CARDS_CONFIG.map((cfg) => (
-          <View key={cfg.key} style={[styles.kpiCard, { borderTopColor: cfg.borderColor }]}>
-            <View style={styles.kpiCardInner}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.kpiValue}>{kpiData[cfg.key]}</Text>
-                <Text style={styles.kpiLabel}>{cfg.label}</Text>
+      <View style={styles.kpiBar}>
+        {showKpi && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.kpiRow} contentContainerStyle={styles.kpiRowContent}>
+            {KPI_CARDS_CONFIG.map((cfg) => (
+              <View key={cfg.key} style={[styles.kpiChip, { borderLeftColor: cfg.borderColor }]}>
+                <Text style={[styles.kpiChipValue, { color: cfg.color }]}>{kpiData[cfg.key]}</Text>
+                <Text style={styles.kpiChipLabel}>{cfg.label}</Text>
               </View>
-              <View style={[styles.kpiIconCircle, { backgroundColor: cfg.iconBg }]}>
-                <KpiIcon kpiKey={cfg.key} color={cfg.color} />
-              </View>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
+            ))}
+          </ScrollView>
+        )}
+        <TouchableOpacity
+          style={styles.kpiToggleBtn}
+          onPress={() => {
+            setShowKpi(!showKpi);
+            if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
+          activeOpacity={0.7}
+          testID="toggle-kpi-btn"
+        >
+          <Eye size={12} color={showKpi ? FT.brand : FT.textMuted} />
+          <Text style={[styles.kpiToggleText, showKpi && styles.kpiToggleTextActive]}>
+            {showKpi ? 'Masquer KPI' : 'Afficher KPI'}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.searchFilterRow}>
         <View style={styles.searchBox}>
@@ -1378,23 +1375,26 @@ const styles = StyleSheet.create({
   importClientBtn: { backgroundColor: FT.brand, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 },
   importClientBtnText: { fontSize: 12, fontWeight: '700' as const, color: '#FFF' },
 
-  kpiRow: { backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.borderLight },
-  kpiRowContent: { paddingHorizontal: 12, paddingVertical: 12, gap: 10 },
-  kpiCard: {
-    backgroundColor: FT.surface,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    minWidth: 120,
+  kpiBar: { backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.borderLight },
+  kpiRow: {},
+  kpiRowContent: { paddingHorizontal: 10, paddingVertical: 6, gap: 6, alignItems: 'center' as const },
+  kpiChip: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 5,
+    backgroundColor: FT.surfaceAlt,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderLeftWidth: 3,
     borderWidth: 1,
     borderColor: FT.borderLight,
-    borderTopWidth: 3,
-    borderTopColor: FT.brand,
   },
-  kpiCardInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  kpiIconCircle: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  kpiValue: { fontSize: 24, fontWeight: '800' as const, color: FT.text },
-  kpiLabel: { fontSize: 9, fontWeight: '700' as const, color: FT.textMuted, letterSpacing: 0.5, marginTop: 2, textTransform: 'uppercase' as const },
+  kpiChipValue: { fontSize: 15, fontWeight: '800' as const },
+  kpiChipLabel: { fontSize: 9, fontWeight: '600' as const, color: FT.textMuted, textTransform: 'uppercase' as const, letterSpacing: 0.3 },
+  kpiToggleBtn: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 4, paddingVertical: 4, paddingHorizontal: 12, alignSelf: 'flex-end' as const, marginRight: 10, marginBottom: 2 },
+  kpiToggleText: { fontSize: 10, fontWeight: '600' as const, color: FT.textMuted },
+  kpiToggleTextActive: { color: FT.brand },
 
   searchFilterRow: { backgroundColor: FT.surface, paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: FT.borderLight, gap: 8 },
   searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: FT.surfaceAlt, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, gap: 8, borderWidth: 1, borderColor: FT.borderLight },
