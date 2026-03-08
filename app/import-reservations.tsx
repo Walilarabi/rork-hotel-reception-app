@@ -28,7 +28,7 @@ import {
 } from '@/constants/types';
 
 type ImportStep = 1 | 2 | 3 | 4;
-type ImportMode = 'csv' | 'manual';
+type ImportMode = 'csv' | 'excel' | 'image' | 'pdf' | 'manual';
 
 function generateId(): string {
   return `imp-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
@@ -185,11 +185,22 @@ export default function ImportReservationsScreen() {
     { id: generateId(), guestName: '', checkInDate: '', checkOutDate: '', roomNumber: '', adults: 1, children: 0, preferences: '', selected: true, error: null },
   ]);
 
+  const getMimeTypes = useCallback((m: ImportMode): string[] => {
+    switch (m) {
+      case 'csv': return ['text/csv', 'text/comma-separated-values', 'text/plain', 'text/tab-separated-values'];
+      case 'excel': return ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.oasis.opendocument.spreadsheet'];
+      case 'image': return ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      case 'pdf': return ['application/pdf'];
+      default: return ['*/*'];
+    }
+  }, []);
+
   const handlePickFile = useCallback(async () => {
     try {
-      console.log('[Import] Picking CSV file...');
+      const mimeTypes = getMimeTypes(mode);
+      console.log('[Import] Picking file for mode:', mode, 'mimes:', mimeTypes);
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['text/csv', 'text/comma-separated-values', 'text/plain', 'application/vnd.ms-excel'],
+        type: mimeTypes,
         copyToCacheDirectory: true,
       });
 
@@ -203,13 +214,25 @@ export default function ImportReservationsScreen() {
       setFileName(asset.name);
       setFileSize(asset.size ?? 0);
 
+      if (mode === 'image' || mode === 'pdf') {
+        Alert.alert(
+          'Traitement en cours',
+          mode === 'image'
+            ? 'L\'extraction OCR des images sera disponible prochainement. Pour l\'instant, veuillez utiliser le format CSV ou Excel, ou la saisie manuelle.'
+            : 'L\'extraction de texte depuis les PDF sera disponible prochainement. Pour l\'instant, veuillez utiliser le format CSV ou Excel, ou la saisie manuelle.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
       let content = '';
-      if (Platform.OS === 'web') {
+      try {
         const response = await fetch(asset.uri);
         content = await response.text();
-      } else {
-        const response = await fetch(asset.uri);
-        content = await response.text();
+      } catch (e) {
+        console.log('[Import] Error reading file content:', e);
+        Alert.alert(ti.parseError, 'Impossible de lire le fichier. Essayez un autre format.');
+        return;
       }
 
       console.log('[Import] File content length:', content.length);
@@ -219,7 +242,7 @@ export default function ImportReservationsScreen() {
 
       const lines = content.split('\n').filter((l) => l.trim().length > 0);
       if (lines.length < 2) {
-        Alert.alert(ti.parseError, 'Le fichier doit contenir au moins un en-tête et une ligne de données.');
+        Alert.alert(ti.parseError, 'Le fichier doit contenir au moins un en-t\u00eate et une ligne de donn\u00e9es.');
         return;
       }
 
@@ -238,7 +261,7 @@ export default function ImportReservationsScreen() {
       console.log('[Import] Error picking file:', error);
       Alert.alert(ti.parseError, String(error));
     }
-  }, [ti.parseError]);
+  }, [ti.parseError, mode, getMimeTypes]);
 
   const handleParseData = useCallback(() => {
     console.log('[Import] Parsing data with mapping:', mapping);
@@ -348,7 +371,7 @@ export default function ImportReservationsScreen() {
               id: `h-imp-${Date.now()}-${matchingRoom.id}`,
               roomId: matchingRoom.id,
               action: 'Import réservation',
-              performedBy: 'Import CSV',
+              performedBy: 'Import fichier',
               date: new Date().toISOString(),
               details: `Réservation importée pour ${res.guestName} (${res.checkInDate} → ${res.checkOutDate})`,
             };
@@ -415,43 +438,37 @@ export default function ImportReservationsScreen() {
         <Text style={styles.heroDesc}>{ti.noPmsDesc}</Text>
       </View>
 
-      <TouchableOpacity
-        style={[styles.modeCard, mode === 'csv' && styles.modeCardActive]}
-        onPress={() => setMode('csv')}
-        activeOpacity={0.7}
-        testID="mode-csv"
-      >
-        <View style={[styles.modeIconWrap, mode === 'csv' && styles.modeIconWrapActive]}>
-          <FileText size={22} color={mode === 'csv' ? '#FFF' : FT.textSec} />
-        </View>
-        <View style={styles.modeTextWrap}>
-          <Text style={[styles.modeTitle, mode === 'csv' && styles.modeTitleActive]}>CSV</Text>
-          <Text style={styles.modeDesc}>{ti.supportedFormats}</Text>
-        </View>
-        <View style={[styles.modeRadio, mode === 'csv' && styles.modeRadioActive]}>
-          {mode === 'csv' && <View style={styles.modeRadioDot} />}
-        </View>
-      </TouchableOpacity>
+      {([{ key: 'csv' as const, label: 'CSV / Texte', desc: '.csv, .tsv, .txt', icon: 'text' },
+        { key: 'excel' as const, label: 'Excel', desc: '.xlsx, .xls, .ods', icon: 'spreadsheet' },
+        { key: 'image' as const, label: 'Image (OCR)', desc: '.jpg, .png, .gif', icon: 'image' },
+        { key: 'pdf' as const, label: 'PDF', desc: '.pdf', icon: 'pdf' },
+        { key: 'manual' as const, label: ti.manualEntry, desc: ti.manualEntryDesc, icon: 'manual' },
+      ] as const).map((opt) => (
+        <TouchableOpacity
+          key={opt.key}
+          style={[styles.modeCard, mode === opt.key && styles.modeCardActive]}
+          onPress={() => setMode(opt.key)}
+          activeOpacity={0.7}
+          testID={`mode-${opt.key}`}
+        >
+          <View style={[styles.modeIconWrap, mode === opt.key && styles.modeIconWrapActive]}>
+            {opt.icon === 'manual' ? (
+              <Plus size={22} color={mode === opt.key ? '#FFF' : FT.textSec} />
+            ) : (
+              <FileText size={22} color={mode === opt.key ? '#FFF' : FT.textSec} />
+            )}
+          </View>
+          <View style={styles.modeTextWrap}>
+            <Text style={[styles.modeTitle, mode === opt.key && styles.modeTitleActive]}>{opt.label}</Text>
+            <Text style={styles.modeDesc}>{opt.desc}</Text>
+          </View>
+          <View style={[styles.modeRadio, mode === opt.key && styles.modeRadioActive]}>
+            {mode === opt.key && <View style={styles.modeRadioDot} />}
+          </View>
+        </TouchableOpacity>
+      ))}
 
-      <TouchableOpacity
-        style={[styles.modeCard, mode === 'manual' && styles.modeCardActive]}
-        onPress={() => setMode('manual')}
-        activeOpacity={0.7}
-        testID="mode-manual"
-      >
-        <View style={[styles.modeIconWrap, mode === 'manual' && styles.modeIconWrapActive]}>
-          <Plus size={22} color={mode === 'manual' ? '#FFF' : FT.textSec} />
-        </View>
-        <View style={styles.modeTextWrap}>
-          <Text style={[styles.modeTitle, mode === 'manual' && styles.modeTitleActive]}>{ti.manualEntry}</Text>
-          <Text style={styles.modeDesc}>{ti.manualEntryDesc}</Text>
-        </View>
-        <View style={[styles.modeRadio, mode === 'manual' && styles.modeRadioActive]}>
-          {mode === 'manual' && <View style={styles.modeRadioDot} />}
-        </View>
-      </TouchableOpacity>
-
-      {mode === 'csv' && (
+      {mode !== 'manual' && (
         <TouchableOpacity style={styles.uploadBtn} onPress={handlePickFile} activeOpacity={0.7} testID="pick-file-btn">
           <Upload size={18} color="#FFF" />
           <Text style={styles.uploadBtnText}>{ti.selectFile}</Text>

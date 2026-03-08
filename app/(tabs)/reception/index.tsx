@@ -13,11 +13,11 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { DoorOpen, UserPlus, X, ChevronDown, Coffee, Filter, MoreHorizontal, List, LayoutGrid, Eye, Star, Pencil, Upload, Check } from 'lucide-react-native';
+import { DoorOpen, UserPlus, X, ChevronDown, Coffee, MoreHorizontal, List, LayoutGrid, Eye, Star, Pencil, Upload, Check, Search, Users, TrendingUp, ArrowRightLeft, Wrench } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
 import DeskFloorSection from '@/components/DeskFloorSection';
-import DeskStatusBar from '@/components/DeskStatusBar';
+
 import StaffForecastCard from '@/components/StaffForecastCard';
 import * as Haptics from 'expo-haptics';
 import { useHotel, useFilteredRooms } from '@/providers/HotelProvider';
@@ -99,6 +99,92 @@ const pdjStyles = StyleSheet.create({
   },
 });
 
+interface MiniCalendarProps {
+  month: Date;
+  selectedDate: string;
+  onSelect: (dateStr: string) => void;
+  onChangeMonth: (d: Date) => void;
+}
+
+const DAYS_FR = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+
+const MiniCalendar = React.memo(function MiniCalendar({ month, selectedDate, onSelect, onChangeMonth }: MiniCalendarProps) {
+  const year = month.getFullYear();
+  const mo = month.getMonth();
+  const firstDay = new Date(year, mo, 1).getDay();
+  const daysInMonth = new Date(year, mo + 1, 0).getDate();
+  const startOffset = firstDay === 0 ? 6 : firstDay - 1;
+
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < startOffset; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const prevMonth = () => onChangeMonth(new Date(year, mo - 1, 1));
+  const nextMonth = () => onChangeMonth(new Date(year, mo + 1, 1));
+
+  const pad = (n: number) => n.toString().padStart(2, '0');
+
+  return (
+    <View style={calStyles.wrap}>
+      <View style={calStyles.header}>
+        <TouchableOpacity onPress={prevMonth} style={calStyles.navBtn}>
+          <Text style={calStyles.navBtnText}>{'<'}</Text>
+        </TouchableOpacity>
+        <Text style={calStyles.monthLabel}>{MONTHS_FR[mo]} {year}</Text>
+        <TouchableOpacity onPress={nextMonth} style={calStyles.navBtn}>
+          <Text style={calStyles.navBtnText}>{'>'}</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={calStyles.daysRow}>
+        {DAYS_FR.map((d) => (
+          <View key={d} style={calStyles.dayHeaderCell}>
+            <Text style={calStyles.dayHeaderText}>{d}</Text>
+          </View>
+        ))}
+      </View>
+      <View style={calStyles.grid}>
+        {cells.map((day, idx) => {
+          if (day === null) return <View key={`e-${idx}`} style={calStyles.cell} />;
+          const dateStr = `${year}-${pad(mo + 1)}-${pad(day)}`;
+          const isSelected = dateStr === selectedDate;
+          const isToday = dateStr === new Date().toISOString().split('T')[0];
+          return (
+            <TouchableOpacity
+              key={dateStr}
+              style={[calStyles.cell, isSelected && calStyles.cellSelected, isToday && !isSelected && calStyles.cellToday]}
+              onPress={() => onSelect(dateStr)}
+              activeOpacity={0.6}
+            >
+              <Text style={[calStyles.cellText, isSelected && calStyles.cellTextSelected, isToday && !isSelected && calStyles.cellTextToday]}>
+                {day}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+});
+
+const calStyles = StyleSheet.create({
+  wrap: { marginTop: 8, backgroundColor: FT.surfaceAlt, borderRadius: 12, padding: 10, borderWidth: 1, borderColor: FT.borderLight },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  navBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: FT.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: FT.borderLight },
+  navBtnText: { fontSize: 14, fontWeight: '700' as const, color: FT.brand },
+  monthLabel: { fontSize: 13, fontWeight: '700' as const, color: FT.text },
+  daysRow: { flexDirection: 'row' },
+  dayHeaderCell: { flex: 1, alignItems: 'center', paddingVertical: 4 },
+  dayHeaderText: { fontSize: 10, fontWeight: '600' as const, color: FT.textMuted },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start' },
+  cell: { width: 38, height: 38, justifyContent: 'center', alignItems: 'center' },
+  cellSelected: { backgroundColor: FT.brand, borderRadius: 20 },
+  cellToday: { backgroundColor: FT.brandSoft, borderRadius: 20 },
+  cellText: { fontSize: 12, fontWeight: '500' as const, color: FT.text },
+  cellTextSelected: { color: '#FFF', fontWeight: '700' as const },
+  cellTextToday: { color: FT.brand, fontWeight: '700' as const },
+});
+
 export default function ReceptionDashboard() {
   const router = useRouter();
   const { t } = useTheme();
@@ -111,6 +197,7 @@ export default function ReceptionDashboard() {
     syncPms,
     bulkDeparture,
     breakfastOrders,
+    maintenanceTasks,
     toggleRoomSelection,
     toggleFloorSelection,
     clearSelection,
@@ -124,10 +211,9 @@ export default function ReceptionDashboard() {
 
   const [statusFilter, setStatusFilter] = useState<RoomStatus | 'all'>('all');
   const [floorFilter, setFloorFilter] = useState<number | 'all'>('all');
-  const [badgeFilter] = useState<ClientBadge | 'all'>('all');
-  const [searchText] = useState('');
-  const [showFloorDropdown, setShowFloorDropdown] = useState(false);
-  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [badgeFilter, setBadgeFilter] = useState<ClientBadge | 'all'>('all');
+  const [searchText, setSearchText] = useState('');
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [viewMode, setViewMode] = useState<'plan' | 'table'>('plan');
 
@@ -138,13 +224,34 @@ export default function ReceptionDashboard() {
   const [editCheckOut, setEditCheckOut] = useState('');
   const [showMoveRoomPicker, setShowMoveRoomPicker] = useState(false);
   const [moveToRoomId, setMoveToRoomId] = useState<string | null>(null);
+  const [calendarField, setCalendarField] = useState<'checkIn' | 'checkOut' | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
 
-  const { filtered, floors, total } = useFilteredRooms({
+  const [showFloorDrop, setShowFloorDrop] = useState(false);
+  const [showStatusDrop, setShowStatusDrop] = useState(false);
+  const [showBadgeDrop, setShowBadgeDrop] = useState(false);
+  const [showAssigneeDrop, setShowAssigneeDrop] = useState(false);
+
+  const { filtered: preFiltered, floors, total } = useFilteredRooms({
     status: statusFilter,
     floor: floorFilter,
     badge: badgeFilter,
     search: searchText,
   });
+
+  const filtered = useMemo(() => {
+    if (assigneeFilter === 'all') return preFiltered;
+    return preFiltered.filter((r) => {
+      if (assigneeFilter === 'none') return !r.cleaningAssignee;
+      return r.cleaningAssignee === assigneeFilter;
+    });
+  }, [preFiltered, assigneeFilter]);
+
+  const assigneeList = useMemo(() => {
+    const set = new Set<string>();
+    rooms.forEach((r) => { if (r.cleaningAssignee) set.add(r.cleaningAssignee); });
+    return Array.from(set).sort();
+  }, [rooms]);
 
   const freeRooms = useMemo(
     () => rooms.filter((r) => r.status === 'libre' && r.id !== editingRoom?.id),
@@ -163,7 +270,25 @@ export default function ReceptionDashboard() {
     return counts;
   }, [rooms]);
 
+  const kpiData = useMemo(() => {
+    const totalRooms = rooms.length;
+    const occupiedCount = rooms.filter((r) => r.status === 'occupe' || r.status === 'recouche').length;
+    const occupancyRate = totalRooms > 0 ? Math.round((occupiedCount / totalRooms) * 100) : 0;
+    const departCount = statusCounts.depart;
+    const recoucheCount = statusCounts.recouche;
+    const incidentCount = maintenanceTasks.filter((t) => t.status !== 'resolu').length;
+    const housekeeperCount = rooms.filter((r) => r.cleaningAssignee).map((r) => r.cleaningAssignee).filter((v, i, a) => a.indexOf(v) === i).length;
+    return { occupancyRate, departCount, recoucheCount, incidentCount, housekeeperCount };
+  }, [rooms, statusCounts, maintenanceTasks]);
+
   const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  const closeAllDropdowns = useCallback(() => {
+    setShowFloorDrop(false);
+    setShowStatusDrop(false);
+    setShowBadgeDrop(false);
+    setShowAssigneeDrop(false);
+  }, []);
 
   const handleRoomPress = useCallback((room: Room) => {
     router.push({ pathname: '/room-details', params: { roomId: room.id } });
@@ -602,7 +727,8 @@ export default function ReceptionDashboard() {
 
       <View style={styles.dashHeader}>
         <View>
-          <Text style={styles.dashTitle}>{t.reception.dashboard}</Text>
+          <Text style={styles.dashTitle}>{'Flowboard'}</Text>
+          <Text style={styles.dashSubtitle}>{today}</Text>
         </View>
         <View style={styles.dashActions}>
           <TouchableOpacity
@@ -625,55 +751,164 @@ export default function ReceptionDashboard() {
           >
             <List size={14} color={viewMode === 'table' ? '#FFF' : FT.textSec} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => { setShowFilterPanel(!showFilterPanel); setShowMoreMenu(false); }}>
-            <Filter size={16} color={showFilterPanel ? FT.brand : FT.textSec} />
-            <Text style={[styles.iconBtnText, showFilterPanel && { color: FT.brand }]}>{t.reception.filters}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => { setShowMoreMenu(!showMoreMenu); setShowFilterPanel(false); }}>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => { setShowMoreMenu(!showMoreMenu); }}>
             <MoreHorizontal size={16} color={showMoreMenu ? FT.brand : FT.textSec} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {showFilterPanel && (
-        <View style={styles.filterPanel}>
-          <Text style={styles.filterPanelTitle}>{t.reception.filters}</Text>
-          <View style={styles.filterChipRow}>
-            <TouchableOpacity
-              style={[styles.filterChipBtn, statusFilter === 'all' && styles.filterChipBtnActive]}
-              onPress={() => setStatusFilter('all')}
-            >
-              <Text style={[styles.filterChipBtnText, statusFilter === 'all' && styles.filterChipBtnTextActive]}>{t.common.all}</Text>
-            </TouchableOpacity>
-            {(['libre', 'occupe', 'depart', 'recouche', 'hors_service'] as const).map((st) => (
-              <TouchableOpacity
-                key={st}
-                style={[styles.filterChipBtn, statusFilter === st && { backgroundColor: ROOM_STATUS_CONFIG[st].color }]}
-                onPress={() => setStatusFilter(st === statusFilter ? 'all' : st)}
-              >
-                <Text style={[styles.filterChipBtnText, statusFilter === st && { color: '#FFF' }]}>{ROOM_STATUS_CONFIG[st].label}</Text>
-              </TouchableOpacity>
-            ))}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.kpiRow} contentContainerStyle={styles.kpiRowContent}>
+        <View style={styles.kpiCard}>
+          <View style={[styles.kpiIcon, { backgroundColor: FT.brandSoft }]}>
+            <TrendingUp size={16} color={FT.brand} />
           </View>
-          <View style={styles.filterChipRow}>
-            <TouchableOpacity
-              style={[styles.filterChipBtn, floorFilter === 'all' && styles.filterChipBtnActive]}
-              onPress={() => setFloorFilter('all')}
-            >
-              <Text style={[styles.filterChipBtnText, floorFilter === 'all' && styles.filterChipBtnTextActive]}>{t.rooms.allFloors}</Text>
-            </TouchableOpacity>
-            {floors.map((f) => (
-              <TouchableOpacity
-                key={f}
-                style={[styles.filterChipBtn, floorFilter === f && styles.filterChipBtnActive]}
-                onPress={() => setFloorFilter(f === floorFilter ? 'all' : f)}
-              >
-                <Text style={[styles.filterChipBtnText, floorFilter === f && styles.filterChipBtnTextActive]}>{t.rooms.floorN} {f}</Text>
-              </TouchableOpacity>
-            ))}
+          <Text style={styles.kpiValue}>{kpiData.occupancyRate}{'%'}</Text>
+          <Text style={styles.kpiLabel}>{'TO'}</Text>
+        </View>
+        <View style={styles.kpiCard}>
+          <View style={[styles.kpiIcon, { backgroundColor: FT.dangerSoft }]}>
+            <DoorOpen size={16} color={FT.danger} />
           </View>
+          <Text style={styles.kpiValue}>{kpiData.departCount}</Text>
+          <Text style={styles.kpiLabel}>{'Départs'}</Text>
+        </View>
+        <View style={styles.kpiCard}>
+          <View style={[styles.kpiIcon, { backgroundColor: FT.orangeSoft }]}>
+            <ArrowRightLeft size={16} color={FT.orange} />
+          </View>
+          <Text style={styles.kpiValue}>{kpiData.recoucheCount}</Text>
+          <Text style={styles.kpiLabel}>{'Recouches'}</Text>
+        </View>
+        <View style={styles.kpiCard}>
+          <View style={[styles.kpiIcon, { backgroundColor: FT.warningSoft }]}>
+            <Wrench size={16} color={FT.warning} />
+          </View>
+          <Text style={styles.kpiValue}>{kpiData.incidentCount}</Text>
+          <Text style={styles.kpiLabel}>{'Incidents'}</Text>
+        </View>
+        <View style={styles.kpiCard}>
+          <View style={[styles.kpiIcon, { backgroundColor: FT.tealSoft }]}>
+            <Users size={16} color={FT.teal} />
+          </View>
+          <Text style={styles.kpiValue}>{kpiData.housekeeperCount}</Text>
+          <Text style={styles.kpiLabel}>{'F. de chambre'}</Text>
+        </View>
+      </ScrollView>
+
+      <View style={styles.searchFilterRow}>
+        <View style={styles.searchBox}>
+          <Search size={14} color={FT.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Chambre, client..."
+            placeholderTextColor={FT.textMuted}
+            value={searchText}
+            onChangeText={setSearchText}
+            testID="search-rooms"
+          />
+          {searchText.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchText('')}>
+              <X size={14} color={FT.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterPillsContent}>
+          <TouchableOpacity
+            style={[styles.filterPill, floorFilter !== 'all' && styles.filterPillActive]}
+            onPress={() => { closeAllDropdowns(); setShowFloorDrop(!showFloorDrop); }}
+          >
+            <Text style={[styles.filterPillText, floorFilter !== 'all' && styles.filterPillTextActive]}>
+              {floorFilter === 'all' ? 'Tous étages' : `Étage ${floorFilter}`}
+            </Text>
+            <ChevronDown size={10} color={floorFilter !== 'all' ? FT.brand : FT.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterPill, statusFilter !== 'all' && styles.filterPillActive]}
+            onPress={() => { closeAllDropdowns(); setShowStatusDrop(!showStatusDrop); }}
+          >
+            <Text style={[styles.filterPillText, statusFilter !== 'all' && styles.filterPillTextActive]}>
+              {statusFilter === 'all' ? 'Tous statuts' : ROOM_STATUS_CONFIG[statusFilter].label}
+            </Text>
+            <ChevronDown size={10} color={statusFilter !== 'all' ? FT.brand : FT.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterPill, badgeFilter !== 'all' && styles.filterPillActive]}
+            onPress={() => { closeAllDropdowns(); setShowBadgeDrop(!showBadgeDrop); }}
+          >
+            <Text style={[styles.filterPillText, badgeFilter !== 'all' && styles.filterPillTextActive]}>
+              {badgeFilter === 'all' ? 'Toutes catégories' : badgeFilter === 'vip' ? 'VIP' : 'Prioritaire'}
+            </Text>
+            <ChevronDown size={10} color={badgeFilter !== 'all' ? FT.brand : FT.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterPill, assigneeFilter !== 'all' && styles.filterPillActive]}
+            onPress={() => { closeAllDropdowns(); setShowAssigneeDrop(!showAssigneeDrop); }}
+          >
+            <Text style={[styles.filterPillText, assigneeFilter !== 'all' && styles.filterPillTextActive]}>
+              {assigneeFilter === 'all' ? 'Toutes assignées' : assigneeFilter === 'none' ? 'Non assignées' : assigneeFilter}
+            </Text>
+            <ChevronDown size={10} color={assigneeFilter !== 'all' ? FT.brand : FT.textMuted} />
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+
+      {showFloorDrop && (
+        <View style={styles.dropdown}>
+          <TouchableOpacity style={[styles.dropItem, floorFilter === 'all' && styles.dropItemActive]} onPress={() => { setFloorFilter('all'); setShowFloorDrop(false); }}>
+            <Text style={styles.dropItemText}>{'Tous étages'}</Text>
+          </TouchableOpacity>
+          {floors.map((f) => (
+            <TouchableOpacity key={f} style={[styles.dropItem, floorFilter === f && styles.dropItemActive]} onPress={() => { setFloorFilter(f); setShowFloorDrop(false); }}>
+              <Text style={styles.dropItemText}>{`Étage ${f}`}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       )}
+      {showStatusDrop && (
+        <View style={styles.dropdown}>
+          <TouchableOpacity style={[styles.dropItem, statusFilter === 'all' && styles.dropItemActive]} onPress={() => { setStatusFilter('all'); setShowStatusDrop(false); }}>
+            <Text style={styles.dropItemText}>{'Tous statuts'}</Text>
+          </TouchableOpacity>
+          {(['libre', 'occupe', 'depart', 'recouche', 'hors_service'] as const).map((st) => (
+            <TouchableOpacity key={st} style={[styles.dropItem, statusFilter === st && styles.dropItemActive]} onPress={() => { setStatusFilter(st); setShowStatusDrop(false); }}>
+              <View style={[styles.dropDot, { backgroundColor: ROOM_STATUS_CONFIG[st].color }]} />
+              <Text style={styles.dropItemText}>{ROOM_STATUS_CONFIG[st].label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+      {showBadgeDrop && (
+        <View style={styles.dropdown}>
+          <TouchableOpacity style={[styles.dropItem, badgeFilter === 'all' && styles.dropItemActive]} onPress={() => { setBadgeFilter('all'); setShowBadgeDrop(false); }}>
+            <Text style={styles.dropItemText}>{'Toutes catégories'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.dropItem, badgeFilter === 'vip' && styles.dropItemActive]} onPress={() => { setBadgeFilter('vip'); setShowBadgeDrop(false); }}>
+            <Text style={styles.dropItemText}>{'VIP'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.dropItem, badgeFilter === 'prioritaire' && styles.dropItemActive]} onPress={() => { setBadgeFilter('prioritaire'); setShowBadgeDrop(false); }}>
+            <Text style={styles.dropItemText}>{'Prioritaire'}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {showAssigneeDrop && (
+        <View style={styles.dropdown}>
+          <TouchableOpacity style={[styles.dropItem, assigneeFilter === 'all' && styles.dropItemActive]} onPress={() => { setAssigneeFilter('all'); setShowAssigneeDrop(false); }}>
+            <Text style={styles.dropItemText}>{'Toutes assignées'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.dropItem, assigneeFilter === 'none' && styles.dropItemActive]} onPress={() => { setAssigneeFilter('none'); setShowAssigneeDrop(false); }}>
+            <Text style={styles.dropItemText}>{'Non assignées'}</Text>
+          </TouchableOpacity>
+          {assigneeList.map((a) => (
+            <TouchableOpacity key={a} style={[styles.dropItem, assigneeFilter === a && styles.dropItemActive]} onPress={() => { setAssigneeFilter(a); setShowAssigneeDrop(false); }}>
+              <Text style={styles.dropItemText}>{a}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      <View style={styles.roomCounterRow}>
+        <Text style={styles.roomCounterText}>{filtered.length} / {total} {t.rooms.rooms}</Text>
+      </View>
 
       {showMoreMenu && (
         <View style={styles.moreMenu}>
@@ -697,55 +932,6 @@ export default function ReceptionDashboard() {
             <Text style={styles.moreMenuIcon}>{'⚙️'}</Text>
             <Text style={styles.moreMenuText}>{t.menu.settings}</Text>
           </TouchableOpacity>
-        </View>
-      )}
-
-      <View style={styles.filterRow}>
-        <TouchableOpacity
-          style={styles.filterDrop}
-          onPress={() => { setShowFloorDropdown(!showFloorDropdown); }}
-        >
-          <Text style={styles.filterDropText}>
-            {floorFilter === 'all' ? `🏢 ${t.rooms.floor}` : `${t.rooms.floorN} ${floorFilter}`}
-          </Text>
-          <ChevronDown size={12} color={FT.textSec} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.filterDrop}>
-          <Text style={styles.filterDropText}>{'🗓'} {today}</Text>
-        </TouchableOpacity>
-        <View style={styles.roomCounter}>
-          <Text style={styles.roomCounterText}>{'🏠'} {filtered.length} / {total} {t.rooms.rooms}</Text>
-        </View>
-      </View>
-
-      <View style={styles.statusRow}>
-        <DeskStatusBar
-          items={[
-            { label: t.reception.toDo, count: statusCounts.depart + statusCounts.recouche, color: FT.roomOrange, sublabel: `${statusCounts.depart} ${t.reception.departuresOfDay}` },
-            { label: t.reception.urgent, count: rooms.filter((r) => r.clientBadge === 'prioritaire').length, color: FT.roomRed, sublabel: '' },
-            { label: t.reception.delays, count: rooms.filter((r) => r.cleaningStatus === 'refusee').length, color: FT.danger, sublabel: '' },
-            { label: t.rooms.outOfService, count: statusCounts.hors_service, color: FT.roomGray, sublabel: '' },
-          ]}
-        />
-      </View>
-
-      {showFloorDropdown && (
-        <View style={styles.dropdown}>
-          <TouchableOpacity
-            style={[styles.dropItem, floorFilter === 'all' && styles.dropItemActive]}
-            onPress={() => { setFloorFilter('all'); setShowFloorDropdown(false); }}
-          >
-            <Text style={styles.dropItemText}>{t.rooms.allFloors}</Text>
-          </TouchableOpacity>
-          {floors.map((f) => (
-            <TouchableOpacity
-              key={f}
-              style={[styles.dropItem, floorFilter === f && styles.dropItemActive]}
-              onPress={() => { setFloorFilter(f); setShowFloorDropdown(false); }}
-            >
-              <Text style={styles.dropItemText}>{t.rooms.floorN} {f}</Text>
-            </TouchableOpacity>
-          ))}
         </View>
       )}
 
@@ -878,27 +1064,54 @@ export default function ReceptionDashboard() {
             <View style={modalStyles.dateRow}>
               <View style={modalStyles.dateField}>
                 <Text style={modalStyles.label}>{'Arrivée'}</Text>
-                <TextInput
-                  style={modalStyles.input}
-                  value={editCheckIn}
-                  onChangeText={setEditCheckIn}
-                  placeholder="AAAA-MM-JJ"
-                  placeholderTextColor={FT.textMuted}
+                <TouchableOpacity
+                  style={[modalStyles.input, modalStyles.dateBtn, calendarField === 'checkIn' && modalStyles.dateBtnActive]}
+                  onPress={() => {
+                    setCalendarField(calendarField === 'checkIn' ? null : 'checkIn');
+                    if (editCheckIn) {
+                      try { setCalendarMonth(new Date(editCheckIn)); } catch { /* ignore */ }
+                    }
+                  }}
                   testID="edit-check-in"
-                />
+                >
+                  <Text style={[modalStyles.dateBtnText, !editCheckIn && { color: FT.textMuted }]}>
+                    {editCheckIn ? formatShortDate(editCheckIn) : 'Sélectionner'}
+                  </Text>
+                </TouchableOpacity>
               </View>
               <View style={modalStyles.dateField}>
                 <Text style={modalStyles.label}>{'Départ'}</Text>
-                <TextInput
-                  style={modalStyles.input}
-                  value={editCheckOut}
-                  onChangeText={setEditCheckOut}
-                  placeholder="AAAA-MM-JJ"
-                  placeholderTextColor={FT.textMuted}
+                <TouchableOpacity
+                  style={[modalStyles.input, modalStyles.dateBtn, calendarField === 'checkOut' && modalStyles.dateBtnActive]}
+                  onPress={() => {
+                    setCalendarField(calendarField === 'checkOut' ? null : 'checkOut');
+                    if (editCheckOut) {
+                      try { setCalendarMonth(new Date(editCheckOut)); } catch { /* ignore */ }
+                    }
+                  }}
                   testID="edit-check-out"
-                />
+                >
+                  <Text style={[modalStyles.dateBtnText, !editCheckOut && { color: FT.textMuted }]}>
+                    {editCheckOut ? formatShortDate(editCheckOut) : 'Sélectionner'}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
+
+            {calendarField && (
+              <View style={modalStyles.calendarWrap}>
+                <MiniCalendar
+                  month={calendarMonth}
+                  selectedDate={calendarField === 'checkIn' ? editCheckIn : editCheckOut}
+                  onSelect={(dateStr) => {
+                    if (calendarField === 'checkIn') setEditCheckIn(dateStr);
+                    else setEditCheckOut(dateStr);
+                    setCalendarField(null);
+                  }}
+                  onChangeMonth={setCalendarMonth}
+                />
+              </View>
+            )}
 
             <TouchableOpacity
               style={modalStyles.moveToggle}
@@ -1004,13 +1217,13 @@ const tableStyles = StyleSheet.create({
   checkboxActive: { backgroundColor: FT.brand, borderColor: FT.brand },
   checkMark: { fontSize: 10, color: '#FFF', fontWeight: '700' as const },
 
-  chambreCell: { width: 120, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
+  chambreCell: { width: 130, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
   roomBadge: { width: 38, height: 38, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   roomBadgeText: { fontSize: 13, fontWeight: '800' as const, color: '#FFF' },
   roomTypeText: { fontSize: 12, fontWeight: '600' as const, color: FT.text },
   roomCatText: { fontSize: 9, color: FT.textMuted },
 
-  clientCell: { width: 170, paddingHorizontal: 6, justifyContent: 'center' },
+  clientCell: { width: 180, paddingHorizontal: 6, justifyContent: 'center' },
   clientNameRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   clientName: { fontSize: 12, fontWeight: '600' as const, color: FT.text, flexShrink: 1 },
   clientDates: { fontSize: 10, color: FT.textSec, marginTop: 2 },
@@ -1020,7 +1233,7 @@ const tableStyles = StyleSheet.create({
   vipBadgeInlineText: { fontSize: 8, fontWeight: '800' as const, color: '#FFF' },
   priorityStar: { fontSize: 12, color: '#F59E0B' },
 
-  hkCell: { width: 110, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
+  hkCell: { width: 120, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
   hkDot: { width: 14, alignItems: 'center' },
   dot: { width: 8, height: 8, borderRadius: 4 },
   hkLabel: { fontSize: 11, fontWeight: '600' as const },
@@ -1029,7 +1242,7 @@ const tableStyles = StyleSheet.create({
   gouvBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start' as const },
   gouvText: { fontSize: 10, fontWeight: '600' as const },
 
-  assignCell: { width: 120, paddingHorizontal: 4, justifyContent: 'center' },
+  assignCell: { width: 130, paddingHorizontal: 4, justifyContent: 'center' },
   assignRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   assignAvatar: { width: 26, height: 26, borderRadius: 13, backgroundColor: FT.brand, justifyContent: 'center', alignItems: 'center' },
   assignAvatarText: { fontSize: 9, fontWeight: '700' as const, color: '#FFF' },
@@ -1040,7 +1253,7 @@ const tableStyles = StyleSheet.create({
   etaCell: { width: 50, alignItems: 'center', justifyContent: 'center' },
   etaText: { fontSize: 12, fontWeight: '700' as const, color: FT.brand },
 
-  actionsCell: { width: 100, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  actionsCell: { width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   actionIconBtn: {
     width: 30,
     height: 30,
@@ -1195,6 +1408,20 @@ const modalStyles = StyleSheet.create({
     fontWeight: '600' as const,
     color: FT.textSec,
   },
+  dateBtn: {
+    justifyContent: 'center' as const,
+  },
+  dateBtnActive: {
+    borderColor: FT.brand,
+    backgroundColor: FT.brandSoft,
+  },
+  dateBtnText: {
+    fontSize: 14,
+    color: FT.text,
+  },
+  calendarWrap: {
+    marginTop: 4,
+  },
 });
 
 const styles = StyleSheet.create({
@@ -1207,40 +1434,44 @@ const styles = StyleSheet.create({
   billingBadgeText: { fontSize: 9, fontWeight: '700' as const, color: '#FFF' },
 
   dashHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
-  dashTitle: { fontSize: 20, fontWeight: '800' as const, color: FT.text },
+  dashTitle: { fontSize: 22, fontWeight: '800' as const, color: FT.text, letterSpacing: -0.3 },
+  dashSubtitle: { fontSize: 11, color: FT.textMuted, marginTop: 1, textTransform: 'capitalize' as const },
   dashActions: { flexDirection: 'row', gap: 6, alignItems: 'center' },
   importBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: FT.brand, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
   importBtnText: { fontSize: 12, fontWeight: '600' as const, color: '#FFF' },
   viewToggle: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center', backgroundColor: FT.surfaceAlt, borderWidth: 1, borderColor: FT.border },
   viewToggleActive: { backgroundColor: FT.brand, borderColor: FT.brand },
   iconBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: FT.surfaceAlt, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: FT.border },
-  iconBtnText: { fontSize: 12, color: FT.textSec, fontWeight: '500' as const },
 
-  filterPanel: { backgroundColor: FT.surface, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: FT.border, gap: 8 },
-  filterPanelTitle: { fontSize: 12, fontWeight: '700' as const, color: FT.textSec, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
-  filterChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  filterChipBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: FT.surfaceAlt, borderWidth: 1, borderColor: FT.border },
-  filterChipBtnActive: { backgroundColor: FT.brand, borderColor: FT.brand },
-  filterChipBtnText: { fontSize: 11, fontWeight: '500' as const, color: FT.textSec },
-  filterChipBtnTextActive: { color: '#FFF' },
+  kpiRow: { backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.borderLight },
+  kpiRowContent: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
+  kpiCard: { backgroundColor: FT.surfaceAlt, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', minWidth: 90, gap: 4, borderWidth: 1, borderColor: FT.borderLight },
+  kpiIcon: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  kpiValue: { fontSize: 18, fontWeight: '800' as const, color: FT.text },
+  kpiLabel: { fontSize: 10, fontWeight: '500' as const, color: FT.textMuted },
 
-  moreMenu: { backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.border, paddingVertical: 4 },
+  searchFilterRow: { backgroundColor: FT.surface, paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: FT.borderLight, gap: 8 },
+  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: FT.surfaceAlt, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, gap: 8, borderWidth: 1, borderColor: FT.borderLight },
+  searchInput: { flex: 1, fontSize: 13, color: FT.text, padding: 0 },
+  filterPillsContent: { gap: 6, paddingTop: 4 },
+  filterPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: FT.surfaceAlt, borderWidth: 1, borderColor: FT.borderLight },
+  filterPillActive: { borderColor: FT.brand, backgroundColor: FT.brandSoft },
+  filterPillText: { fontSize: 12, fontWeight: '500' as const, color: FT.textSec },
+  filterPillTextActive: { color: FT.brand, fontWeight: '600' as const },
+
+  moreMenu: { backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.border, paddingVertical: 4, position: 'absolute' as const, top: 52, right: 14, zIndex: 200, borderRadius: 12, shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 20 },
   moreMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12 },
   moreMenuIcon: { fontSize: 16 },
   moreMenuText: { fontSize: 14, color: FT.text, fontWeight: '500' as const },
 
-  filterRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.border, gap: 6, flexWrap: 'wrap' },
-  filterDrop: { flexDirection: 'row', alignItems: 'center', backgroundColor: FT.surfaceAlt, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, gap: 4, borderWidth: 1, borderColor: FT.border },
-  filterDropText: { fontSize: 11, color: FT.textSec, fontWeight: '500' as const },
-  roomCounter: { marginLeft: 'auto' },
+  roomCounterRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 6, backgroundColor: FT.bg },
   roomCounterText: { fontSize: 11, color: FT.textMuted, fontWeight: '600' as const },
-
-  statusRow: { paddingHorizontal: 14, paddingVertical: 10, backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.border },
 
   dropdown: { position: 'absolute', top: 200, left: 14, right: 14, backgroundColor: FT.surface, borderRadius: 12, borderWidth: 1, borderColor: FT.border, zIndex: 100, elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12 },
   dropItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: FT.border, gap: 8 },
   dropItemActive: { backgroundColor: FT.brandSoft },
   dropItemText: { fontSize: 14, color: FT.text },
+  dropDot: { width: 8, height: 8, borderRadius: 4 },
 
   selBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, backgroundColor: FT.brandSoft, borderBottomWidth: 1, borderBottomColor: FT.brand + '25' },
   selInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -1256,7 +1487,7 @@ const styles = StyleSheet.create({
 
   listContent: { padding: 14, paddingBottom: 100, gap: 10 },
   tableScrollH: { flex: 1 },
-  tableInner: { minWidth: 900, flex: 1 },
+  tableInner: { flex: 1 },
 
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 8 },
   emptyIcon: { fontSize: 48 },
