@@ -10,8 +10,7 @@ import {
   Platform,
   Modal,
   Animated,
-  Switch,
-  FlatList,
+  PanResponder,
   KeyboardAvoidingView,
   Image,
 } from 'react-native';
@@ -19,69 +18,82 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useHotel } from '@/providers/HotelProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useColors } from '@/hooks/useColors';
 import { Colors } from '@/constants/colors';
 import {
   CHECKLIST_ITEMS,
-  MAINTENANCE_CATEGORIES,
   HousekeepingChecklist,
   DEFAULT_CHECKLIST,
   ConsumableProduct,
-  ConsumableCategory,
-  CONSUMABLE_CATEGORY_CONFIG,
 } from '@/constants/types';
 
-interface CommentItem {
+const OFFLINE_QUEUE_KEY = 'offline_task_queue';
+const SWIPE_THRESHOLD_DETAIL = 120;
+
+interface ReportItem {
   id: string;
-  author: string;
-  text: string;
-  time: string;
+  icon: string;
+  label: string;
+  category: string;
 }
+
+const REPORT_ITEMS: ReportItem[] = [
+  { id: 'r1', icon: '🚽', label: 'WC bouché', category: 'Plomberie' },
+  { id: 'r2', icon: '💡', label: 'Ampoule grillée', category: 'Électricité' },
+  { id: 'r3', icon: '❄️', label: 'Clim en panne', category: 'Climatisation' },
+  { id: 'r4', icon: '🔑', label: 'Serrure cassée', category: 'Serrurerie' },
+  { id: 'r5', icon: '🚿', label: 'Fuite robinet', category: 'Plomberie' },
+  { id: 'r6', icon: '🪑', label: 'Mobilier abîmé', category: 'Mobilier' },
+  { id: 'r7', icon: '📺', label: 'TV ne marche pas', category: 'Électricité' },
+  { id: 'r8', icon: '📦', label: 'Autre problème', category: 'Autre' },
+];
 
 export default function TaskDetailScreen() {
   const { roomId, openReport } = useLocalSearchParams<{ roomId: string; openReport?: string }>();
   const router = useRouter();
-  const { rooms, startCleaning, completeCleaning, reportProblem, updateRoom, consumableProducts, addConsumptions } = useHotel();
-  useTheme();
+  const { rooms, startCleaning, completeCleaning, reportProblem, consumableProducts, addConsumptions } = useHotel();
+  const { theme } = useTheme();
   const colors = useColors();
 
   const room = useMemo(() => rooms.find((r) => r.id === roomId), [rooms, roomId]);
 
   const [checklist, setChecklist] = useState<HousekeepingChecklist>({ ...DEFAULT_CHECKLIST });
-  const [showConsumption, setShowConsumption] = useState(false);
   const [showReport, setShowReport] = useState(openReport === '1');
-  const [showLostFound, setShowLostFound] = useState(false);
-  const [showChecklist, setShowChecklist] = useState(false);
   const [consumptions, setConsumptions] = useState<Record<string, number>>({});
-  const [selectedCategory, setSelectedCategory] = useState<ConsumableCategory | null>(null);
-  const [reportCategory, setReportCategory] = useState('');
+  const [selectedReportItem, setSelectedReportItem] = useState<ReportItem | null>(null);
   const [reportDesc, setReportDesc] = useState('');
-  const [reportPriority, setReportPriority] = useState<'haute' | 'moyenne' | 'basse'>('moyenne');
-  const [lostFoundDesc, setLostFoundDesc] = useState('');
   const [reportPhotos, setReportPhotos] = useState<string[]>([]);
-  const [lostFoundPhoto, setLostFoundPhoto] = useState<string | null>(null);
-  const [isNPD, setIsNPD] = useState(false);
-  const [isBlocked, setIsBlocked] = useState(false);
-  const [comments, setComments] = useState<CommentItem[]>([
-    { id: 'c1', author: 'Ayanty', text: 'Manque une serviette taille moyenne', time: '09:24' },
-  ]);
-  const [newComment, setNewComment] = useState('');
+  const [expandedSection, setExpandedSection] = useState<string | null>('linge');
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const swipePan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
   const isInProgress = room?.cleaningStatus === 'en_cours';
   const isNotStarted = room?.cleaningStatus === 'none' || room?.cleaningStatus === 'refusee';
   const isDone = room?.cleaningStatus === 'nettoyee' || room?.cleaningStatus === 'validee';
 
-  useEffect(() => {
-    if (room?.status === 'hors_service') {
-      setIsBlocked(true);
-    }
-  }, [room?.status]);
+  const swipeResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        Math.abs(gesture.dx) > 20 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 2,
+      onPanResponderMove: (_, gesture) => {
+        swipePan.setValue({ x: gesture.dx, y: 0 });
+      },
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dx < -SWIPE_THRESHOLD_DETAIL && isInProgress) {
+          handleComplete();
+        } else if (gesture.dx > SWIPE_THRESHOLD_DETAIL) {
+          setShowReport(true);
+        }
+        Animated.spring(swipePan, { toValue: { x: 0, y: 0 }, useNativeDriver: true, tension: 80, friction: 10 }).start();
+      },
+    })
+  ).current;
 
   useEffect(() => {
     if (isInProgress && room?.cleaningStartedAt) {
@@ -98,8 +110,8 @@ export default function TaskDetailScreen() {
     if (isInProgress) {
       const loop = Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.03, duration: 900, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1.02, duration: 1000, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
         ])
       );
       loop.start();
@@ -114,64 +126,62 @@ export default function TaskDetailScreen() {
   }, []);
 
   const handleToggleChecklist = useCallback((key: keyof HousekeepingChecklist) => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
+  const saveOfflineAction = useCallback(async (action: Record<string, unknown>) => {
+    try {
+      const stored = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
+      const queue = stored ? JSON.parse(stored) : [];
+      queue.push(action);
+      await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+      console.log('[TaskDetail] Offline action queued:', action);
+    } catch (e) {
+      console.log('[TaskDetail] Failed to queue offline action:', e);
+    }
   }, []);
 
   const handleStart = useCallback(() => {
     if (!room) return;
     startCleaning(room.id);
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
   }, [room, startCleaning]);
 
   const handleComplete = useCallback(() => {
     if (!room) return;
+    const consumptionItems = Object.entries(consumptions)
+      .filter(([, qty]) => qty > 0)
+      .map(([productId, quantity]) => ({ productId, quantity }));
+
     Alert.alert(
-      '✅ Terminer ?',
-      `Chambre ${room.roomNumber} terminée ?`,
+      '✅ Terminer le nettoyage ?',
+      `Chambre ${room.roomNumber}${consumptionItems.length > 0 ? ` • ${consumptionItems.length} consommable(s)` : ''}`,
       [
         { text: 'Non', style: 'cancel' },
         {
           text: 'Oui, terminer',
           onPress: () => {
+            if (consumptionItems.length > 0) {
+              addConsumptions({
+                roomId: room.id,
+                roomNumber: room.roomNumber,
+                items: consumptionItems,
+                reportedBy: room.cleaningAssignee ?? 'Femme de chambre',
+              });
+            }
             completeCleaning(room.id);
-            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            void saveOfflineAction({ type: 'complete', roomId: room.id, timestamp: Date.now() });
             router.back();
           },
         },
       ]
     );
-  }, [room, completeCleaning, router]);
-
-  const handleNPDToggle = useCallback((value: boolean) => {
-    if (!room) return;
-    setIsNPD(value);
-    if (value) {
-      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert('🔕 NPD activé', `Chambre ${room.roomNumber} marquée Ne Pas Déranger`);
-    }
-  }, [room]);
-
-  const handleBlockToggle = useCallback((value: boolean) => {
-    if (!room) return;
-    setIsBlocked(value);
-    if (value) {
-      updateRoom({ roomId: room.id, updates: { status: 'hors_service' as const } });
-      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    }
-  }, [room, updateRoom]);
-
-  const handleInProgressToggle = useCallback(() => {
-    if (!room) return;
-    if (isInProgress) {
-      handleComplete();
-    } else if (isNotStarted) {
-      handleStart();
-    }
-  }, [room, isInProgress, isNotStarted, handleComplete, handleStart]);
+  }, [room, completeCleaning, router, consumptions, addConsumptions, saveOfflineAction]);
 
   const handleConsumptionUpdate = useCallback((productId: string, delta: number) => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setConsumptions((prev) => {
       const current = prev[productId] ?? 0;
       const next = Math.max(0, current + delta);
@@ -179,103 +189,98 @@ export default function TaskDetailScreen() {
     });
   }, []);
 
-  const handleSubmitConsumptions = useCallback(() => {
-    if (!room) return;
-    const items = Object.entries(consumptions)
-      .filter(([, qty]) => qty > 0)
-      .map(([productId, quantity]) => ({ productId, quantity }));
-    if (items.length === 0) {
-      Alert.alert('Aucun article', 'Sélectionnez au moins un article.');
-      return;
-    }
-    addConsumptions({
-      roomId: room.id,
-      roomNumber: room.roomNumber,
-      items,
-      reportedBy: room.cleaningAssignee ?? 'Femme de chambre',
-    });
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert('✅ Enregistré', `${items.length} article(s) déclaré(s).`);
-    setConsumptions({});
-    setSelectedCategory(null);
-    setShowConsumption(false);
-  }, [room, consumptions, addConsumptions]);
-
   const handleSubmitReport = useCallback(() => {
-    if (!room || !reportCategory) {
-      Alert.alert('Erreur', 'Choisissez une catégorie.');
+    if (!room || !selectedReportItem) {
+      Alert.alert('Erreur', 'Choisissez un type de problème.');
       return;
     }
     reportProblem({
       roomId: room.id,
       roomNumber: room.roomNumber,
-      title: reportCategory,
-      description: reportDesc.trim(),
-      priority: reportPriority,
+      title: selectedReportItem.label,
+      description: reportDesc.trim() || selectedReportItem.label,
+      priority: 'moyenne',
       reportedBy: room.cleaningAssignee ?? 'Femme de chambre',
     });
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    void saveOfflineAction({ type: 'report', roomId: room.id, category: selectedReportItem.category, timestamp: Date.now() });
     Alert.alert('⚠️ Signalement envoyé', 'La maintenance a été prévenue.');
     setShowReport(false);
-    setReportCategory('');
+    setSelectedReportItem(null);
     setReportDesc('');
-  }, [room, reportCategory, reportDesc, reportPriority, reportProblem]);
+    setReportPhotos([]);
+  }, [room, selectedReportItem, reportDesc, reportProblem, saveOfflineAction]);
 
-  const handleSubmitLostFound = useCallback(() => {
-    if (!lostFoundDesc.trim()) {
-      Alert.alert('Erreur', 'Décrivez l\'objet trouvé.');
-      return;
+  const handleTakePhoto = useCallback(async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission refusée', "Autorisez l'accès à la caméra.");
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets[0]) {
+        setReportPhotos((prev) => [...prev, result.assets[0].uri]);
+        if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    } catch (e) {
+      console.log('[TaskDetail] Camera error:', e);
+      const pickResult = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.7,
+      });
+      if (!pickResult.canceled && pickResult.assets[0]) {
+        setReportPhotos((prev) => [...prev, pickResult.assets[0].uri]);
+      }
     }
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert('🔍 Objet enregistré', 'La gouvernante a été prévenue.');
-    setShowLostFound(false);
-    setLostFoundDesc('');
-  }, [lostFoundDesc]);
+  }, []);
 
-  const handleAddComment = useCallback(() => {
-    if (!newComment.trim()) return;
-    const now = new Date();
-    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    setComments((prev) => [...prev, {
-      id: `c-${Date.now()}`,
-      author: 'Moi',
-      text: newComment.trim(),
-      time,
-    }]);
-    setNewComment('');
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [newComment]);
+  const toggleSection = useCallback((section: string) => {
+    setExpandedSection((prev) => (prev === section ? null : section));
+  }, []);
 
-  const categoryProducts = useMemo(() => {
-    if (!selectedCategory) return [];
-    return consumableProducts.filter((p) => p.category === selectedCategory);
-  }, [consumableProducts, selectedCategory]);
+  const lingeProducts = useMemo(() =>
+    consumableProducts.filter((p) => p.category === 'linge'),
+    [consumableProducts]
+  );
 
-  const consumptionTotal = useMemo(() => {
-    return Object.entries(consumptions).reduce((sum, [productId, qty]) => {
-      const product = consumableProducts.find((p) => p.id === productId);
-      return sum + (product ? product.unitPrice * qty : 0);
-    }, 0);
-  }, [consumptions, consumableProducts]);
+  const minibarProducts = useMemo(() =>
+    consumableProducts.filter((p) => p.category === 'minibar' || p.category === 'accueil'),
+    [consumableProducts]
+  );
 
   const totalConsumptionItems = useMemo(() => {
     return Object.values(consumptions).reduce((s, q) => s + q, 0);
   }, [consumptions]);
+
+  const checklistProgress = useMemo(() => {
+    const total = CHECKLIST_ITEMS.length;
+    const done = CHECKLIST_ITEMS.filter((item) => checklist[item.key]).length;
+    return { done, total };
+  }, [checklist]);
 
   if (!room) {
     return (
       <View style={styles.container}>
         <Stack.Screen options={{ title: 'Introuvable' }} />
         <View style={styles.errorState}>
-          <Text style={styles.errorEmoji}>❓</Text>
+          <Text style={styles.errorEmoji}>{'❓'}</Text>
           <Text style={styles.errorText}>Chambre introuvable</Text>
           <TouchableOpacity style={styles.errorBtn} onPress={() => router.back()}>
-            <Text style={styles.errorBtnText}>← Retour</Text>
+            <Text style={styles.errorBtnText}>{'← Retour'}</Text>
           </TouchableOpacity>
         </View>
       </View>
     );
   }
+
+  const statusColor = room.status === 'depart' ? '#E53935' : room.status === 'recouche' ? '#FB8C00' : '#1E88E5';
+  const statusLabel = room.status === 'depart' ? 'Départ' : room.status === 'recouche' ? 'Recouche' : room.status === 'occupe' ? 'Occupé' : room.status;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -298,507 +303,262 @@ export default function TaskDetailScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={90}
       >
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+        <Animated.View
+          style={{ flex: 1, transform: [{ translateX: swipePan.x }] }}
+          {...swipeResponder.panHandlers}
         >
-          <View style={[styles.roomHeader, { backgroundColor: colors.surface }]}>
-            <Text style={styles.roomNumber}>{room.roomNumber}</Text>
-            <Text style={styles.roomType}>{room.roomType}</Text>
-            {room.clientBadge === 'vip' && (
-              <View style={styles.vipTag}>
-                <Text style={styles.vipTagText}>⭐ VIP</Text>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={[styles.roomHeader, { backgroundColor: colors.surface }]}>
+              <View style={styles.roomHeaderTop}>
+                <View>
+                  <Text style={[styles.roomNumber, { color: colors.text }]}>{room.roomNumber}</Text>
+                  <Text style={[styles.roomType, { color: colors.textSecondary }]}>{room.roomType}</Text>
+                </View>
+                <View style={styles.headerBadges}>
+                  <View style={[styles.statusPill, { backgroundColor: statusColor + '15' }]}>
+                    <Text style={[styles.statusPillText, { color: statusColor }]}>{statusLabel}</Text>
+                  </View>
+                  {room.clientBadge === 'vip' && (
+                    <View style={[styles.statusPill, { backgroundColor: '#FFF8E1' }]}>
+                      <Text style={[styles.statusPillText, { color: '#F57F17' }]}>{'⭐ VIP'}</Text>
+                    </View>
+                  )}
+                  {room.clientBadge === 'prioritaire' && (
+                    <View style={[styles.statusPill, { backgroundColor: '#FFEBEE' }]}>
+                      <Text style={[styles.statusPillText, { color: '#C62828' }]}>{'⚡ Prioritaire'}</Text>
+                    </View>
+                  )}
+                </View>
               </View>
-            )}
-            {room.clientBadge === 'prioritaire' && (
-              <View style={[styles.vipTag, { backgroundColor: '#FFEBEE' }]}>
-                <Text style={[styles.vipTagText, { color: '#C62828' }]}>⚡ Prioritaire</Text>
-              </View>
-            )}
-            {room.cleaningStatus === 'refusee' && (
-              <View style={[styles.vipTag, { backgroundColor: '#FFEBEE' }]}>
-                <Text style={[styles.vipTagText, { color: '#C62828' }]}>❌ À refaire</Text>
-              </View>
-            )}
-          </View>
 
-          {room.currentReservation && (
-            <View style={styles.guestCard}>
-              <View style={styles.guestAvatarCircle}>
-                <Text style={styles.guestAvatarText}>
-                  {room.currentReservation.guestName[0]}
-                </Text>
-              </View>
-              <View style={styles.guestInfo}>
-                <Text style={styles.guestName}>{room.currentReservation.guestName}</Text>
-              </View>
-            </View>
-          )}
-
-          {room.currentReservation && (
-            <View style={styles.section}>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Check-in</Text>
-                <Text style={styles.infoValue}>
-                  {new Date(room.currentReservation.checkInDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </Text>
-              </View>
-              <View style={styles.separator} />
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Check-out</Text>
-                <Text style={styles.infoValue}>
-                  {new Date(room.currentReservation.checkOutDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {room.vipInstructions ? (
-            <View style={styles.instructionsBanner}>
-              <Text style={styles.instructionsIcon}>💬</Text>
-              <Text style={styles.instructionsText}>{room.vipInstructions}</Text>
-            </View>
-          ) : null}
-
-          <View style={styles.section}>
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleLeft}>
-                <Text style={styles.toggleIcon}>🔕</Text>
-                <Text style={styles.toggleLabel}>NPD</Text>
-              </View>
-              <Switch
-                value={isNPD}
-                onValueChange={handleNPDToggle}
-                trackColor={{ false: '#E0E0E0', true: '#FFB74D' }}
-                thumbColor={isNPD ? '#FB8C00' : '#F5F5F5'}
-                testID="npd-toggle"
-              />
-            </View>
-
-            <View style={styles.separator} />
-
-            <TouchableOpacity style={styles.toggleRow} onPress={handleInProgressToggle} activeOpacity={0.7}>
-              <View style={styles.toggleLeft}>
-                <Text style={styles.toggleIcon}>🕐</Text>
-                <Text style={styles.toggleLabel}>EN COURS</Text>
-              </View>
-              {isInProgress ? (
-                <Animated.View style={[styles.timerBadge, { transform: [{ scale: pulseAnim }] }]}>
-                  <Text style={styles.timerBadgeText}>{formatTimer(elapsedSeconds)}</Text>
-                </Animated.View>
-              ) : (
-                <View style={[styles.statusDot, isNotStarted ? styles.statusDotInactive : styles.statusDotDone]} />
+              {room.currentReservation && (
+                <View style={styles.guestRow}>
+                  <View style={styles.guestAvatar}>
+                    <Text style={styles.guestAvatarText}>
+                      {room.currentReservation.guestName[0]}
+                    </Text>
+                  </View>
+                  <View style={styles.guestInfo}>
+                    <Text style={[styles.guestName, { color: colors.text }]}>{room.currentReservation.guestName}</Text>
+                    <Text style={styles.guestDates}>
+                      {new Date(room.currentReservation.checkInDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                      {' → '}
+                      {new Date(room.currentReservation.checkOutDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                    </Text>
+                  </View>
+                </View>
               )}
-            </TouchableOpacity>
 
-            <View style={styles.separator} />
-
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleLeft}>
-                <Text style={styles.toggleIcon}>🚫</Text>
-                <Text style={styles.toggleLabel}>BLOQUÉE</Text>
-              </View>
-              <Switch
-                value={isBlocked}
-                onValueChange={handleBlockToggle}
-                trackColor={{ false: '#E0E0E0', true: '#EF9A9A' }}
-                thumbColor={isBlocked ? '#E53935' : '#F5F5F5'}
-                testID="block-toggle"
-              />
+              {room.cleaningStatus === 'refusee' && (
+                <View style={styles.refusedBanner}>
+                  <Text style={styles.refusedText}>{'❌ Chambre refusée — à refaire'}</Text>
+                </View>
+              )}
             </View>
-          </View>
 
-          <View style={styles.actionButtonsRow}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => setShowLostFound(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.actionButtonIcon}>📷</Text>
-              <Text style={styles.actionButtonLabel}>Objet trouvé</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => setShowConsumption(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.actionButtonIcon}>📋</Text>
-              <Text style={styles.actionButtonLabel}>Consommables</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => setShowReport(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.actionButtonIcon}>⚠️</Text>
-              <Text style={styles.actionButtonLabel}>Signaler</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => setShowChecklist(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.actionButtonIcon}>✅</Text>
-              <Text style={styles.actionButtonLabel}>Checklist</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Commentaires</Text>
-            {comments.map((c) => (
-              <View key={c.id} style={styles.commentItem}>
-                <Text style={styles.commentText}>{c.text}</Text>
-                <Text style={styles.commentMeta}>{c.author} | {c.time}</Text>
+            {room.vipInstructions ? (
+              <View style={styles.instructionsBanner}>
+                <Text style={styles.instructionsIcon}>{'💬'}</Text>
+                <Text style={styles.instructionsText}>{room.vipInstructions}</Text>
               </View>
-            ))}
-          </View>
+            ) : null}
 
-          <View style={styles.commentInputRow}>
-            <TextInput
-              style={styles.commentInput}
-              placeholder="Ajouter un commentaire..."
-              placeholderTextColor={Colors.textMuted}
-              value={newComment}
-              onChangeText={setNewComment}
-              testID="comment-input"
-            />
-            <TouchableOpacity
-              style={[styles.commentSendBtn, !newComment.trim() && styles.commentSendBtnDisabled]}
-              onPress={handleAddComment}
-              disabled={!newComment.trim()}
+            {isInProgress && (
+              <Animated.View style={[styles.timerCard, { backgroundColor: theme.primary, transform: [{ scale: pulseAnim }] }]}>
+                <Text style={styles.timerIcon}>{'🧹'}</Text>
+                <Text style={styles.timerValue}>{formatTimer(elapsedSeconds)}</Text>
+                <Text style={styles.timerLabel}>En cours</Text>
+              </Animated.View>
+            )}
+
+            <SectionBlock
+              title={'🧺 LINGE'}
+              expanded={expandedSection === 'linge'}
+              onToggle={() => toggleSection('linge')}
+              badge={Object.entries(consumptions).filter(([pid, q]) => lingeProducts.some((p) => p.id === pid) && q > 0).length || undefined}
+              colors={colors}
             >
-              <Text style={styles.commentSendText}>Envoyer</Text>
-            </TouchableOpacity>
-          </View>
+              {lingeProducts.map((product) => (
+                <ProductRow
+                  key={product.id}
+                  product={product}
+                  qty={consumptions[product.id] ?? 0}
+                  onIncrement={() => handleConsumptionUpdate(product.id, 1)}
+                  onDecrement={() => handleConsumptionUpdate(product.id, -1)}
+                />
+              ))}
+            </SectionBlock>
 
-          {isNotStarted && (
-            <TouchableOpacity style={styles.startBtn} onPress={handleStart} activeOpacity={0.8} testID="start-cleaning">
-              <Text style={styles.mainBtnIcon}>▶️</Text>
-              <Text style={styles.mainBtnText}>Je commence</Text>
-            </TouchableOpacity>
-          )}
+            <SectionBlock
+              title={'🧴 MINI BAR & PRODUITS'}
+              expanded={expandedSection === 'minibar'}
+              onToggle={() => toggleSection('minibar')}
+              badge={Object.entries(consumptions).filter(([pid, q]) => minibarProducts.some((p) => p.id === pid) && q > 0).length || undefined}
+              colors={colors}
+            >
+              {minibarProducts.map((product) => (
+                <ProductRow
+                  key={product.id}
+                  product={product}
+                  qty={consumptions[product.id] ?? 0}
+                  onIncrement={() => handleConsumptionUpdate(product.id, 1)}
+                  onDecrement={() => handleConsumptionUpdate(product.id, -1)}
+                />
+              ))}
+            </SectionBlock>
 
-          {isInProgress && (
-            <TouchableOpacity style={styles.completeBtn} onPress={handleComplete} activeOpacity={0.8} testID="complete-cleaning">
-              <Text style={styles.mainBtnIcon}>✅</Text>
-              <Text style={styles.mainBtnText}>Terminé</Text>
-            </TouchableOpacity>
-          )}
+            <SectionBlock
+              title={'🔧 MÉNAGE & ÉQUIPEMENTS'}
+              expanded={expandedSection === 'menage'}
+              onToggle={() => toggleSection('menage')}
+              colors={colors}
+            >
+              <CheckItem label="Papier toilette vérifié" icon="🧻" checked={checklist.produits} onToggle={() => handleToggleChecklist('produits')} />
+              <CheckItem label="Équipements fonctionnels (TV, clim...)" icon="📺" checked={checklist.equipements} onToggle={() => handleToggleChecklist('equipements')} />
+            </SectionBlock>
 
-          {isDone && (
-            <View style={styles.doneNotice}>
-              <Text style={styles.doneIcon}>🎉</Text>
-              <Text style={styles.doneText}>Nettoyage terminé</Text>
-            </View>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+            <SectionBlock
+              title={`✅ CHECKLIST NETTOYAGE (${checklistProgress.done}/${checklistProgress.total})`}
+              expanded={expandedSection === 'checklist'}
+              onToggle={() => toggleSection('checklist')}
+              colors={colors}
+            >
+              {CHECKLIST_ITEMS.map((item) => (
+                <CheckItem
+                  key={item.key}
+                  label={item.label}
+                  icon={item.icon}
+                  checked={checklist[item.key]}
+                  onToggle={() => handleToggleChecklist(item.key)}
+                />
+              ))}
+            </SectionBlock>
 
-      <Modal visible={showConsumption} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {selectedCategory
-                  ? `${CONSUMABLE_CATEGORY_CONFIG[selectedCategory].icon} ${CONSUMABLE_CATEGORY_CONFIG[selectedCategory].label}`
-                  : '🧴 Consommables'}
-              </Text>
-              <TouchableOpacity onPress={() => {
-                if (selectedCategory) {
-                  setSelectedCategory(null);
-                } else {
-                  setShowConsumption(false);
-                }
-              }}>
-                <Text style={styles.modalClose}>{selectedCategory ? '←' : '✕'}</Text>
+            <View style={styles.mainActionsArea}>
+              {isNotStarted && (
+                <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: '#00897B' }]} onPress={handleStart} activeOpacity={0.8} testID="start-cleaning">
+                  <Text style={styles.mainActionIcon}>{'▶️'}</Text>
+                  <Text style={styles.mainActionText}>Je commence</Text>
+                </TouchableOpacity>
+              )}
+
+              {isInProgress && (
+                <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: '#43A047' }]} onPress={handleComplete} activeOpacity={0.8} testID="complete-cleaning">
+                  <Text style={styles.mainActionIcon}>{'✅'}</Text>
+                  <View>
+                    <Text style={styles.mainActionText}>Terminé</Text>
+                    {totalConsumptionItems > 0 && (
+                      <Text style={styles.mainActionSub}>{totalConsumptionItems} consommable(s)</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
+
+              {isDone && (
+                <View style={styles.doneNotice}>
+                  <Text style={styles.doneIcon}>{'🎉'}</Text>
+                  <Text style={[styles.doneText, { color: colors.textSecondary }]}>Nettoyage terminé</Text>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={[styles.reportBtn, { borderColor: '#FB8C00' + '40' }]}
+                onPress={() => setShowReport(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.reportBtnIcon}>{'⚠️'}</Text>
+                <Text style={styles.reportBtnText}>Signaler un problème</Text>
               </TouchableOpacity>
             </View>
 
-            {!selectedCategory ? (
-              <View style={styles.categoryGrid}>
-                {(Object.keys(CONSUMABLE_CATEGORY_CONFIG) as ConsumableCategory[]).map((cat) => {
-                  const config = CONSUMABLE_CATEGORY_CONFIG[cat];
-                  const catItems = Object.entries(consumptions).filter(([pid, qty]) => {
-                    const p = consumableProducts.find((pr) => pr.id === pid);
-                    return p?.category === cat && qty > 0;
-                  });
-                  const catCount = catItems.reduce((s, [, q]) => s + q, 0);
-                  return (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[styles.categoryCard, { borderColor: config.color + '30' }]}
-                      onPress={() => setSelectedCategory(cat)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.categoryCardIcon}>{config.icon}</Text>
-                      <Text style={styles.categoryCardLabel}>{config.label}</Text>
-                      {catCount > 0 && (
-                        <View style={[styles.categoryBadge, { backgroundColor: config.color }]}>
-                          <Text style={styles.categoryBadgeText}>{catCount}</Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            ) : (
-              <FlatList
-                data={categoryProducts}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.productsList}
-                showsVerticalScrollIndicator={false}
-                renderItem={({ item }: { item: ConsumableProduct }) => {
-                  const qty = consumptions[item.id] ?? 0;
-                  return (
-                    <View style={styles.productRow}>
-                      <Text style={styles.productIcon}>{item.icon}</Text>
-                      <View style={styles.productInfo}>
-                        <Text style={styles.productName}>{item.name}</Text>
-                        <Text style={styles.productPrice}>{item.unitPrice.toFixed(2)}€/{item.unit}</Text>
-                      </View>
-                      <View style={styles.quantityControls}>
-                        <TouchableOpacity
-                          style={[styles.qtyBtn, qty === 0 && styles.qtyBtnDisabled]}
-                          onPress={() => handleConsumptionUpdate(item.id, -1)}
-                          disabled={qty === 0}
-                        >
-                          <Text style={[styles.qtyBtnText, qty === 0 && styles.qtyBtnTextDisabled]}>−</Text>
-                        </TouchableOpacity>
-                        <Text style={[styles.qtyValue, qty > 0 && styles.qtyValueActive]}>{qty}</Text>
-                        <TouchableOpacity
-                          style={[styles.qtyBtn, styles.qtyBtnPlus]}
-                          onPress={() => handleConsumptionUpdate(item.id, 1)}
-                        >
-                          <Text style={[styles.qtyBtnText, { color: '#FFF' }]}>+</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  );
-                }}
-              />
-            )}
-
-            {totalConsumptionItems > 0 && (
-              <View style={styles.consumptionSummary}>
-                <Text style={styles.consumptionSummaryText}>
-                  {totalConsumptionItems} article(s) • {consumptionTotal.toFixed(2)}€
-                </Text>
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={[styles.modalSubmitBtn, totalConsumptionItems === 0 && { opacity: 0.5 }]}
-              onPress={handleSubmitConsumptions}
-              disabled={totalConsumptionItems === 0}
-            >
-              <Text style={styles.modalSubmitText}>✅ Valider les consommables</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+            <View style={styles.swipeHintDetail}>
+              <Text style={styles.swipeHintDetailText}>
+                {'← Glisser gauche: Terminé • Glisser droite: Signaler →'}
+              </Text>
+            </View>
+          </ScrollView>
+        </Animated.View>
+      </KeyboardAvoidingView>
 
       <Modal visible={showReport} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>⚠️ Signaler</Text>
-              <TouchableOpacity onPress={() => setShowReport(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+              <Text style={styles.modalTitle}>{'⚠️ Signaler un problème'}</Text>
+              <TouchableOpacity onPress={() => { setShowReport(false); setSelectedReportItem(null); }}>
+                <Text style={styles.modalClose}>{'✕'}</Text>
               </TouchableOpacity>
             </View>
+
             <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-              <Text style={styles.fieldLabel}>Catégorie</Text>
-              <View style={styles.reportCategoryGrid}>
-                {MAINTENANCE_CATEGORIES.map((cat) => {
-                  const icon = cat === 'Plomberie' ? '🔧' : cat === 'Électricité' ? '💡' : cat === 'Climatisation' ? '❄️' : cat === 'Serrurerie' ? '🔑' : cat === 'Mobilier' ? '🪑' : '📦';
+              <View style={styles.reportGrid}>
+                {REPORT_ITEMS.map((item) => {
+                  const isSelected = selectedReportItem?.id === item.id;
                   return (
                     <TouchableOpacity
-                      key={cat}
-                      style={[styles.reportCategoryChip, reportCategory === cat && styles.reportCategoryChipActive]}
-                      onPress={() => setReportCategory(cat)}
+                      key={item.id}
+                      style={[
+                        styles.reportGridItem,
+                        isSelected && { borderColor: '#FB8C00', backgroundColor: '#FFF8E1' },
+                      ]}
+                      onPress={() => {
+                        setSelectedReportItem(item);
+                        if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      activeOpacity={0.7}
                     >
-                      <Text style={styles.reportCategoryIcon}>{icon}</Text>
-                      <Text style={[styles.reportCategoryText, reportCategory === cat && styles.reportCategoryTextActive]}>
-                        {cat}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-              <Text style={styles.fieldLabel}>Description</Text>
-              <TextInput
-                style={styles.textArea}
-                placeholder="Décrivez le problème..."
-                placeholderTextColor={Colors.textMuted}
-                value={reportDesc}
-                onChangeText={setReportDesc}
-                multiline
-              />
-              <Text style={styles.fieldLabel}>Priorité</Text>
-              <View style={styles.priorityRow}>
-                {(['haute', 'moyenne', 'basse'] as const).map((p) => {
-                  const active = reportPriority === p;
-                  const color = p === 'haute' ? '#E53935' : p === 'moyenne' ? '#FB8C00' : '#43A047';
-                  return (
-                    <TouchableOpacity
-                      key={p}
-                      style={[styles.priorityChip, { backgroundColor: active ? color : color + '15', borderColor: active ? color : 'transparent', borderWidth: 2 }]}
-                      onPress={() => setReportPriority(p)}
-                    >
-                      <Text style={[styles.priorityChipText, active && { color: '#FFF' }]}>
-                        {p === 'haute' ? '🔴' : p === 'moyenne' ? '🟡' : '🟢'} {p.charAt(0).toUpperCase() + p.slice(1)}
+                      <Text style={styles.reportGridIcon}>{item.icon}</Text>
+                      <Text style={[styles.reportGridLabel, isSelected && { color: '#E65100', fontWeight: '700' as const }]}>
+                        {item.label}
                       </Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
 
-              <TouchableOpacity style={styles.photoPlaceholder} onPress={async () => {
-                try {
-                  const { status } = await ImagePicker.requestCameraPermissionsAsync();
-                  if (status !== 'granted') {
-                    Alert.alert('Permission refusée', 'Autorisez l\'accès à la caméra pour prendre des photos.');
-                    return;
-                  }
-                  const result = await ImagePicker.launchCameraAsync({
-                    mediaTypes: ['images'],
-                    allowsEditing: true,
-                    quality: 0.7,
-                  });
-                  if (!result.canceled && result.assets[0]) {
-                    setReportPhotos(prev => [...prev, result.assets[0].uri]);
-                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }
-                } catch (e) {
-                  console.log('[TaskDetail] Camera error:', e);
-                  const pickResult = await ImagePicker.launchImageLibraryAsync({
-                    mediaTypes: ['images'],
-                    allowsEditing: true,
-                    quality: 0.7,
-                  });
-                  if (!pickResult.canceled && pickResult.assets[0]) {
-                    setReportPhotos(prev => [...prev, pickResult.assets[0].uri]);
-                  }
-                }
-              }}>
-                <Text style={styles.photoPlaceholderIcon}>📷</Text>
-                <Text style={styles.photoPlaceholderText}>{reportPhotos.length > 0 ? `${reportPhotos.length} photo(s)` : 'Ajouter photo'}</Text>
-              </TouchableOpacity>
-              {reportPhotos.length > 0 && (
-                <View style={styles.photoPreviewRow}>
-                  {reportPhotos.map((uri, idx) => (
-                    <TouchableOpacity key={idx} onPress={() => setReportPhotos(prev => prev.filter((_, i) => i !== idx))}>
-                      <Image source={{ uri }} style={styles.photoPreview} />
-                    </TouchableOpacity>
-                  ))}
+              {selectedReportItem && (
+                <View style={styles.reportDetailSection}>
+                  <Text style={styles.fieldLabel}>Description (optionnel)</Text>
+                  <TextInput
+                    style={styles.textArea}
+                    placeholder="Ajoutez des détails..."
+                    placeholderTextColor={Colors.textMuted}
+                    value={reportDesc}
+                    onChangeText={setReportDesc}
+                    multiline
+                  />
+
+                  <TouchableOpacity style={styles.photoBtn} onPress={handleTakePhoto}>
+                    <Text style={styles.photoBtnIcon}>{'📷'}</Text>
+                    <Text style={styles.photoBtnText}>
+                      {reportPhotos.length > 0 ? `${reportPhotos.length} photo(s)` : 'Prendre une photo'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {reportPhotos.length > 0 && (
+                    <View style={styles.photoPreviewRow}>
+                      {reportPhotos.map((uri, idx) => (
+                        <TouchableOpacity key={`photo-${idx}`} onPress={() => setReportPhotos((prev) => prev.filter((_, i) => i !== idx))}>
+                          <Image source={{ uri }} style={styles.photoPreview} />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
                 </View>
               )}
             </ScrollView>
-            <TouchableOpacity style={[styles.modalSubmitBtn, { backgroundColor: '#FB8C00' }]} onPress={handleSubmitReport}>
-              <Text style={styles.modalSubmitText}>⚠️ Envoyer le signalement</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
-      <Modal visible={showLostFound} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { maxHeight: 400 }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>🔍 Objet trouvé</Text>
-              <TouchableOpacity onPress={() => setShowLostFound(false)}>
-                <Text style={styles.modalClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.modalScroll}>
-              <TouchableOpacity style={styles.photoPlaceholder} onPress={async () => {
-                try {
-                  const { status } = await ImagePicker.requestCameraPermissionsAsync();
-                  if (status !== 'granted') {
-                    Alert.alert('Permission refusée', 'Autorisez l\'accès à la caméra.');
-                    return;
-                  }
-                  const result = await ImagePicker.launchCameraAsync({
-                    mediaTypes: ['images'],
-                    allowsEditing: true,
-                    quality: 0.7,
-                  });
-                  if (!result.canceled && result.assets[0]) {
-                    setLostFoundPhoto(result.assets[0].uri);
-                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }
-                } catch (e) {
-                  console.log('[TaskDetail] Camera error:', e);
-                  const pickResult = await ImagePicker.launchImageLibraryAsync({
-                    mediaTypes: ['images'],
-                    allowsEditing: true,
-                    quality: 0.7,
-                  });
-                  if (!pickResult.canceled && pickResult.assets[0]) {
-                    setLostFoundPhoto(pickResult.assets[0].uri);
-                  }
-                }
-              }}>
-                {lostFoundPhoto ? (
-                  <Image source={{ uri: lostFoundPhoto }} style={styles.lostFoundPhotoPreview} />
-                ) : (
-                  <>
-                    <Text style={styles.photoPlaceholderIcon}>📷</Text>
-                    <Text style={styles.photoPlaceholderText}>Prendre une photo</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Description</Text>
-              <TextInput
-                style={styles.textArea}
-                placeholder="Ex: Portefeuille noir, montre dorée..."
-                placeholderTextColor={Colors.textMuted}
-                value={lostFoundDesc}
-                onChangeText={setLostFoundDesc}
-                multiline
-              />
-            </View>
-            <TouchableOpacity style={[styles.modalSubmitBtn, { backgroundColor: '#7B1FA2' }]} onPress={handleSubmitLostFound}>
-              <Text style={styles.modalSubmitText}>🔍 Enregistrer</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={showChecklist} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>✅ Checklist</Text>
-              <TouchableOpacity onPress={() => setShowChecklist(false)}>
-                <Text style={styles.modalClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-              {CHECKLIST_ITEMS.map((item) => {
-                const checked = checklist[item.key];
-                return (
-                  <TouchableOpacity
-                    key={item.key}
-                    style={[styles.checklistRow, checked && styles.checklistRowChecked]}
-                    onPress={() => handleToggleChecklist(item.key)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.checklistItemIcon}>{checked ? '✅' : item.icon}</Text>
-                    <Text style={[styles.checklistItemLabel, checked && styles.checklistItemLabelChecked]}>
-                      {item.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-            <TouchableOpacity style={styles.modalSubmitBtn} onPress={() => setShowChecklist(false)}>
-              <Text style={styles.modalSubmitText}>Fermer</Text>
+            <TouchableOpacity
+              style={[styles.modalSubmitBtn, { backgroundColor: '#FB8C00' }, !selectedReportItem && { opacity: 0.4 }]}
+              onPress={handleSubmitReport}
+              disabled={!selectedReportItem}
+            >
+              <Text style={styles.modalSubmitText}>{'⚠️ Envoyer le signalement'}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -806,6 +566,174 @@ export default function TaskDetailScreen() {
     </View>
   );
 }
+
+interface SectionBlockProps {
+  title: string;
+  expanded: boolean;
+  onToggle: () => void;
+  badge?: number;
+  children: React.ReactNode;
+  colors: ReturnType<typeof useColors>;
+}
+
+const SectionBlock = React.memo(function SectionBlock({ title, expanded, onToggle, badge, children, colors }: SectionBlockProps) {
+  return (
+    <View style={[sectionStyles.block, { backgroundColor: colors.surface }]}>
+      <TouchableOpacity style={sectionStyles.header} onPress={onToggle} activeOpacity={0.7}>
+        <Text style={[sectionStyles.headerText, { color: colors.text }]}>{title}</Text>
+        <View style={sectionStyles.headerRight}>
+          {badge !== undefined && badge > 0 && (
+            <View style={sectionStyles.badge}>
+              <Text style={sectionStyles.badgeText}>{badge}</Text>
+            </View>
+          )}
+          <Text style={sectionStyles.chevron}>{expanded ? '▾' : '▸'}</Text>
+        </View>
+      </TouchableOpacity>
+      {expanded && (
+        <View style={sectionStyles.content}>
+          {children}
+        </View>
+      )}
+    </View>
+  );
+});
+
+const sectionStyles = StyleSheet.create({
+  block: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  headerText: { fontSize: 14, fontWeight: '700' as const, letterSpacing: 0.3 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  badge: {
+    backgroundColor: '#E53935',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeText: { fontSize: 10, fontWeight: '800' as const, color: '#FFF' },
+  chevron: { fontSize: 16, color: '#90A4AE' },
+  content: { paddingHorizontal: 16, paddingBottom: 12 },
+});
+
+interface ProductRowProps {
+  product: ConsumableProduct;
+  qty: number;
+  onIncrement: () => void;
+  onDecrement: () => void;
+}
+
+const ProductRow = React.memo(function ProductRow({ product, qty, onIncrement, onDecrement }: ProductRowProps) {
+  return (
+    <View style={productStyles.row}>
+      <View style={productStyles.qtyControls}>
+        <TouchableOpacity
+          style={[productStyles.qtyBtn, qty === 0 && productStyles.qtyBtnDisabled]}
+          onPress={onDecrement}
+          disabled={qty === 0}
+        >
+          <Text style={[productStyles.qtyBtnText, qty === 0 && { color: '#CCC' }]}>{'−'}</Text>
+        </TouchableOpacity>
+        <Text style={[productStyles.qtyValue, qty > 0 && productStyles.qtyValueActive]}>{qty}</Text>
+        <TouchableOpacity
+          style={[productStyles.qtyBtn, productStyles.qtyBtnPlus]}
+          onPress={onIncrement}
+        >
+          <Text style={[productStyles.qtyBtnText, { color: '#FFF' }]}>{'+'}</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={productStyles.productIcon}>{product.icon}</Text>
+      <Text style={productStyles.productName} numberOfLines={1}>{product.name}</Text>
+    </View>
+  );
+});
+
+const productStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+    gap: 10,
+  },
+  qtyControls: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  qtyBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#F0F0F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qtyBtnDisabled: { opacity: 0.35 },
+  qtyBtnPlus: { backgroundColor: Colors.primary },
+  qtyBtnText: { fontSize: 22, fontWeight: '600' as const, color: Colors.text },
+  qtyValue: {
+    fontSize: 20,
+    fontWeight: '800' as const,
+    color: '#CCC',
+    minWidth: 28,
+    textAlign: 'center' as const,
+  },
+  qtyValueActive: { color: Colors.text },
+  productIcon: { fontSize: 22 },
+  productName: { flex: 1, fontSize: 14, fontWeight: '500' as const, color: Colors.text },
+});
+
+interface CheckItemProps {
+  label: string;
+  icon: string;
+  checked: boolean;
+  onToggle: () => void;
+}
+
+const CheckItem = React.memo(function CheckItem({ label, icon, checked, onToggle }: CheckItemProps) {
+  return (
+    <TouchableOpacity
+      style={[checkStyles.row, checked && checkStyles.rowChecked]}
+      onPress={onToggle}
+      activeOpacity={0.7}
+    >
+      <Text style={checkStyles.checkBox}>{checked ? '✅' : '⬜'}</Text>
+      <Text style={checkStyles.icon}>{icon}</Text>
+      <Text style={[checkStyles.label, checked && checkStyles.labelChecked]}>{label}</Text>
+    </TouchableOpacity>
+  );
+});
+
+const checkStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+  },
+  rowChecked: { backgroundColor: '#F1F8E9', marginHorizontal: -16, paddingHorizontal: 16, borderRadius: 0 },
+  checkBox: { fontSize: 20 },
+  icon: { fontSize: 18 },
+  label: { flex: 1, fontSize: 14, fontWeight: '500' as const, color: Colors.text },
+  labelChecked: { color: '#2E7D32', textDecorationLine: 'line-through' as const },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F0F4F7' },
@@ -820,109 +748,67 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 40 },
 
   roomHeader: {
-    alignItems: 'center',
+    paddingHorizontal: 20,
     paddingTop: 4,
-    paddingBottom: 12,
+    paddingBottom: 16,
     backgroundColor: Colors.surface,
   },
+  roomHeaderTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
   roomNumber: {
-    fontSize: 48,
+    fontSize: 44,
     fontWeight: '900' as const,
-    color: Colors.text,
     letterSpacing: -1,
   },
   roomType: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginTop: 2,
+    fontSize: 13,
+    marginTop: 1,
   },
-  vipTag: {
-    marginTop: 8,
-    backgroundColor: '#FFF8E1',
-    paddingHorizontal: 12,
+  headerBadges: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 6, justifyContent: 'flex-end' },
+  statusPill: {
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 10,
+    borderRadius: 8,
   },
-  vipTagText: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-    color: '#F57F17',
-  },
+  statusPillText: { fontSize: 11, fontWeight: '700' as const },
 
-  guestCard: {
+  guestRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
-    marginHorizontal: 16,
-    marginTop: 12,
-    padding: 14,
-    borderRadius: 14,
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    marginTop: 14,
+    gap: 10,
   },
-  guestAvatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFE0B2',
+  guestAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#E0F2F1',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  guestAvatarText: { fontSize: 18, fontWeight: '700' as const, color: '#E65100' },
+  guestAvatarText: { fontSize: 16, fontWeight: '700' as const, color: '#00695C' },
   guestInfo: { flex: 1 },
-  guestName: { fontSize: 16, fontWeight: '700' as const, color: Colors.text },
+  guestName: { fontSize: 15, fontWeight: '600' as const },
+  guestDates: { fontSize: 12, color: '#8A9AA8', marginTop: 1 },
 
-  section: {
-    backgroundColor: Colors.surface,
-    marginHorizontal: 16,
+  refusedBanner: {
+    backgroundColor: '#FFEBEE',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     marginTop: 12,
-    borderRadius: 14,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
   },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-    color: Colors.text,
-    padding: 14,
-    paddingBottom: 8,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: '#F0F2F4',
-    marginHorizontal: 16,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: Colors.text,
-    fontWeight: '500' as const,
-  },
-  infoValue: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
+  refusedText: { fontSize: 13, fontWeight: '600' as const, color: '#C62828', textAlign: 'center' as const },
 
   instructionsBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: '#FFF8E1',
     marginHorizontal: 16,
-    marginTop: 12,
+    marginTop: 10,
     padding: 12,
     borderRadius: 12,
     gap: 8,
@@ -932,166 +818,65 @@ const styles = StyleSheet.create({
   instructionsIcon: { fontSize: 16 },
   instructionsText: { flex: 1, fontSize: 13, color: '#5D4037', lineHeight: 18, fontStyle: 'italic' as const },
 
-  toggleRow: {
+  timerCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    justifyContent: 'center',
+    marginHorizontal: 16,
+    marginTop: 10,
     paddingVertical: 14,
-  },
-  toggleLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: 14,
     gap: 10,
   },
-  toggleIcon: { fontSize: 18 },
-  toggleLabel: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: Colors.text,
-  },
-  timerBadge: {
-    backgroundColor: '#00897B',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 14,
-  },
-  timerBadgeText: {
-    fontSize: 14,
-    fontWeight: '800' as const,
-    color: '#FFF',
-    fontVariant: ['tabular-nums'],
-  },
-  statusDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-  },
-  statusDotInactive: {
-    backgroundColor: '#E0E0E0',
-  },
-  statusDotDone: {
-    backgroundColor: '#43A047',
-  },
+  timerIcon: { fontSize: 22 },
+  timerValue: { fontSize: 28, fontWeight: '900' as const, color: '#FFF', fontVariant: ['tabular-nums'] },
+  timerLabel: { fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '500' as const },
 
-  actionButtonsRow: {
-    flexDirection: 'row',
+  mainActionsArea: {
     marginHorizontal: 16,
-    marginTop: 12,
-    gap: 8,
+    marginTop: 16,
+    gap: 10,
   },
-  actionButton: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    paddingVertical: 14,
+  mainActionBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
+    paddingVertical: 18,
+    borderRadius: 16,
+    gap: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  actionButtonIcon: { fontSize: 20 },
-  actionButtonLabel: {
-    fontSize: 10,
-    fontWeight: '600' as const,
-    color: Colors.textSecondary,
-  },
+  mainActionIcon: { fontSize: 22 },
+  mainActionText: { fontSize: 18, fontWeight: '800' as const, color: '#FFF' },
+  mainActionSub: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 1 },
 
-  commentItem: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
-  },
-  commentText: {
-    fontSize: 14,
-    color: Colors.text,
-    lineHeight: 20,
-  },
-  commentMeta: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginTop: 4,
-  },
-  commentInputRow: {
+  reportBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 8,
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
     gap: 8,
+    borderWidth: 2,
+    backgroundColor: '#FFF8E1',
   },
-  commentInput: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 8,
-    fontSize: 14,
-    color: Colors.text,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  commentSendBtn: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  commentSendBtnDisabled: { opacity: 0.4 },
-  commentSendText: {
-    fontSize: 13,
-    fontWeight: '700' as const,
-    color: '#FFF',
-  },
-
-  startBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#00897B',
-    marginHorizontal: 16,
-    marginTop: 20,
-    paddingVertical: 18,
-    borderRadius: 16,
-    gap: 10,
-    shadowColor: '#00897B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  completeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#43A047',
-    marginHorizontal: 16,
-    marginTop: 20,
-    paddingVertical: 18,
-    borderRadius: 16,
-    gap: 10,
-    shadowColor: '#43A047',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  mainBtnIcon: { fontSize: 22 },
-  mainBtnText: { fontSize: 18, fontWeight: '800' as const, color: '#FFF' },
+  reportBtnIcon: { fontSize: 18 },
+  reportBtnText: { fontSize: 15, fontWeight: '700' as const, color: '#E65100' },
 
   doneNotice: {
     alignItems: 'center',
-    marginTop: 20,
     gap: 6,
-    paddingVertical: 20,
+    paddingVertical: 16,
   },
   doneIcon: { fontSize: 40 },
-  doneText: { fontSize: 16, fontWeight: '600' as const, color: Colors.textSecondary },
+  doneText: { fontSize: 16, fontWeight: '600' as const },
+
+  swipeHintDetail: { paddingVertical: 10, paddingHorizontal: 16 },
+  swipeHintDetailText: { fontSize: 10, textAlign: 'center' as const, color: '#B0BEC5' },
 
   modalOverlay: {
     flex: 1,
@@ -1116,89 +901,63 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: 18, fontWeight: '700' as const, color: Colors.text },
   modalClose: { fontSize: 20, color: Colors.textMuted, padding: 4 },
-  modalScroll: { paddingHorizontal: 20, paddingVertical: 12 },
+  modalScroll: { paddingHorizontal: 20, paddingVertical: 16 },
 
-  categoryGrid: {
+  reportGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 16,
-    gap: 12,
-  },
-  categoryCard: {
-    width: '47%' as unknown as number,
-    backgroundColor: '#FAFBFC',
-    borderRadius: 16,
-    paddingVertical: 24,
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 2,
-    position: 'relative',
-  },
-  categoryCardIcon: { fontSize: 36 },
-  categoryCardLabel: { fontSize: 14, fontWeight: '600' as const, color: Colors.text },
-  categoryBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  categoryBadgeText: { fontSize: 11, fontWeight: '800' as const, color: '#FFF' },
-
-  productsList: { paddingHorizontal: 20, paddingVertical: 8 },
-  productRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
     gap: 10,
   },
-  productIcon: { fontSize: 28 },
-  productInfo: { flex: 1 },
-  productName: { fontSize: 15, fontWeight: '500' as const, color: Colors.text },
-  productPrice: { fontSize: 11, color: Colors.textMuted, marginTop: 1 },
-  quantityControls: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  qtyBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F0F0F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  qtyBtnDisabled: { opacity: 0.3 },
-  qtyBtnPlus: { backgroundColor: Colors.primary },
-  qtyBtnText: { fontSize: 20, fontWeight: '700' as const, color: Colors.text },
-  qtyBtnTextDisabled: { color: Colors.textMuted },
-  qtyValue: {
-    fontSize: 20,
-    fontWeight: '700' as const,
-    color: Colors.textMuted,
-    minWidth: 28,
-    textAlign: 'center' as const,
-  },
-  qtyValueActive: { color: Colors.text },
-
-  consumptionSummary: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
+  reportGridItem: {
+    width: '47%' as unknown as number,
     backgroundColor: '#F8F9FA',
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderRadius: 14,
+    paddingVertical: 18,
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 2,
+    borderColor: '#E8E8E8',
   },
-  consumptionSummaryText: {
-    fontSize: 14,
+  reportGridIcon: { fontSize: 32 },
+  reportGridLabel: { fontSize: 12, fontWeight: '500' as const, color: Colors.text, textAlign: 'center' as const },
+
+  reportDetailSection: { marginTop: 16 },
+  fieldLabel: {
+    fontSize: 13,
     fontWeight: '600' as const,
-    color: Colors.primary,
-    textAlign: 'center',
+    color: Colors.textSecondary,
+    marginBottom: 8,
   },
+  textArea: {
+    backgroundColor: '#F5F7FA',
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 14,
+    color: Colors.text,
+    minHeight: 70,
+    textAlignVertical: 'top' as const,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+  },
+  photoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F7FA',
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginTop: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderStyle: 'dashed' as const,
+  },
+  photoBtnIcon: { fontSize: 18 },
+  photoBtnText: { fontSize: 14, color: Colors.textSecondary },
+  photoPreviewRow: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' },
+  photoPreview: { width: 60, height: 60, borderRadius: 8 },
 
   modalSubmitBtn: {
-    backgroundColor: Colors.primary,
     marginHorizontal: 20,
     marginTop: 12,
     paddingVertical: 16,
@@ -1206,82 +965,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalSubmitText: { fontSize: 16, fontWeight: '700' as const, color: '#FFF' },
-
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-    color: Colors.textSecondary,
-    marginBottom: 8,
-    marginTop: 12,
-  },
-  reportCategoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  reportCategoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#F5F5F5',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  reportCategoryChipActive: { borderColor: Colors.primary, backgroundColor: Colors.primarySoft },
-  reportCategoryIcon: { fontSize: 18 },
-  reportCategoryText: { fontSize: 13, color: Colors.text },
-  reportCategoryTextActive: { color: Colors.primary, fontWeight: '600' as const },
-  textArea: {
-    backgroundColor: '#F5F7FA',
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 14,
-    color: Colors.text,
-    minHeight: 80,
-    textAlignVertical: 'top' as const,
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
-  },
-  priorityRow: { flexDirection: 'row', gap: 8 },
-  priorityChip: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  priorityChipText: { fontSize: 12, fontWeight: '600' as const, color: Colors.text },
-
-  photoPlaceholder: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F5F7FA',
-    borderRadius: 12,
-    paddingVertical: 16,
-    marginTop: 12,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderStyle: 'dashed',
-  },
-  photoPlaceholderIcon: { fontSize: 20 },
-  photoPlaceholderText: { fontSize: 14, color: Colors.textSecondary },
-
-  checklistRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
-  },
-  checklistRowChecked: {
-    backgroundColor: '#F1F8E9',
-  },
-  checklistItemIcon: { fontSize: 24 },
-  checklistItemLabel: { fontSize: 15, color: Colors.text, flex: 1, fontWeight: '500' as const },
-  checklistItemLabelChecked: { color: '#2E7D32', textDecorationLine: 'line-through' as const },
-  photoPreviewRow: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' },
-  photoPreview: { width: 60, height: 60, borderRadius: 8 },
-  lostFoundPhotoPreview: { width: 120, height: 90, borderRadius: 10 },
 });

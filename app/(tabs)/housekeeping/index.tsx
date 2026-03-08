@@ -13,7 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { Bell, Search, ChevronRight } from 'lucide-react-native';
+import { Camera, Search, ChevronRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import UserMenuButton from '@/components/UserMenuButton';
 import { useHotel } from '@/providers/HotelProvider';
@@ -31,7 +31,6 @@ interface SwipeableCardProps {
   onSwipeLeft: () => void;
   elapsed: string | null;
   themeColor: string;
-  themeSoft: string;
 }
 
 const SwipeableRoomCard = React.memo(function SwipeableRoomCard({
@@ -41,7 +40,6 @@ const SwipeableRoomCard = React.memo(function SwipeableRoomCard({
   onSwipeLeft,
   elapsed,
   themeColor,
-  themeSoft,
 }: SwipeableCardProps) {
   const pan = useRef(new Animated.Value(0)).current;
 
@@ -54,10 +52,10 @@ const SwipeableRoomCard = React.memo(function SwipeableRoomCard({
       },
       onPanResponderRelease: (_, gesture) => {
         if (gesture.dx > SWIPE_THRESHOLD) {
-          if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           onSwipeRight();
         } else if (gesture.dx < -SWIPE_THRESHOLD) {
-          if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           onSwipeLeft();
         }
         Animated.spring(pan, { toValue: 0, useNativeDriver: true, tension: 80, friction: 10 }).start();
@@ -73,7 +71,7 @@ const SwipeableRoomCard = React.memo(function SwipeableRoomCard({
   const isBlocked = room.status === 'hors_service';
 
   const getBadgeConfig = () => {
-    if (isRefused) return { label: 'À refaire', color: '#E53935', bg: '#FFEBEE' };
+    if (isRefused) return { label: 'A refaire', color: '#E53935', bg: '#FFEBEE' };
     if (isDone) return { label: 'Terminé', color: '#2E7D32', bg: '#E8F5E9' };
     if (isInProgress) return null;
     if (isDepart) return { label: 'Départ', color: '#C62828', bg: '#FFCDD2' };
@@ -86,6 +84,8 @@ const SwipeableRoomCard = React.memo(function SwipeableRoomCard({
   const leftAction = isInProgress ? '✅' : '▶️';
   const leftLabel = isInProgress ? 'Terminer' : 'Commencer';
 
+  const statusBarColor = isRefused ? '#E53935' : isInProgress ? themeColor : isDone ? '#43A047' : isDepart ? '#E53935' : isRecouche ? '#FB8C00' : '#CFD8DC';
+
   return (
     <View style={cardStyles.wrapper}>
       <View style={[cardStyles.actionBg, cardStyles.actionBgLeft]}>
@@ -93,7 +93,7 @@ const SwipeableRoomCard = React.memo(function SwipeableRoomCard({
         <Text style={cardStyles.actionLabel}>{leftLabel}</Text>
       </View>
       <View style={[cardStyles.actionBg, cardStyles.actionBgRight]}>
-        <Text style={cardStyles.actionEmoji}>⚠️</Text>
+        <Text style={cardStyles.actionEmoji}>{'⚠️'}</Text>
         <Text style={cardStyles.actionLabel}>Signaler</Text>
       </View>
 
@@ -107,22 +107,36 @@ const SwipeableRoomCard = React.memo(function SwipeableRoomCard({
           activeOpacity={0.7}
           testID={`room-card-${room.roomNumber}`}
         >
+          <View style={[cardStyles.statusBar, { backgroundColor: statusBarColor }]} />
+
           <View style={cardStyles.leftSection}>
             <Text style={cardStyles.roomNum}>{room.roomNumber}</Text>
             <Text style={cardStyles.roomType} numberOfLines={1}>{room.roomType}</Text>
           </View>
 
           <View style={cardStyles.centerSection}>
-            {room.clientBadge === 'vip' && (
-              <View style={[cardStyles.smallBadge, { backgroundColor: '#FFF8E1' }]}>
-                <Text style={cardStyles.smallBadgeText}>⭐ VIP</Text>
-              </View>
-            )}
-            {room.clientBadge === 'prioritaire' && (
-              <View style={[cardStyles.smallBadge, { backgroundColor: '#FFEBEE' }]}>
-                <Text style={cardStyles.smallBadgeText}>⚡</Text>
-              </View>
-            )}
+            <View style={cardStyles.badgeRow}>
+              {room.clientBadge === 'vip' && (
+                <View style={[cardStyles.smallBadge, { backgroundColor: '#FFF8E1' }]}>
+                  <Text style={cardStyles.smallBadgeText}>{'⭐ VIP'}</Text>
+                </View>
+              )}
+              {room.clientBadge === 'prioritaire' && (
+                <View style={[cardStyles.smallBadge, { backgroundColor: '#FFEBEE' }]}>
+                  <Text style={cardStyles.smallBadgeText}>{'⚡ Prio'}</Text>
+                </View>
+              )}
+              {badge && (
+                <View style={[cardStyles.smallBadge, { backgroundColor: badge.bg }]}>
+                  <Text style={[cardStyles.smallBadgeText, { color: badge.color }]}>{badge.label}</Text>
+                </View>
+              )}
+            </View>
+            {room.currentReservation ? (
+              <Text style={cardStyles.guestName} numberOfLines={1}>
+                {room.currentReservation.guestName}
+              </Text>
+            ) : null}
             {room.vipInstructions ? (
               <Text style={cardStyles.instructions} numberOfLines={1}>
                 {room.vipInstructions}
@@ -133,12 +147,8 @@ const SwipeableRoomCard = React.memo(function SwipeableRoomCard({
           <View style={cardStyles.rightSection}>
             {isInProgress && elapsed ? (
               <View style={[cardStyles.timerPill, { backgroundColor: themeColor }]}>
-                <Text style={cardStyles.timerIcon}>🧹</Text>
+                <Text style={cardStyles.timerIcon}>{'🧹'}</Text>
                 <Text style={cardStyles.timerText}>{elapsed}</Text>
-              </View>
-            ) : badge ? (
-              <View style={[cardStyles.statusBadge, { backgroundColor: badge.bg }]}>
-                <Text style={[cardStyles.statusBadgeText, { color: badge.color }]}>{badge.label}</Text>
               </View>
             ) : (
               <ChevronRight size={18} color={Colors.textMuted} />
@@ -186,29 +196,36 @@ const cardStyles = StyleSheet.create({
     backgroundColor: '#FFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
     elevation: 2,
   },
   cardInner: {
     paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
+    paddingLeft: 6,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  leftSection: { minWidth: 60, marginRight: 12 },
-  roomNum: { fontSize: 24, fontWeight: '800' as const, color: '#1A2B33', letterSpacing: -0.5 },
-  roomType: { fontSize: 11, color: '#8A9AA8', marginTop: 1 },
-  centerSection: { flex: 1, gap: 4 },
-  smallBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
-  smallBadgeText: { fontSize: 11, fontWeight: '600' as const },
-  instructions: { fontSize: 11, color: '#5A6B78', fontStyle: 'italic' as const },
+  statusBar: {
+    width: 4,
+    height: 40,
+    borderRadius: 2,
+    marginRight: 10,
+  },
+  leftSection: { minWidth: 54, marginRight: 10 },
+  roomNum: { fontSize: 26, fontWeight: '900' as const, color: '#1A2B33', letterSpacing: -0.5 },
+  roomType: { fontSize: 10, color: '#8A9AA8', marginTop: 1 },
+  centerSection: { flex: 1, gap: 3 },
+  badgeRow: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
+  smallBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
+  smallBadgeText: { fontSize: 10, fontWeight: '700' as const },
+  guestName: { fontSize: 12, color: '#5A6B78', fontWeight: '500' as const },
+  instructions: { fontSize: 10, color: '#8A9AA8', fontStyle: 'italic' as const },
   rightSection: { marginLeft: 8, alignItems: 'flex-end' },
   timerPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
   timerIcon: { fontSize: 14 },
   timerText: { fontSize: 13, fontWeight: '700' as const, color: '#FFF', fontVariant: ['tabular-nums'] },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
-  statusBadgeText: { fontSize: 12, fontWeight: '700' as const },
 });
 
 interface SectionData {
@@ -223,6 +240,7 @@ export default function HousekeepingScreen() {
   const colors = useColors();
   const [refreshing, setRefreshing] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
   const progressAnim = useRef(new Animated.Value(0)).current;
 
   const assignedRooms = useMemo(() => {
@@ -262,7 +280,7 @@ export default function HousekeepingScreen() {
     return Array.from(floorMap.entries())
       .sort(([a], [b]) => a - b)
       .map(([floor, data]) => ({
-        title: `${floor}${floor === 1 ? 'er' : 'ème'} étage`,
+        title: `${floor}${floor === 1 ? 'er' : 'e'} étage`,
         data,
       }));
   }, [filteredRooms]);
@@ -290,7 +308,7 @@ export default function HousekeepingScreen() {
 
   const [, setTick] = useState(0);
   useEffect(() => {
-    const interval = setInterval(() => setTick((t) => t + 1), 30000);
+    const interval = setInterval(() => setTick((prev) => prev + 1), 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -308,10 +326,10 @@ export default function HousekeepingScreen() {
     (room: Room) => {
       if (room.cleaningStatus === 'en_cours') {
         completeCleaning(room.id);
-        if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else if (room.cleaningStatus === 'none' || room.cleaningStatus === 'refusee') {
         startCleaning(room.id);
-        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
     },
     [startCleaning, completeCleaning]
@@ -336,11 +354,20 @@ export default function HousekeepingScreen() {
     setTimeout(() => setRefreshing(false), 800);
   }, []);
 
-  const pendingCount = stats.total - stats.done;
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0%', '100%'],
   });
+
+  const progressPercent = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
+
+  const handleScanQR = useCallback(() => {
+    Alert.alert(
+      '📷 Scanner QR Code',
+      'Scannez le QR code sur la porte de la chambre pour accéder directement à sa fiche.',
+      [{ text: 'OK' }]
+    );
+  }, []);
 
   const renderItem = useCallback(
     ({ item }: { item: Room }) => (
@@ -351,7 +378,6 @@ export default function HousekeepingScreen() {
         onSwipeRight={() => handleSwipeRight(item)}
         onSwipeLeft={() => handleSwipeLeft(item)}
         themeColor={theme.primary}
-        themeSoft={theme.primarySoft}
       />
     ),
     [getElapsedTime, handlePress, handleSwipeRight, handleSwipeLeft, theme]
@@ -360,93 +386,111 @@ export default function HousekeepingScreen() {
   const renderSectionHeader = useCallback(
     ({ section }: { section: SectionData }) => (
       <View style={styles.sectionHeader}>
+        <View style={styles.sectionDot} />
         <Text style={styles.sectionHeaderText}>{section.title}</Text>
+        <Text style={styles.sectionCount}>{section.data.length}</Text>
       </View>
     ),
     []
   );
 
+  const userName = 'Sophie';
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
-          headerStyle: { backgroundColor: theme.headerBg },
-          headerTintColor: '#FFF',
-          headerShadowVisible: false,
-          headerTitle: () => (
-            <Text style={styles.headerTitle}>{t.housekeeping.assignedRooms}</Text>
-          ),
-          headerRight: () => (
-            <View style={styles.headerRight}>
-              <TouchableOpacity
-                style={styles.notifContainer}
-                onPress={() => {
-                  const pending = assignedRooms.filter((r) => r.cleaningStatus === 'none' || r.cleaningStatus === 'refusee');
-                  if (pending.length === 0) {
-                    Alert.alert(t.housekeeping.allDone, t.housekeeping.noAssigned);
-                  } else {
-                    Alert.alert(
-                      `${pendingCount} ${t.housekeeping.roomsToday}`,
-                      pending.slice(0, 5).map((r) => `${t.rooms.room} ${r.roomNumber}`).join('\n') + (pending.length > 5 ? '\n...' : '')
-                    );
-                  }
-                }}
-              >
-                <Bell size={20} color="#FFF" />
-                {pendingCount > 0 && (
-                  <View style={[styles.notifBadge, { borderColor: theme.headerBg }]}>
-                    <Text style={styles.notifBadgeText}>{pendingCount}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <UserMenuButton />
-            </View>
-          ),
+          headerShown: false,
         }}
       />
 
-      <View style={[styles.topArea, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <View style={[styles.searchContainer, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
-          <Search size={16} color={colors.textMuted} />
-          <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
-            placeholder={t.common.search}
-            placeholderTextColor={colors.textMuted}
-            value={searchText}
-            onChangeText={setSearchText}
-            testID="search-rooms"
-          />
-        </View>
-
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.primary }]}>{stats.done}/{stats.total}</Text>
-            <Text style={styles.statLabel}>{t.housekeeping.done}</Text>
+      <View style={[styles.heroSection, { backgroundColor: theme.headerBg }]}>
+        <View style={styles.heroTop}>
+          <View style={styles.heroGreeting}>
+            <Text style={styles.heroHello}>{t.housekeeping.goodMorning}</Text>
+            <Text style={styles.heroName}>{userName}</Text>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{stats.departs}</Text>
-            <Text style={styles.statLabel}>🚪 {t.housekeeping.departures}</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{stats.recouches}</Text>
-            <Text style={styles.statLabel}>🔄 {t.housekeeping.stayovers}</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{stats.inProgress}</Text>
-            <Text style={styles.statLabel}>⏳ {t.rooms.inProgress}</Text>
+          <View style={styles.heroActions}>
+            <TouchableOpacity
+              style={styles.heroIconBtn}
+              onPress={() => setShowSearch((p) => !p)}
+            >
+              <Search size={20} color="#FFF" />
+            </TouchableOpacity>
+            <UserMenuButton />
           </View>
         </View>
 
-        <View style={styles.progressBarContainer}>
-          <Animated.View style={[styles.progressBarFill, { width: progressWidth, backgroundColor: theme.primary }]} />
+        {showSearch && (
+          <View style={styles.searchRow}>
+            <View style={styles.searchContainer}>
+              <Search size={15} color="rgba(255,255,255,0.5)" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder={t.common.search}
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                value={searchText}
+                onChangeText={setSearchText}
+                autoFocus
+                testID="search-rooms"
+              />
+            </View>
+          </View>
+        )}
+
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryTop}>
+            <Text style={styles.summaryRoomCount}>{stats.total}</Text>
+            <Text style={styles.summaryLabel}>{t.housekeeping.roomsToday}</Text>
+          </View>
+          <View style={styles.progressRow}>
+            <View style={styles.progressBarBg}>
+              <Animated.View style={[styles.progressBarFill, { width: progressWidth }]} />
+            </View>
+            <Text style={styles.progressPct}>{progressPercent}%</Text>
+          </View>
+          <View style={styles.summaryStats}>
+            <View style={styles.miniStat}>
+              <Text style={styles.miniStatVal}>{stats.done}</Text>
+              <Text style={styles.miniStatLabel}>{t.housekeeping.done}</Text>
+            </View>
+            <View style={styles.miniStatDivider} />
+            <View style={styles.miniStat}>
+              <Text style={styles.miniStatVal}>{stats.departs}</Text>
+              <Text style={styles.miniStatLabel}>{t.housekeeping.departures}</Text>
+            </View>
+            <View style={styles.miniStatDivider} />
+            <View style={styles.miniStat}>
+              <Text style={styles.miniStatVal}>{stats.recouches}</Text>
+              <Text style={styles.miniStatLabel}>{t.housekeeping.stayovers}</Text>
+            </View>
+            <View style={styles.miniStatDivider} />
+            <View style={styles.miniStat}>
+              <Text style={styles.miniStatVal}>{stats.inProgress}</Text>
+              <Text style={styles.miniStatLabel}>{t.rooms.inProgress}</Text>
+            </View>
+          </View>
         </View>
       </View>
 
-      <View style={[styles.swipeHintBar, { backgroundColor: theme.primarySoft }]}>
-        <Text style={[styles.swipeHintText, { color: theme.primaryDark }]}>
+      <TouchableOpacity
+        style={[styles.scannerBtn, { borderColor: theme.primary + '30' }]}
+        onPress={handleScanQR}
+        activeOpacity={0.7}
+        testID="scan-qr-btn"
+      >
+        <View style={[styles.scannerIconCircle, { backgroundColor: theme.primarySoft }]}>
+          <Camera size={22} color={theme.primary} />
+        </View>
+        <View style={styles.scannerTextCol}>
+          <Text style={[styles.scannerTitle, { color: colors.text }]}>Scanner une chambre</Text>
+          <Text style={styles.scannerSub}>Scannez le QR code pour commencer</Text>
+        </View>
+        <ChevronRight size={18} color={Colors.textMuted} />
+      </TouchableOpacity>
+
+      <View style={styles.swipeHintBar}>
+        <Text style={styles.swipeHintText}>
           {t.housekeeping.swipeHint}
         </Text>
       </View>
@@ -469,8 +513,8 @@ export default function HousekeepingScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🎉</Text>
-            <Text style={styles.emptyTitle}>{t.housekeeping.allDone}</Text>
+            <Text style={styles.emptyIcon}>{'🎉'}</Text>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>{t.housekeeping.allDone}</Text>
             <Text style={styles.emptySubtext}>{t.housekeeping.noAssigned}</Text>
           </View>
         }
@@ -480,57 +524,137 @@ export default function HousekeepingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F0F2F5' } as const,
-  headerTitle: { fontSize: 17, fontWeight: '700' as const, color: '#FFF' },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12, marginRight: 4 },
-  notifContainer: { position: 'relative' },
-  notifBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -7,
-    backgroundColor: '#E53935',
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+  container: { flex: 1, backgroundColor: '#F0F2F5' },
+
+  heroSection: {
+    paddingTop: Platform.OS === 'ios' ? 56 : 40,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  heroTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  heroGreeting: { gap: 2 },
+  heroHello: { fontSize: 14, color: 'rgba(255,255,255,0.7)', fontWeight: '500' as const },
+  heroName: { fontSize: 26, fontWeight: '800' as const, color: '#FFF', letterSpacing: -0.5 },
+  heroActions: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingTop: 4 },
+  heroIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
   },
-  notifBadgeText: { fontSize: 9, fontWeight: '800' as const, color: '#FFF' },
-  topArea: {
-    backgroundColor: '#FFF',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E4E8EC',
-  },
+
+  searchRow: { marginTop: 12 },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0F2F5',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: Platform.OS === 'ios' ? 10 : 6,
     gap: 8,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#E4E8EC',
   },
-  searchInput: { flex: 1, fontSize: 15, color: '#1A2B33', padding: 0 },
-  statsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', marginBottom: 12 },
-  statItem: { alignItems: 'center', flex: 1 },
-  statValue: { fontSize: 18, fontWeight: '800' as const, color: '#1A2B33' },
-  statLabel: { fontSize: 10, color: '#5A6B78', marginTop: 2, fontWeight: '500' as const },
-  statDivider: { width: 1, height: 28, backgroundColor: '#E4E8EC' },
-  progressBarContainer: { height: 6, backgroundColor: '#E4E8EC', borderRadius: 3, overflow: 'hidden' },
-  progressBarFill: { height: 6, borderRadius: 3 },
-  swipeHintBar: { paddingVertical: 6, paddingHorizontal: 16 },
-  swipeHintText: { fontSize: 11, textAlign: 'center', fontWeight: '500' as const },
-  sectionHeader: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 6 },
-  sectionHeaderText: { fontSize: 13, fontWeight: '600' as const, color: '#5A6B78', textTransform: 'lowercase' as const },
+  searchInput: { flex: 1, fontSize: 15, color: '#FFF', padding: 0 },
+
+  summaryCard: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+  },
+  summaryTop: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    marginBottom: 10,
+  },
+  summaryRoomCount: { fontSize: 36, fontWeight: '900' as const, color: '#FFF' },
+  summaryLabel: { fontSize: 14, color: 'rgba(255,255,255,0.7)', fontWeight: '500' as const },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  progressBarBg: {
+    flex: 1,
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#4ADE80',
+  },
+  progressPct: { fontSize: 13, fontWeight: '700' as const, color: '#4ADE80', minWidth: 36 },
+  summaryStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  miniStat: { flex: 1, alignItems: 'center' },
+  miniStatVal: { fontSize: 18, fontWeight: '800' as const, color: '#FFF' },
+  miniStatLabel: { fontSize: 9, color: 'rgba(255,255,255,0.6)', marginTop: 2, fontWeight: '500' as const, textTransform: 'uppercase' as const },
+  miniStatDivider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.15)' },
+
+  scannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: -10,
+    backgroundColor: '#FFF',
+    borderRadius: 14,
+    padding: 14,
+    gap: 12,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  scannerIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scannerTextCol: { flex: 1 },
+  scannerTitle: { fontSize: 15, fontWeight: '700' as const },
+  scannerSub: { fontSize: 11, color: '#8A9AA8', marginTop: 1 },
+
+  swipeHintBar: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginTop: 6,
+  },
+  swipeHintText: { fontSize: 11, textAlign: 'center', fontWeight: '500' as const, color: '#90A4AE' },
+
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 6,
+    gap: 8,
+  },
+  sectionDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#90A4AE',
+  },
+  sectionHeaderText: { fontSize: 13, fontWeight: '600' as const, color: '#5A6B78' },
+  sectionCount: { fontSize: 11, fontWeight: '700' as const, color: '#90A4AE', backgroundColor: '#ECEFF1', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 },
   listContent: { paddingBottom: 100 },
-  emptyState: { alignItems: 'center', paddingTop: 80, gap: 8 },
+  emptyState: { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyIcon: { fontSize: 56 },
   emptyTitle: { fontSize: 18, fontWeight: '700' as const, color: '#1A2B33' },
   emptySubtext: { fontSize: 13, color: '#5A6B78' },
