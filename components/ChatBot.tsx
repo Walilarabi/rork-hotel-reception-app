@@ -13,7 +13,7 @@ import {
   Dimensions,
   Pressable,
 } from 'react-native';
-import { MessageCircle, X, Send, Trash2, ChevronRight, Sparkles, HelpCircle, ArrowUpRight, AlertTriangle, ShieldAlert, Briefcase } from 'lucide-react-native';
+import { MessageCircle, X, Send, Trash2, ChevronRight, Sparkles, HelpCircle, ArrowUpRight, AlertTriangle, ShieldAlert, Briefcase, EyeOff } from 'lucide-react-native';
 import { useChatbot, ChatMessage } from '@/providers/ChatbotProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { useSubscriptions } from '@/providers/SubscriptionProvider';
@@ -178,9 +178,12 @@ export default function ChatBot() {
   useTheme();
   const [input, setInput] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [isHidden, setIsHidden] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const fabScale = useRef(new Animated.Value(1)).current;
   const modalAnim = useRef(new Animated.Value(0)).current;
+
+  if (Platform.OS !== 'web') return null;
 
   const hasAccess = useMemo(() => {
     if (!currentUser) return false;
@@ -263,6 +266,7 @@ export default function ChatBot() {
   const keyExtractor = useCallback((item: ChatMessage) => item.id, []);
 
   if (!currentUser) return null;
+  if (isHidden) return null;
 
   const welcomeMessage = `Bonjour${currentUser.firstName ? ` ${currentUser.firstName}` : ''} ! 👋\n\nJe suis l'assistant FLOWTYM. Je réponds uniquement aux questions d'utilisation de l'application.\n\nComment puis-je vous aider ?`;
 
@@ -278,6 +282,13 @@ export default function ChatBot() {
         >
           <MessageCircle size={24} color="#FFFFFF" fill="#FFFFFF" />
         </Pressable>
+        <Pressable
+          onPress={() => setIsHidden(true)}
+          style={styles.hideFabButton}
+          testID="chatbot-hide"
+        >
+          <EyeOff size={12} color="#999" />
+        </Pressable>
       </Animated.View>
 
       <Modal visible={showUpgrade} transparent animationType="fade" onRequestClose={() => setShowUpgrade(false)}>
@@ -291,7 +302,7 @@ export default function ChatBot() {
       <Modal visible={isOpen} transparent animationType="none" onRequestClose={handleClose}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={'padding'}
         >
           <Animated.View
             style={[
@@ -420,6 +431,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 8,
+  },
+  hideFabButton: {
+    position: 'absolute' as const,
+    top: -4,
+    right: -4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#F0F0F0',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   modalOverlay: {
     flex: 1,

@@ -54,7 +54,7 @@ const REPORT_ITEMS: ReportItem[] = [
 export default function TaskDetailScreen() {
   const { roomId, openReport } = useLocalSearchParams<{ roomId: string; openReport?: string }>();
   const router = useRouter();
-  const { rooms, startCleaning, completeCleaning, reportProblem, consumableProducts, addConsumptions } = useHotel();
+  const { rooms, startCleaning, completeCleaning, reportProblem, consumableProducts, addConsumptions, updateRoom } = useHotel();
   const { theme } = useTheme();
   const colors = useColors();
 
@@ -76,6 +76,7 @@ export default function TaskDetailScreen() {
   const isInProgress = room?.cleaningStatus === 'en_cours';
   const isNotStarted = room?.cleaningStatus === 'none' || room?.cleaningStatus === 'refusee';
   const isDone = room?.cleaningStatus === 'nettoyee' || room?.cleaningStatus === 'validee';
+
 
   const swipeResponder = useRef(
     PanResponder.create({
@@ -359,6 +360,57 @@ export default function TaskDetailScreen() {
                   <Text style={styles.refusedText}>{'❌ Chambre refusée — à refaire'}</Text>
                 </View>
               )}
+            </View>
+
+            <View style={[styles.togglesCard, { backgroundColor: colors.surface }]}>
+              <ToggleRow
+                icon="🔒"
+                label="NPD"
+                active={room.status === 'hors_service' && room.vipInstructions === 'NPD'}
+                onToggle={() => {
+                  if (!room) return;
+                  if (room.status === 'hors_service' && room.vipInstructions === 'NPD') {
+                    updateRoom({ roomId: room.id, updates: { status: 'occupe', vipInstructions: '' } });
+                  } else {
+                    updateRoom({ roomId: room.id, updates: { status: 'hors_service', vipInstructions: 'NPD' } });
+                  }
+                  if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                colors={colors}
+              />
+              <View style={styles.toggleDivider} />
+              <View style={styles.toggleRowContainer}>
+                <View style={styles.toggleLeft}>
+                  <Text style={styles.toggleIcon}>{'🧹'}</Text>
+                  <Text style={[styles.toggleLabel, { color: colors.text }]}>EN COURS</Text>
+                </View>
+                <View style={styles.toggleRight}>
+                  {isInProgress && room.cleaningStartedAt ? (
+                    <View style={[styles.timerMini, { backgroundColor: '#00897B' }]}>
+                      <Text style={styles.timerMiniText}>{formatTimer(elapsedSeconds)}</Text>
+                    </View>
+                  ) : null}
+                  <View style={[styles.toggleTrack, isInProgress && styles.toggleTrackActive]}>
+                    <View style={[styles.toggleThumb, isInProgress && styles.toggleThumbActive]} />
+                  </View>
+                </View>
+              </View>
+              <View style={styles.toggleDivider} />
+              <ToggleRow
+                icon="🚫"
+                label="BLOQUÉE"
+                active={room.status === 'hors_service' && room.vipInstructions !== 'NPD'}
+                onToggle={() => {
+                  if (!room) return;
+                  if (room.status === 'hors_service' && room.vipInstructions !== 'NPD') {
+                    updateRoom({ roomId: room.id, updates: { status: 'occupe' } });
+                  } else {
+                    updateRoom({ roomId: room.id, updates: { status: 'hors_service', vipInstructions: '' } });
+                  }
+                  if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                colors={colors}
+              />
             </View>
 
             {room.vipInstructions ? (
@@ -735,6 +787,28 @@ const checkStyles = StyleSheet.create({
   labelChecked: { color: '#2E7D32', textDecorationLine: 'line-through' as const },
 });
 
+interface ToggleRowProps {
+  icon: string;
+  label: string;
+  active: boolean;
+  onToggle: () => void;
+  colors: ReturnType<typeof useColors>;
+}
+
+const ToggleRow = React.memo(function ToggleRow({ icon, label, active, onToggle, colors }: ToggleRowProps) {
+  return (
+    <TouchableOpacity style={styles.toggleRowContainer} onPress={onToggle} activeOpacity={0.7}>
+      <View style={styles.toggleLeft}>
+        <Text style={styles.toggleIcon}>{icon}</Text>
+        <Text style={[styles.toggleLabel, { color: colors.text }]}>{label}</Text>
+      </View>
+      <View style={[styles.toggleTrack, active && styles.toggleTrackActive]}>
+        <View style={[styles.toggleThumb, active && styles.toggleThumbActive]} />
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F0F4F7' },
   backBtn: { padding: 4 },
@@ -875,6 +949,76 @@ const styles = StyleSheet.create({
   doneIcon: { fontSize: 40 },
   doneText: { fontSize: 16, fontWeight: '600' as const },
 
+  togglesCard: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  toggleRowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+  },
+  toggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  toggleRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  toggleIcon: { fontSize: 18 },
+  toggleLabel: { fontSize: 14, fontWeight: '700' as const, letterSpacing: 0.3 },
+  toggleTrack: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#DDE1E6',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  toggleTrackActive: {
+    backgroundColor: '#00897B',
+  },
+  toggleThumb: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  toggleThumbActive: {
+    alignSelf: 'flex-end' as const,
+  },
+  toggleDivider: {
+    height: 1,
+    backgroundColor: '#F0F0F0',
+  },
+  timerMini: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  timerMiniText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#FFF',
+    fontVariant: ['tabular-nums'],
+  },
   swipeHintDetail: { paddingVertical: 10, paddingHorizontal: 16 },
   swipeHintDetailText: { fontSize: 10, textAlign: 'center' as const, color: '#B0BEC5' },
 
