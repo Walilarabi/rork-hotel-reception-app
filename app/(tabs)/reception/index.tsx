@@ -786,24 +786,24 @@ export default function ReceptionDashboard() {
       </View>
 
       <View style={styles.searchFilterRow}>
-        <View style={styles.searchBox}>
-          <Search size={14} color={FT.textMuted} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Chambre, client..."
-            placeholderTextColor={FT.textMuted}
-            value={searchText}
-            onChangeText={setSearchText}
-            testID="search-rooms"
-          />
-          {searchText.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchText('')}>
-              <X size={14} color={FT.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
         <View style={styles.filterRow2}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterPillsContent}>
+          <View style={styles.searchBox}>
+            <Search size={14} color={FT.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Chambre, client..."
+              placeholderTextColor={FT.textMuted}
+              value={searchText}
+              onChangeText={setSearchText}
+              testID="search-rooms"
+            />
+            {searchText.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchText('')}>
+                <X size={14} color={FT.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterPillsContent} style={styles.filterScrollFlex}>
             <TouchableOpacity
               style={[styles.filterPill, floorFilter !== 'all' && styles.filterPillActive]}
               onPress={() => { closeAllDropdowns(); setShowFloorDrop(!showFloorDrop); }}
@@ -1396,10 +1396,11 @@ const styles = StyleSheet.create({
   kpiToggleText: { fontSize: 10, fontWeight: '600' as const, color: FT.textMuted },
   kpiToggleTextActive: { color: FT.brand },
 
-  searchFilterRow: { backgroundColor: FT.surface, paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: FT.borderLight, gap: 8 },
-  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: FT.surfaceAlt, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, gap: 8, borderWidth: 1, borderColor: FT.borderLight },
-  searchInput: { flex: 1, fontSize: 13, color: FT.text, padding: 0 },
-  filterRow2: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  searchFilterRow: { backgroundColor: FT.surface, paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: FT.borderLight },
+  searchBox: { flexDirection: 'row' as const, alignItems: 'center' as const, backgroundColor: FT.surfaceAlt, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, gap: 6, borderWidth: 1, borderColor: FT.borderLight, width: 180, minWidth: 140 },
+  searchInput: { flex: 1, fontSize: 12, color: FT.text, padding: 0 },
+  filterRow2: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
+  filterScrollFlex: { flex: 1 },
   filterPillsContent: { gap: 6, paddingRight: 8 },
   filterPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: FT.surfaceAlt, borderWidth: 1, borderColor: FT.borderLight },
   filterPillActive: { borderColor: FT.brand, backgroundColor: FT.brandSoft },
