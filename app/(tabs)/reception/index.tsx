@@ -444,8 +444,8 @@ export default function ReceptionDashboard() {
 
   const handleImportFile = useCallback(() => {
     setShowImportModal(false);
-    router.push('/import-reservations');
-  }, [router]);
+    router.push({ pathname: '/import-reservations', params: { mode: importMode } });
+  }, [router, importMode]);
 
   const handleDownloadTemplate = useCallback(() => {
     Alert.alert('Modèle CSV', 'Le modèle CSV contient les colonnes :\nNom client, Date arrivée, Date départ, N° chambre, Adultes, Enfants\n\nFormat de date : JJ/MM/AAAA');

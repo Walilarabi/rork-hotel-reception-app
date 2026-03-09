@@ -560,6 +560,72 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
     },
   });
 
+  const bulkImportReservationsMutation = useMutation({
+    mutationFn: async (reservations: Array<{ roomNumber: string; guestName: string; checkInDate: string; checkOutDate: string; adults: number; children: number; preferences: string; breakfastIncluded: boolean }>) => {
+      console.log('[HotelProvider] Bulk importing reservations:', reservations.length);
+      const today = new Date().toISOString().split('T')[0];
+      let imported = 0;
+      let failed = 0;
+      const updatedRooms = [...rooms];
+
+      for (const res of reservations) {
+        const roomIdx = updatedRooms.findIndex((r) => r.roomNumber === res.roomNumber);
+        if (roomIdx === -1) {
+          console.log('[HotelProvider] Room not found for import:', res.roomNumber);
+          failed++;
+          continue;
+        }
+
+        const room = updatedRooms[roomIdx];
+        let newStatus: RoomStatus = room.status;
+        if (res.checkOutDate <= today) {
+          newStatus = 'depart';
+        } else if (res.checkInDate <= today && res.checkOutDate > today) {
+          newStatus = 'occupe';
+        } else {
+          newStatus = 'occupe';
+        }
+
+        const newReservation: import('@/constants/types').Reservation = {
+          id: `res-imp-${Date.now()}-${roomIdx}`,
+          roomId: room.id,
+          pmsReservationId: `IMP-${Date.now()}-${roomIdx}`,
+          guestName: res.guestName,
+          checkInDate: res.checkInDate,
+          checkOutDate: res.checkOutDate,
+          adults: res.adults,
+          children: res.children,
+          preferences: res.preferences,
+          status: res.checkOutDate <= today ? 'checked_out' : 'checked_in',
+          lastSync: new Date().toISOString(),
+        };
+
+        const historyEntry: RoomHistoryEntry = {
+          id: `h-imp-${Date.now()}-${room.id}`,
+          roomId: room.id,
+          action: 'Import réservation',
+          performedBy: 'Import fichier',
+          date: new Date().toISOString(),
+          details: `Réservation importée pour ${res.guestName} (${res.checkInDate} → ${res.checkOutDate})`,
+        };
+
+        updatedRooms[roomIdx] = {
+          ...room,
+          currentReservation: newReservation,
+          status: newStatus,
+          breakfastIncluded: res.breakfastIncluded,
+          clientBadge: room.clientBadge,
+          history: [...room.history, historyEntry],
+        };
+        imported++;
+      }
+
+      await persistRooms(updatedRooms);
+      console.log('[HotelProvider] Bulk import reservations complete. Imported:', imported, 'Failed:', failed);
+      return { imported, failed };
+    },
+  });
+
   const bulkDepartureMutation = useMutation({
     mutationFn: async (roomIds: string[]) => {
       const updated = rooms.map((r) => {
@@ -1011,6 +1077,8 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
     addRoom: addRoomMutation.mutate,
     bulkImportRooms: bulkImportRoomsMutation.mutateAsync,
     isBulkImporting: bulkImportRoomsMutation.isPending,
+    bulkImportReservations: bulkImportReservationsMutation.mutateAsync,
+    isBulkImportingReservations: bulkImportReservationsMutation.isPending,
     bulkDeparture: bulkDepartureMutation.mutate,
     bulkAssign: bulkAssignMutation.mutate,
     syncPms: syncPmsMutation.mutate,
@@ -1052,7 +1120,7 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
     maintenanceTasks, breakfastOrders, inspections, inventoryItems, lostFoundItems,
     housekeepingRooms, pendingInspections, lowStockItems,
     consumableProducts, consumptionLogs, stockMovements, lowStockConsumables, todayConsumptionTotal,
-    updateRoomMutation.mutate, addRoomMutation.mutate, bulkImportRoomsMutation.mutateAsync, bulkImportRoomsMutation.isPending, bulkDepartureMutation.mutate, bulkAssignMutation.mutate,
+    updateRoomMutation.mutate, addRoomMutation.mutate, bulkImportRoomsMutation.mutateAsync, bulkImportRoomsMutation.isPending, bulkImportReservationsMutation.mutateAsync, bulkImportReservationsMutation.isPending, bulkDepartureMutation.mutate, bulkAssignMutation.mutate,
     syncPmsMutation.mutate, syncPmsMutation.isPending,
     startCleaningMutation.mutate, completeCleaningMutation.mutate, validateInspectionMutation.mutate,
     updateMaintenanceMutation.mutate, addMaintenanceMutation.mutate,

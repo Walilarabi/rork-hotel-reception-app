@@ -10,10 +10,11 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
-import { Upload, FileText, ChevronRight, ChevronLeft, Check, X, Plus, Trash2, AlertTriangle, CheckCircle } from 'lucide-react-native';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
+import { Upload, FileText, ChevronRight, ChevronLeft, Check, X, Plus, Trash2, AlertTriangle, CheckCircle, Coffee } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
+import * as XLSX from 'xlsx';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useHotel } from '@/providers/HotelProvider';
 import { FT } from '@/constants/flowtym';
@@ -23,8 +24,6 @@ import {
   DEFAULT_COLUMN_MAPPING,
   DateFormatOption,
   DATE_FORMAT_OPTIONS,
-  Reservation,
-  RoomHistoryEntry,
 } from '@/constants/types';
 
 type ImportStep = 1 | 2 | 3 | 4;
@@ -68,6 +67,54 @@ function detectSeparator(text: string): string {
   return ',';
 }
 
+function tryParseAnyDate(value: string): string | null {
+  if (!value) return null;
+  const cleaned = value.trim();
+
+  const patterns: Array<{ regex: RegExp; parse: (m: RegExpMatchArray) => { d: number; m: number; y: number } }> = [
+    { regex: /^(\d{4})-(\d{1,2})-(\d{1,2})$/, parse: (m) => ({ y: parseInt(m[1], 10), m: parseInt(m[2], 10), d: parseInt(m[3], 10) }) },
+    { regex: /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/, parse: (m) => ({ d: parseInt(m[1], 10), m: parseInt(m[2], 10), y: parseInt(m[3], 10) }) },
+    { regex: /^(\d{1,2})-(\d{1,2})-(\d{2,4})$/, parse: (m) => ({ d: parseInt(m[1], 10), m: parseInt(m[2], 10), y: parseInt(m[3], 10) }) },
+    { regex: /^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/, parse: (m) => ({ d: parseInt(m[1], 10), m: parseInt(m[2], 10), y: parseInt(m[3], 10) }) },
+  ];
+
+  for (const pat of patterns) {
+    const match = cleaned.match(pat.regex);
+    if (match) {
+      let { d, m: mo, y } = pat.parse(match);
+      if (y < 100) y += 2000;
+      if (mo > 12 && d <= 12) {
+        const tmp = mo;
+        mo = d;
+        d = tmp;
+      }
+      if (mo < 1 || mo > 12 || d < 1 || d > 31) continue;
+      const date = new Date(y, mo - 1, d);
+      if (isNaN(date.getTime())) continue;
+      const yyyy = date.getFullYear().toString().padStart(4, '0');
+      const mm = (date.getMonth() + 1).toString().padStart(2, '0');
+      const dd = date.getDate().toString().padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+  }
+
+  if (typeof cleaned === 'string' && !isNaN(Number(cleaned))) {
+    const num = Number(cleaned);
+    if (num > 30000 && num < 60000) {
+      const excelEpoch = new Date(1899, 11, 30);
+      const date = new Date(excelEpoch.getTime() + num * 86400000);
+      if (!isNaN(date.getTime())) {
+        const yyyy = date.getFullYear().toString().padStart(4, '0');
+        const mm = (date.getMonth() + 1).toString().padStart(2, '0');
+        const dd = date.getDate().toString().padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      }
+    }
+  }
+
+  return null;
+}
+
 function parseDate(value: string, format: DateFormatOption): string | null {
   if (!value) return null;
   const cleaned = value.trim();
@@ -77,7 +124,7 @@ function parseDate(value: string, format: DateFormatOption): string | null {
     switch (format) {
       case 'dd/mm/yyyy': {
         const parts = cleaned.split('/');
-        if (parts.length !== 3) return null;
+        if (parts.length !== 3) return tryParseAnyDate(cleaned);
         day = parseInt(parts[0], 10);
         month = parseInt(parts[1], 10);
         year = parseInt(parts[2], 10);
@@ -85,7 +132,7 @@ function parseDate(value: string, format: DateFormatOption): string | null {
       }
       case 'mm/dd/yyyy': {
         const parts = cleaned.split('/');
-        if (parts.length !== 3) return null;
+        if (parts.length !== 3) return tryParseAnyDate(cleaned);
         month = parseInt(parts[0], 10);
         day = parseInt(parts[1], 10);
         year = parseInt(parts[2], 10);
@@ -93,7 +140,7 @@ function parseDate(value: string, format: DateFormatOption): string | null {
       }
       case 'yyyy-mm-dd': {
         const parts = cleaned.split('-');
-        if (parts.length !== 3) return null;
+        if (parts.length !== 3) return tryParseAnyDate(cleaned);
         year = parseInt(parts[0], 10);
         month = parseInt(parts[1], 10);
         day = parseInt(parts[2], 10);
@@ -101,7 +148,7 @@ function parseDate(value: string, format: DateFormatOption): string | null {
       }
       case 'dd-mm-yyyy': {
         const parts = cleaned.split('-');
-        if (parts.length !== 3) return null;
+        if (parts.length !== 3) return tryParseAnyDate(cleaned);
         day = parseInt(parts[0], 10);
         month = parseInt(parts[1], 10);
         year = parseInt(parts[2], 10);
@@ -109,30 +156,36 @@ function parseDate(value: string, format: DateFormatOption): string | null {
       }
       case 'dd.mm.yyyy': {
         const parts = cleaned.split('.');
-        if (parts.length !== 3) return null;
+        if (parts.length !== 3) return tryParseAnyDate(cleaned);
         day = parseInt(parts[0], 10);
         month = parseInt(parts[1], 10);
         year = parseInt(parts[2], 10);
         break;
       }
       default:
-        return null;
+        return tryParseAnyDate(cleaned);
     }
 
-    if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return tryParseAnyDate(cleaned);
     if (year < 100) year += 2000;
-    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    if (month < 1 || month > 12 || day < 1 || day > 31) return tryParseAnyDate(cleaned);
 
     const date = new Date(year, month - 1, day);
-    if (isNaN(date.getTime())) return null;
+    if (isNaN(date.getTime())) return tryParseAnyDate(cleaned);
 
     const yyyy = date.getFullYear().toString().padStart(4, '0');
     const mm = (date.getMonth() + 1).toString().padStart(2, '0');
     const dd = date.getDate().toString().padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   } catch {
-    return null;
+    return tryParseAnyDate(cleaned);
   }
+}
+
+function parseBreakfastValue(value: string): boolean {
+  if (!value) return false;
+  const lower = value.trim().toLowerCase();
+  return lower === 'oui' || lower === 'yes' || lower === 'true' || lower === '1' || lower === 'inclus' || lower === 'included' || lower === 'x' || lower === 'o';
 }
 
 function autoDetectMapping(headers: string[]): ColumnMapping {
@@ -141,34 +194,86 @@ function autoDetectMapping(headers: string[]): ColumnMapping {
 
   for (let i = 0; i < lowerHeaders.length; i++) {
     const h = lowerHeaders[i];
-    if (h.includes('nom') || h.includes('name') || h.includes('client') || h.includes('guest')) {
-      mapping.guestName = i;
-    } else if (h.includes('arrivee') || h.includes('check-in') || h.includes('checkin') || h.includes('debut') || h.includes('start') || h.includes('arrival')) {
-      mapping.checkInDate = i;
-    } else if (h.includes('depart') || h.includes('check-out') || h.includes('checkout') || h.includes('fin') || h.includes('end')) {
-      mapping.checkOutDate = i;
-    } else if (h.includes('chambre') || h.includes('room') || h.includes('numero') || h.includes('number') || h.includes('zimmer') || h.includes('habitacion') || h.includes('camera')) {
-      mapping.roomNumber = i;
-    } else if (h.includes('adulte') || h.includes('adult')) {
+    if (h.includes('nom') || h.includes('name') || h.includes('client') || h.includes('guest') || h.includes('hote') || h.includes('pax')) {
+      if (mapping.guestName === null) mapping.guestName = i;
+    } else if (h.includes('arrivee') || h.includes('check-in') || h.includes('checkin') || h.includes('debut') || h.includes('start') || h.includes('arrival') || h.includes('in') || h.includes('entree')) {
+      if (mapping.checkInDate === null) mapping.checkInDate = i;
+    } else if (h.includes('depart') || h.includes('check-out') || h.includes('checkout') || h.includes('fin') || h.includes('end') || h.includes('out') || h.includes('sortie')) {
+      if (mapping.checkOutDate === null) mapping.checkOutDate = i;
+    } else if (h.includes('chambre') || h.includes('room') || h.includes('numero') || h.includes('number') || h.includes('zimmer') || h.includes('habitacion') || h.includes('camera') || h.includes('n°') || h.includes('no')) {
+      if (mapping.roomNumber === null) mapping.roomNumber = i;
+    } else if (h.includes('adulte') || h.includes('adult') || h.includes('nb adulte')) {
       mapping.adults = i;
     } else if (h.includes('enfant') || h.includes('child') || h.includes('kinder') || h.includes('bambini')) {
       mapping.children = i;
-    } else if (h.includes('preference') || h.includes('note') || h.includes('commentaire') || h.includes('comment') || h.includes('remark')) {
+    } else if (h.includes('preference') || h.includes('note') || h.includes('commentaire') || h.includes('comment') || h.includes('remark') || h.includes('remarque')) {
       mapping.preferences = i;
+    } else if (h.includes('petit') || h.includes('dejeuner') || h.includes('pdj') || h.includes('breakfast') || h.includes('petit-dej') || h.includes('petit dej')) {
+      mapping.breakfastIncluded = i;
     }
   }
 
   return mapping;
 }
 
+function autoDetectDateFormat(rows: string[][], dateColIdx: number): DateFormatOption {
+  for (const row of rows.slice(0, 10)) {
+    const val = row[dateColIdx]?.trim() ?? '';
+    if (!val) continue;
+    if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(val)) return 'yyyy-mm-dd';
+    if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(val)) return 'dd/mm/yyyy';
+    if (/^\d{1,2}-\d{1,2}-\d{2,4}$/.test(val)) return 'dd-mm-yyyy';
+    if (/^\d{1,2}\.\d{1,2}\.\d{2,4}$/.test(val)) return 'dd.mm.yyyy';
+  }
+  return 'dd/mm/yyyy';
+}
+
+async function parseExcelFile(uri: string): Promise<{ headers: string[]; rows: string[][] }> {
+  console.log('[Import] Parsing Excel file from URI:', uri);
+  try {
+    const response = await fetch(uri);
+    const arrayBuffer = await response.arrayBuffer();
+    const data = new Uint8Array(arrayBuffer);
+    const workbook = XLSX.read(data, { type: 'array', cellDates: true, dateNF: 'yyyy-mm-dd' });
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) throw new Error('Aucune feuille trouvée dans le fichier');
+    const sheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, raw: false, dateNF: 'yyyy-mm-dd' });
+
+    if (jsonData.length < 2) throw new Error('Le fichier doit contenir au moins un en-tête et une ligne de données');
+
+    const headers = (jsonData[0] as string[]).map((h) => String(h ?? '').trim());
+    const rows = jsonData.slice(1).filter((row) => {
+      const arr = row as string[];
+      return arr.some((cell) => String(cell ?? '').trim().length > 0);
+    }).map((row) => (row as string[]).map((cell) => String(cell ?? '').trim()));
+
+    console.log('[Import] Excel parsed successfully. Headers:', headers, 'Rows:', rows.length);
+    return { headers, rows };
+  } catch (e) {
+    console.log('[Import] Excel parse error:', e);
+    throw e;
+  }
+}
+
+async function parseTextFile(uri: string): Promise<string> {
+  console.log('[Import] Reading text from URI:', uri);
+  const response = await fetch(uri);
+  const text = await response.text();
+  console.log('[Import] Text content length:', text.length);
+  return text;
+}
+
 export default function ImportReservationsScreen() {
   const router = useRouter();
   const { t } = useTheme();
-  const { rooms, updateRoom } = useHotel();
+  const { rooms, bulkImportReservations, isBulkImportingReservations } = useHotel();
+  const params = useLocalSearchParams<{ mode?: string }>();
   const ti = t.fileImport;
 
+  const initialMode = (params.mode === 'csv' || params.mode === 'excel' || params.mode === 'pdf' || params.mode === 'image') ? params.mode : 'csv';
   const [step, setStep] = useState<ImportStep>(1);
-  const [mode, setMode] = useState<ImportMode>('csv');
+  const [mode, setMode] = useState<ImportMode>(initialMode);
   const [csvData, setCsvData] = useState<string[][]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [fileName, setFileName] = useState('');
@@ -180,9 +285,10 @@ export default function ImportReservationsScreen() {
   const [isImporting, setIsImporting] = useState(false);
   const [importedCount, setImportedCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
+  const [isParsing, setIsParsing] = useState(false);
 
   const [manualRows, setManualRows] = useState<ImportedReservation[]>([
-    { id: generateId(), guestName: '', checkInDate: '', checkOutDate: '', roomNumber: '', adults: 1, children: 0, preferences: '', selected: true, error: null },
+    { id: generateId(), guestName: '', checkInDate: '', checkOutDate: '', roomNumber: '', adults: 1, children: 0, preferences: '', breakfastIncluded: false, selected: true, error: null },
   ]);
 
   const getMimeTypes = useCallback((m: ImportMode): string[] => {
@@ -190,10 +296,112 @@ export default function ImportReservationsScreen() {
       case 'csv': return ['text/csv', 'text/comma-separated-values', 'text/plain', 'text/tab-separated-values'];
       case 'excel': return ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.oasis.opendocument.spreadsheet'];
       case 'image': return ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-      case 'pdf': return ['application/pdf'];
+      case 'pdf': return ['application/pdf', 'text/plain'];
       default: return ['*/*'];
     }
   }, []);
+
+  const processCSVContent = useCallback((content: string) => {
+    const detectedSep = detectSeparator(content);
+    setSeparator(detectedSep);
+
+    const lines = content.split('\n').filter((l) => l.trim().length > 0);
+    if (lines.length < 2) {
+      Alert.alert(ti.parseError, 'Le fichier doit contenir au moins un en-tête et une ligne de données.');
+      return;
+    }
+
+    const headerRow = parseCSVLine(lines[0], detectedSep);
+    setHeaders(headerRow);
+
+    const dataRows = lines.slice(1).map((line) => parseCSVLine(line, detectedSep));
+    setCsvData(dataRows);
+
+    const autoMapping = autoDetectMapping(headerRow);
+    setMapping(autoMapping);
+
+    if (autoMapping.checkInDate !== null) {
+      const detectedFmt = autoDetectDateFormat(dataRows, autoMapping.checkInDate);
+      setDateFormat(detectedFmt);
+    }
+
+    setStep(2);
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [ti.parseError]);
+
+  const processExcelContent = useCallback(async (uri: string) => {
+    setIsParsing(true);
+    try {
+      const { headers: excelHeaders, rows: excelRows } = await parseExcelFile(uri);
+      setHeaders(excelHeaders);
+      setCsvData(excelRows);
+
+      const autoMapping = autoDetectMapping(excelHeaders);
+      setMapping(autoMapping);
+
+      if (autoMapping.checkInDate !== null) {
+        const detectedFmt = autoDetectDateFormat(excelRows, autoMapping.checkInDate);
+        setDateFormat(detectedFmt);
+      }
+
+      setStep(2);
+      if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {
+      console.log('[Import] Excel processing error:', e);
+      Alert.alert(ti.parseError, `Erreur lors du traitement du fichier Excel : ${String(e)}`);
+    } finally {
+      setIsParsing(false);
+    }
+  }, [ti.parseError]);
+
+  const processPDFContent = useCallback(async (uri: string) => {
+    setIsParsing(true);
+    try {
+      let content = '';
+      try {
+        const response = await fetch(uri);
+        content = await response.text();
+      } catch {
+        Alert.alert(ti.parseError, 'Impossible de lire le contenu du PDF. Essayez de convertir le fichier en CSV ou Excel.');
+        setIsParsing(false);
+        return;
+      }
+
+      if (content.length < 10 || content.startsWith('%PDF')) {
+        Alert.alert(
+          'PDF non supporté directement',
+          'Les fichiers PDF binaires ne peuvent pas être lus directement. Veuillez :\n\n1. Ouvrir le PDF dans Excel ou Google Sheets\n2. Exporter en CSV ou Excel\n3. Importer le fichier converti\n\nAlternativement, utilisez la saisie manuelle.',
+          [{ text: 'OK' }]
+        );
+        setIsParsing(false);
+        return;
+      }
+
+      const detectedSep = detectSeparator(content);
+      setSeparator(detectedSep);
+      const lines = content.split('\n').filter((l) => l.trim().length > 0);
+      if (lines.length < 2) {
+        Alert.alert(ti.parseError, 'Le fichier ne contient pas assez de données exploitables.');
+        setIsParsing(false);
+        return;
+      }
+      const headerRow = parseCSVLine(lines[0], detectedSep);
+      setHeaders(headerRow);
+      const dataRows = lines.slice(1).map((line) => parseCSVLine(line, detectedSep));
+      setCsvData(dataRows);
+      const autoMapping = autoDetectMapping(headerRow);
+      setMapping(autoMapping);
+      if (autoMapping.checkInDate !== null) {
+        setDateFormat(autoDetectDateFormat(dataRows, autoMapping.checkInDate));
+      }
+      setStep(2);
+      if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {
+      Alert.alert(ti.parseError, String(e));
+    } finally {
+      setIsParsing(false);
+    }
+  }, [ti.parseError]);
 
   const handlePickFile = useCallback(async () => {
     try {
@@ -210,58 +418,44 @@ export default function ImportReservationsScreen() {
       }
 
       const asset = result.assets[0];
-      console.log('[Import] File picked:', asset.name, asset.size);
+      console.log('[Import] File picked:', asset.name, asset.size, asset.mimeType);
       setFileName(asset.name);
       setFileSize(asset.size ?? 0);
 
-      if (mode === 'image' || mode === 'pdf') {
+      if (mode === 'image') {
         Alert.alert(
-          'Traitement en cours',
-          mode === 'image'
-            ? 'L\'extraction OCR des images sera disponible prochainement. Pour l\'instant, veuillez utiliser le format CSV ou Excel, ou la saisie manuelle.'
-            : 'L\'extraction de texte depuis les PDF sera disponible prochainement. Pour l\'instant, veuillez utiliser le format CSV ou Excel, ou la saisie manuelle.',
+          'Image non supportée',
+          'L\'extraction OCR depuis les images nécessite un service externe. Veuillez :\n\n1. Copier les données de l\'image dans un fichier Excel ou CSV\n2. Importer le fichier converti\n3. Ou utiliser la saisie manuelle',
           [{ text: 'OK' }]
         );
         return;
       }
 
+      if (mode === 'pdf') {
+        await processPDFContent(asset.uri);
+        return;
+      }
+
+      if (mode === 'excel') {
+        await processExcelContent(asset.uri);
+        return;
+      }
+
       let content = '';
       try {
-        const response = await fetch(asset.uri);
-        content = await response.text();
+        content = await parseTextFile(asset.uri);
       } catch (e) {
         console.log('[Import] Error reading file content:', e);
         Alert.alert(ti.parseError, 'Impossible de lire le fichier. Essayez un autre format.');
         return;
       }
 
-      console.log('[Import] File content length:', content.length);
-
-      const detectedSep = detectSeparator(content);
-      setSeparator(detectedSep);
-
-      const lines = content.split('\n').filter((l) => l.trim().length > 0);
-      if (lines.length < 2) {
-        Alert.alert(ti.parseError, 'Le fichier doit contenir au moins un en-t\u00eate et une ligne de donn\u00e9es.');
-        return;
-      }
-
-      const headerRow = parseCSVLine(lines[0], detectedSep);
-      setHeaders(headerRow);
-
-      const dataRows = lines.slice(1).map((line) => parseCSVLine(line, detectedSep));
-      setCsvData(dataRows);
-
-      const autoMapping = autoDetectMapping(headerRow);
-      setMapping(autoMapping);
-
-      setStep(2);
-      if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      processCSVContent(content);
     } catch (error) {
       console.log('[Import] Error picking file:', error);
       Alert.alert(ti.parseError, String(error));
     }
-  }, [ti.parseError, mode, getMimeTypes]);
+  }, [ti.parseError, mode, getMimeTypes, processCSVContent, processExcelContent, processPDFContent]);
 
   const handleParseData = useCallback(() => {
     console.log('[Import] Parsing data with mapping:', mapping);
@@ -282,10 +476,11 @@ export default function ImportReservationsScreen() {
       const guestName = row[mapping.guestName!] ?? '';
       const rawCheckIn = row[mapping.checkInDate!] ?? '';
       const rawCheckOut = row[mapping.checkOutDate!] ?? '';
-      const roomNumber = mapping.roomNumber !== null ? (row[mapping.roomNumber] ?? '') : '';
+      const roomNumber = mapping.roomNumber !== null ? (row[mapping.roomNumber] ?? '').replace(/\s/g, '') : '';
       const adults = mapping.adults !== null ? parseInt(row[mapping.adults] ?? '1', 10) || 1 : 1;
       const children = mapping.children !== null ? parseInt(row[mapping.children] ?? '0', 10) || 0 : 0;
       const preferences = mapping.preferences !== null ? (row[mapping.preferences] ?? '') : '';
+      const breakfastIncluded = mapping.breakfastIncluded !== null ? parseBreakfastValue(row[mapping.breakfastIncluded] ?? '') : false;
 
       const checkInDate = parseDate(rawCheckIn, dateFormat);
       const checkOutDate = parseDate(rawCheckOut, dateFormat);
@@ -295,6 +490,7 @@ export default function ImportReservationsScreen() {
       else if (!checkInDate) error = ti.invalidDate + ': ' + rawCheckIn;
       else if (!checkOutDate) error = ti.invalidDate + ': ' + rawCheckOut;
       else if (roomNumber && !rooms.find((r) => r.roomNumber === roomNumber)) error = ti.roomNotFound + ': ' + roomNumber;
+      else if (!roomNumber) error = 'N° chambre manquant';
 
       return {
         id: `csv-${idx}-${Date.now()}`,
@@ -305,6 +501,7 @@ export default function ImportReservationsScreen() {
         adults,
         children,
         preferences,
+        breakfastIncluded,
         selected: error === null,
         error,
       };
@@ -321,7 +518,8 @@ export default function ImportReservationsScreen() {
       if (!row.guestName) error = ti.missingRequired + ': ' + ti.guestName;
       else if (!row.checkInDate) error = ti.missingRequired + ': ' + ti.checkInDate;
       else if (!row.checkOutDate) error = ti.missingRequired + ': ' + ti.checkOutDate;
-      else if (row.roomNumber && !rooms.find((r) => r.roomNumber === row.roomNumber)) error = ti.roomNotFound + ': ' + row.roomNumber;
+      else if (!row.roomNumber) error = 'N° chambre manquant';
+      else if (!rooms.find((r) => r.roomNumber === row.roomNumber)) error = ti.roomNotFound + ': ' + row.roomNumber;
       return { ...row, selected: error === null, error };
     });
     setParsedReservations(validated);
@@ -340,63 +538,25 @@ export default function ImportReservationsScreen() {
   const handleImport = useCallback(async () => {
     console.log('[Import] Starting import of', selectedCount, 'reservations');
     setIsImporting(true);
-    let imported = 0;
-    let failed = 0;
 
     try {
       const toImport = parsedReservations.filter((r) => r.selected && !r.error);
 
-      for (const res of toImport) {
-        try {
-          const matchingRoom = res.roomNumber
-            ? rooms.find((r) => r.roomNumber === res.roomNumber)
-            : null;
+      const reservationsData = toImport.map((res) => ({
+        roomNumber: res.roomNumber,
+        guestName: res.guestName,
+        checkInDate: res.checkInDate,
+        checkOutDate: res.checkOutDate,
+        adults: res.adults,
+        children: res.children,
+        preferences: res.preferences,
+        breakfastIncluded: res.breakfastIncluded,
+      }));
 
-          if (matchingRoom) {
-            const newReservation: Reservation = {
-              id: `res-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-              roomId: matchingRoom.id,
-              pmsReservationId: `IMP-${Date.now()}`,
-              guestName: res.guestName,
-              checkInDate: res.checkInDate,
-              checkOutDate: res.checkOutDate,
-              adults: res.adults,
-              children: res.children,
-              preferences: res.preferences,
-              status: 'confirmed',
-              lastSync: new Date().toISOString(),
-            };
+      const result = await bulkImportReservations(reservationsData);
 
-            const historyEntry: RoomHistoryEntry = {
-              id: `h-imp-${Date.now()}-${matchingRoom.id}`,
-              roomId: matchingRoom.id,
-              action: 'Import réservation',
-              performedBy: 'Import fichier',
-              date: new Date().toISOString(),
-              details: `Réservation importée pour ${res.guestName} (${res.checkInDate} → ${res.checkOutDate})`,
-            };
-
-            updateRoom({
-              roomId: matchingRoom.id,
-              updates: {
-                currentReservation: newReservation,
-                status: 'occupe',
-                clientBadge: 'normal',
-                history: [...matchingRoom.history, historyEntry],
-              },
-            });
-            imported++;
-          } else {
-            imported++;
-          }
-        } catch (e) {
-          console.log('[Import] Error importing reservation:', e);
-          failed++;
-        }
-      }
-
-      setImportedCount(imported);
-      setFailedCount(failed);
+      setImportedCount(result.imported);
+      setFailedCount(result.failed);
       setStep(4);
       if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
@@ -405,12 +565,12 @@ export default function ImportReservationsScreen() {
     } finally {
       setIsImporting(false);
     }
-  }, [parsedReservations, selectedCount, rooms, updateRoom, t.common.error]);
+  }, [parsedReservations, selectedCount, bulkImportReservations, t.common.error]);
 
   const addManualRow = useCallback(() => {
     setManualRows((prev) => [
       ...prev,
-      { id: generateId(), guestName: '', checkInDate: '', checkOutDate: '', roomNumber: '', adults: 1, children: 0, preferences: '', selected: true, error: null },
+      { id: generateId(), guestName: '', checkInDate: '', checkOutDate: '', roomNumber: '', adults: 1, children: 0, preferences: '', breakfastIncluded: false, selected: true, error: null },
     ]);
   }, []);
 
@@ -418,7 +578,7 @@ export default function ImportReservationsScreen() {
     setManualRows((prev) => prev.filter((r) => r.id !== id));
   }, []);
 
-  const updateManualRow = useCallback((id: string, field: keyof ImportedReservation, value: string | number) => {
+  const updateManualRow = useCallback((id: string, field: keyof ImportedReservation, value: string | number | boolean) => {
     setManualRows((prev) =>
       prev.map((r) => (r.id === id ? { ...r, [field]: value } : r))
     );
@@ -427,6 +587,15 @@ export default function ImportReservationsScreen() {
   const updateMappingField = useCallback((field: keyof ColumnMapping, value: number | null) => {
     setMapping((prev) => ({ ...prev, [field]: value }));
   }, []);
+
+  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  const getStatusPreview = useCallback((checkIn: string, checkOut: string): { label: string; color: string } => {
+    if (!checkIn || !checkOut) return { label: '—', color: FT.textMuted };
+    if (checkOut <= today) return { label: 'Départ', color: '#E53935' };
+    if (checkIn <= today) return { label: 'Occupé', color: '#43A047' };
+    return { label: 'À venir', color: '#1E88E5' };
+  }, [today]);
 
   const renderStep1 = () => (
     <ScrollView style={styles.stepContent} contentContainerStyle={styles.stepContentInner} showsVerticalScrollIndicator={false}>
@@ -441,7 +610,7 @@ export default function ImportReservationsScreen() {
       {([{ key: 'csv' as const, label: 'CSV / Texte', desc: '.csv, .tsv, .txt', icon: 'text' },
         { key: 'excel' as const, label: 'Excel', desc: '.xlsx, .xls, .ods', icon: 'spreadsheet' },
         { key: 'image' as const, label: 'Image (OCR)', desc: '.jpg, .png, .gif', icon: 'image' },
-        { key: 'pdf' as const, label: 'PDF', desc: '.pdf', icon: 'pdf' },
+        { key: 'pdf' as const, label: 'PDF', desc: '.pdf (texte)', icon: 'pdf' },
         { key: 'manual' as const, label: ti.manualEntry, desc: ti.manualEntryDesc, icon: 'manual' },
       ] as const).map((opt) => (
         <TouchableOpacity
@@ -469,9 +638,19 @@ export default function ImportReservationsScreen() {
       ))}
 
       {mode !== 'manual' && (
-        <TouchableOpacity style={styles.uploadBtn} onPress={handlePickFile} activeOpacity={0.7} testID="pick-file-btn">
-          <Upload size={18} color="#FFF" />
-          <Text style={styles.uploadBtnText}>{ti.selectFile}</Text>
+        <TouchableOpacity
+          style={[styles.uploadBtn, isParsing && styles.uploadBtnDisabled]}
+          onPress={handlePickFile}
+          activeOpacity={0.7}
+          disabled={isParsing}
+          testID="pick-file-btn"
+        >
+          {isParsing ? (
+            <ActivityIndicator size="small" color="#FFF" />
+          ) : (
+            <Upload size={18} color="#FFF" />
+          )}
+          <Text style={styles.uploadBtnText}>{isParsing ? 'Traitement en cours...' : ti.selectFile}</Text>
         </TouchableOpacity>
       )}
 
@@ -498,6 +677,25 @@ export default function ImportReservationsScreen() {
               <View style={styles.manualInputRow}>
                 <TextInput
                   style={[styles.manualInput, styles.manualInputHalf]}
+                  placeholder={'N° Chambre *'}
+                  placeholderTextColor={FT.textMuted}
+                  value={row.roomNumber}
+                  onChangeText={(v) => updateManualRow(row.id, 'roomNumber', v)}
+                  testID={`manual-room-${idx}`}
+                />
+                <TouchableOpacity
+                  style={[styles.breakfastToggle, row.breakfastIncluded && styles.breakfastToggleActive]}
+                  onPress={() => updateManualRow(row.id, 'breakfastIncluded', !row.breakfastIncluded)}
+                >
+                  <Coffee size={14} color={row.breakfastIncluded ? '#FFF' : FT.textMuted} />
+                  <Text style={[styles.breakfastToggleText, row.breakfastIncluded && styles.breakfastToggleTextActive]}>
+                    {'PDJ'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.manualInputRow}>
+                <TextInput
+                  style={[styles.manualInput, styles.manualInputHalf]}
                   placeholder={ti.checkInDate + ' * (AAAA-MM-JJ)'}
                   placeholderTextColor={FT.textMuted}
                   value={row.checkInDate}
@@ -514,14 +712,6 @@ export default function ImportReservationsScreen() {
                 />
               </View>
               <View style={styles.manualInputRow}>
-                <TextInput
-                  style={[styles.manualInput, styles.manualInputHalf]}
-                  placeholder={ti.roomNumber}
-                  placeholderTextColor={FT.textMuted}
-                  value={row.roomNumber}
-                  onChangeText={(v) => updateManualRow(row.id, 'roomNumber', v)}
-                  testID={`manual-room-${idx}`}
-                />
                 <TextInput
                   style={[styles.manualInput, styles.manualInputQuarter]}
                   placeholder={ti.adults}
@@ -568,7 +758,7 @@ export default function ImportReservationsScreen() {
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>{ti.columnMapping}</Text>
+      <Text style={styles.sectionTitle}>{'Aperçu des données'}</Text>
       <Text style={styles.sectionDesc}>{ti.previewDesc}</Text>
 
       {headers.length > 0 && (
@@ -602,7 +792,8 @@ export default function ImportReservationsScreen() {
         { key: 'guestName' as const, label: ti.guestName, required: true },
         { key: 'checkInDate' as const, label: ti.checkInDate, required: true },
         { key: 'checkOutDate' as const, label: ti.checkOutDate, required: true },
-        { key: 'roomNumber' as const, label: ti.roomNumber, required: false },
+        { key: 'roomNumber' as const, label: ti.roomNumber, required: true },
+        { key: 'breakfastIncluded' as const, label: 'Petit-déjeuner inclus', required: false },
         { key: 'adults' as const, label: ti.adults, required: false },
         { key: 'children' as const, label: ti.children, required: false },
         { key: 'preferences' as const, label: ti.preferences, required: false },
@@ -620,7 +811,7 @@ export default function ImportReservationsScreen() {
                 style={[styles.mappingChip, mapping[field.key] === null && styles.mappingChipActive]}
                 onPress={() => updateMappingField(field.key, null)}
               >
-                <Text style={[styles.mappingChipText, mapping[field.key] === null && styles.mappingChipTextActive]}>—</Text>
+                <Text style={[styles.mappingChipText, mapping[field.key] === null && styles.mappingChipTextActive]}>{'—'}</Text>
               </TouchableOpacity>
               {headers.map((h, i) => (
                 <TouchableOpacity
@@ -651,8 +842,16 @@ export default function ImportReservationsScreen() {
                 <Text style={[styles.mappingChipText, dateFormat === opt.value && styles.mappingChipTextActive]}>{opt.label}</Text>
               </TouchableOpacity>
             ))}
+
           </ScrollView>
         </View>
+      </View>
+
+      <View style={styles.overwriteWarning}>
+        <AlertTriangle size={16} color={FT.warning} />
+        <Text style={styles.overwriteWarningText}>
+          {'L\'import écrasera les données existantes des chambres concernées (client, dates, PDJ).'}
+        </Text>
       </View>
 
       <View style={styles.stepActions}>
@@ -677,7 +876,7 @@ export default function ImportReservationsScreen() {
         </View>
         <View style={styles.previewSummaryItem}>
           <Text style={[styles.previewSummaryNum, { color: FT.success }]}>{selectedCount}</Text>
-          <Text style={styles.previewSummaryLabel}>{ti.importBtn}</Text>
+          <Text style={styles.previewSummaryLabel}>{'À importer'}</Text>
         </View>
         {errorCount > 0 && (
           <View style={styles.previewSummaryItem}>
@@ -687,40 +886,62 @@ export default function ImportReservationsScreen() {
         )}
       </View>
 
-      {parsedReservations.map((res, idx) => (
-        <TouchableOpacity
-          key={res.id}
-          style={[styles.reservationRow, res.error && styles.reservationRowError]}
-          onPress={() => !res.error && toggleReservation(res.id)}
-          activeOpacity={res.error ? 1 : 0.7}
-        >
-          <View style={[styles.reservationCheck, res.selected && !res.error && styles.reservationCheckActive]}>
-            {res.selected && !res.error && <Check size={12} color="#FFF" />}
-            {res.error && <X size={12} color={FT.danger} />}
-          </View>
-          <View style={styles.reservationInfo}>
-            <Text style={styles.reservationName} numberOfLines={1}>{res.guestName || `Ligne ${idx + 1}`}</Text>
-            <Text style={styles.reservationDates}>
-              {res.checkInDate || '—'} → {res.checkOutDate || '—'}
-              {res.roomNumber ? ` | Ch. ${res.roomNumber}` : ''}
-            </Text>
-            {res.error && <Text style={styles.reservationError}>{res.error}</Text>}
-          </View>
-        </TouchableOpacity>
-      ))}
+      {parsedReservations.map((res, idx) => {
+        const statusPreview = getStatusPreview(res.checkInDate, res.checkOutDate);
+        return (
+          <TouchableOpacity
+            key={res.id}
+            style={[styles.reservationRow, res.error && styles.reservationRowError]}
+            onPress={() => !res.error && toggleReservation(res.id)}
+            activeOpacity={res.error ? 1 : 0.7}
+          >
+            <View style={[styles.reservationCheck, res.selected && !res.error && styles.reservationCheckActive]}>
+              {res.selected && !res.error && <Check size={12} color="#FFF" />}
+              {res.error && <X size={12} color={FT.danger} />}
+            </View>
+            <View style={styles.reservationInfo}>
+              <View style={styles.reservationHeaderRow}>
+                <Text style={styles.reservationName} numberOfLines={1}>{res.guestName || `Ligne ${idx + 1}`}</Text>
+                {res.roomNumber ? (
+                  <View style={styles.reservationRoomBadge}>
+                    <Text style={styles.reservationRoomText}>{'Ch. '}{res.roomNumber}</Text>
+                  </View>
+                ) : null}
+              </View>
+              <View style={styles.reservationMetaRow}>
+                <Text style={styles.reservationDates}>
+                  {res.checkInDate || '—'} {'→'} {res.checkOutDate || '—'}
+                </Text>
+                {!res.error && (
+                  <View style={[styles.statusBadge, { backgroundColor: statusPreview.color + '18' }]}>
+                    <Text style={[styles.statusBadgeText, { color: statusPreview.color }]}>{statusPreview.label}</Text>
+                  </View>
+                )}
+                {res.breakfastIncluded && (
+                  <View style={styles.pdjBadge}>
+                    <Coffee size={10} color={FT.success} />
+                    <Text style={styles.pdjBadgeText}>{'PDJ'}</Text>
+                  </View>
+                )}
+              </View>
+              {res.error && <Text style={styles.reservationError}>{res.error}</Text>}
+            </View>
+          </TouchableOpacity>
+        );
+      })}
 
       <View style={styles.stepActions}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => setStep(mode === 'csv' ? 2 : 1)}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => setStep(2)}>
           <ChevronLeft size={16} color={FT.textSec} />
           <Text style={styles.backBtnText}>{t.common.back}</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.importBtn, selectedCount === 0 && styles.importBtnDisabled]}
+          style={[styles.importBtn, (selectedCount === 0 || isImporting || isBulkImportingReservations) && styles.importBtnDisabled]}
           onPress={handleImport}
-          disabled={selectedCount === 0 || isImporting}
+          disabled={selectedCount === 0 || isImporting || isBulkImportingReservations}
           testID="import-btn"
         >
-          {isImporting ? (
+          {isImporting || isBulkImportingReservations ? (
             <ActivityIndicator size="small" color="#FFF" />
           ) : (
             <>
@@ -744,6 +965,9 @@ export default function ImportReservationsScreen() {
       </View>
       <Text style={styles.resultTitle}>
         {failedCount === 0 ? ti.importSuccess : ti.importPartial}
+      </Text>
+      <Text style={styles.resultSubtitle}>
+        {'Les données existantes ont été écrasées.'}
       </Text>
       <View style={styles.resultStats}>
         <View style={styles.resultStatRow}>
@@ -840,6 +1064,7 @@ const styles = StyleSheet.create({
 
   uploadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: FT.brand, paddingVertical: 14, borderRadius: 12, marginTop: 16 },
   uploadBtnText: { fontSize: 15, fontWeight: '700' as const, color: '#FFF' },
+  uploadBtnDisabled: { opacity: 0.6 },
 
   manualSection: { marginTop: 16, gap: 12 },
   manualRow: { backgroundColor: FT.surface, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: FT.borderLight, gap: 8 },
@@ -850,6 +1075,10 @@ const styles = StyleSheet.create({
   manualInputRow: { flexDirection: 'row', gap: 8 },
   manualInputHalf: { flex: 1 },
   manualInputQuarter: { flex: 0.5 },
+  breakfastToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8, backgroundColor: FT.surfaceAlt, borderWidth: 1, borderColor: FT.borderLight },
+  breakfastToggleActive: { backgroundColor: FT.success, borderColor: FT.success },
+  breakfastToggleText: { fontSize: 12, fontWeight: '600' as const, color: FT.textMuted },
+  breakfastToggleTextActive: { color: '#FFF' },
   addRowBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, borderColor: FT.brand, borderStyle: 'dashed' as const },
   addRowBtnText: { fontSize: 13, fontWeight: '600' as const, color: FT.brand },
 
@@ -880,6 +1109,9 @@ const styles = StyleSheet.create({
   mappingChipText: { fontSize: 11, fontWeight: '500' as const, color: FT.textSec },
   mappingChipTextActive: { color: '#FFF' },
 
+  overwriteWarning: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFF3E0', borderRadius: 10, padding: 12, marginTop: 12, borderWidth: 1, borderColor: '#FFE0B2' },
+  overwriteWarningText: { fontSize: 12, color: '#E65100', flex: 1, lineHeight: 18 },
+
   previewSummary: { flexDirection: 'row', gap: 12, marginBottom: 16 },
   previewSummaryItem: { flex: 1, alignItems: 'center', backgroundColor: FT.surface, borderRadius: 10, paddingVertical: 12, borderWidth: 1, borderColor: FT.borderLight },
   previewSummaryNum: { fontSize: 22, fontWeight: '800' as const, color: FT.text },
@@ -889,9 +1121,17 @@ const styles = StyleSheet.create({
   reservationRowError: { borderColor: FT.danger + '30', backgroundColor: FT.dangerSoft },
   reservationCheck: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: FT.border, justifyContent: 'center', alignItems: 'center' },
   reservationCheckActive: { backgroundColor: FT.brand, borderColor: FT.brand },
-  reservationInfo: { flex: 1, gap: 2 },
-  reservationName: { fontSize: 13, fontWeight: '700' as const, color: FT.text },
+  reservationInfo: { flex: 1, gap: 3 },
+  reservationHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  reservationName: { fontSize: 13, fontWeight: '700' as const, color: FT.text, flexShrink: 1 },
+  reservationRoomBadge: { backgroundColor: FT.brandSoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  reservationRoomText: { fontSize: 10, fontWeight: '700' as const, color: FT.brand },
+  reservationMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   reservationDates: { fontSize: 11, color: FT.textSec },
+  statusBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  statusBadgeText: { fontSize: 9, fontWeight: '700' as const },
+  pdjBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(67,160,71,0.12)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  pdjBadgeText: { fontSize: 9, fontWeight: '700' as const, color: FT.success },
   reservationError: { fontSize: 10, color: FT.danger, marginTop: 2 },
 
   stepActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, gap: 12 },
@@ -908,6 +1148,7 @@ const styles = StyleSheet.create({
   resultIconSuccess: { backgroundColor: FT.successSoft },
   resultIconWarning: { backgroundColor: FT.warningSoft },
   resultTitle: { fontSize: 20, fontWeight: '800' as const, color: FT.text, textAlign: 'center' as const },
+  resultSubtitle: { fontSize: 13, color: FT.textSec, textAlign: 'center' as const },
   resultStats: { gap: 8, alignItems: 'center' },
   resultStatRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   resultStatDot: { width: 8, height: 8, borderRadius: 4 },

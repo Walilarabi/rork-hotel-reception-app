@@ -882,6 +882,7 @@ export interface ImportedReservation {
   adults: number;
   children: number;
   preferences: string;
+  breakfastIncluded: boolean;
   selected: boolean;
   error: string | null;
 }
@@ -894,6 +895,7 @@ export interface ColumnMapping {
   adults: number | null;
   children: number | null;
   preferences: number | null;
+  breakfastIncluded: number | null;
 }
 
 export const DEFAULT_COLUMN_MAPPING: ColumnMapping = {
@@ -904,6 +906,7 @@ export const DEFAULT_COLUMN_MAPPING: ColumnMapping = {
   adults: null,
   children: null,
   preferences: null,
+  breakfastIncluded: null,
 };
 
 export type DateFormatOption = 'dd/mm/yyyy' | 'mm/dd/yyyy' | 'yyyy-mm-dd' | 'dd-mm-yyyy' | 'dd.mm.yyyy';
