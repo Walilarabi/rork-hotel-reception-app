@@ -1624,7 +1624,7 @@ const tableStyles = StyleSheet.create({
   sourceEmptyText: { fontSize: 11, fontWeight: '600' as const, color: '#94A3B8' },
   sourceDropdown: {
     position: 'absolute' as const,
-    bottom: 30,
+    top: 0,
     left: 0,
     backgroundColor: '#FFF',
     borderRadius: 12,
