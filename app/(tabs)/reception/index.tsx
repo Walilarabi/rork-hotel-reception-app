@@ -344,6 +344,9 @@ export default function ReceptionDashboard() {
   const [showBadgeDrop, setShowBadgeDrop] = useState(false);
   const [showAssigneeDrop, setShowAssigneeDrop] = useState(false);
   const [sourceDropdownRoomId, setSourceDropdownRoomId] = useState<string | null>(null);
+  const [cleanlinessModalRoomId, setCleanlinessModalRoomId] = useState<string | null>(null);
+  const [etaModalRoomId, setEtaModalRoomId] = useState<string | null>(null);
+  const [etaCustomTime, setEtaCustomTime] = useState('');
 
   const { filtered: preFiltered, floors, total } = useFilteredRooms({
     status: statusFilter,
@@ -659,7 +662,14 @@ export default function ReceptionDashboard() {
           </View>
         </View>
 
-        <View style={tbl.cleanlinessCell}>
+        <TouchableOpacity
+          style={tbl.cleanlinessCell}
+          onPress={() => {
+            setCleanlinessModalRoomId(room.id);
+            if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
+          activeOpacity={0.6}
+        >
           {(() => {
             const cls = room.cleanlinessStatus ?? 'sale';
             const cfg = ROOM_CLEANLINESS_CONFIG[cls];
@@ -667,10 +677,11 @@ export default function ReceptionDashboard() {
               <View style={[tbl.softBadge, { backgroundColor: cfg.color + '0D' }]}>
                 <Text style={tbl.softBadgeIcon}>{cfg.icon}</Text>
                 <Text style={[tbl.softBadgeLabel, { color: cfg.color }]} numberOfLines={1}>{cfg.label}</Text>
+                <Pencil size={9} color={cfg.color} style={{ marginLeft: 2 }} />
               </View>
             );
           })()}
-        </View>
+        </TouchableOpacity>
 
         <TouchableOpacity style={tbl.clientCell} onPress={() => handleEditClient(room)} activeOpacity={0.6}>
           {hasClient ? (
@@ -726,15 +737,27 @@ export default function ReceptionDashboard() {
           )}
         </View>
 
-        <View style={tbl.etaArrivalCell}>
+        <TouchableOpacity
+          style={tbl.etaArrivalCell}
+          onPress={() => {
+            setEtaModalRoomId(room.id);
+            setEtaCustomTime(room.etaArrival ?? '');
+            if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
+          activeOpacity={0.6}
+        >
           {room.etaArrival ? (
             <View style={[tbl.etaArrivalPill, { backgroundColor: d.accentSoft }]}>
               <Text style={[tbl.etaArrivalText, { color: d.accent }]}>{room.etaArrival}</Text>
+              <Pencil size={9} color={d.accent} style={{ marginLeft: 3 }} />
             </View>
           ) : (
-            <Text style={[tbl.dash, { color: d.textLight }]}>—</Text>
+            <View style={[tbl.etaArrivalEmpty, { borderColor: d.textLight }]}>
+              <Clock size={10} color={d.textMuted} />
+              <Text style={[tbl.etaArrivalEmptyText, { color: d.textMuted }]}>+ ETA</Text>
+            </View>
           )}
-        </View>
+        </TouchableOpacity>
 
         <View style={tbl.sourceCell}>
           {room.bookingSource ? (() => {
@@ -1403,6 +1426,160 @@ export default function ReceptionDashboard() {
         </TouchableOpacity>
       </Modal>
 
+      <Modal visible={cleanlinessModalRoomId !== null} transparent animationType="fade" onRequestClose={() => setCleanlinessModalRoomId(null)}>
+        <TouchableOpacity style={clnMod.overlay} activeOpacity={1} onPress={() => setCleanlinessModalRoomId(null)}>
+          <TouchableOpacity style={[clnMod.card, { backgroundColor: d.surface }]} activeOpacity={1} onPress={() => {}}>
+            <View style={[clnMod.header, { borderBottomColor: d.borderLight }]}>
+              <Text style={[clnMod.headerTitle, { color: d.text }]}>Statut chambre</Text>
+              <TouchableOpacity onPress={() => setCleanlinessModalRoomId(null)} style={clnMod.closeBtn}>
+                <X size={18} color={d.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <View style={clnMod.list}>
+              {(['propre', 'en_nettoyage', 'sale', 'inspectee'] as const).map((status) => {
+                const cfg = ROOM_CLEANLINESS_CONFIG[status];
+                const currentRoom = cleanlinessModalRoomId ? rooms.find((r) => r.id === cleanlinessModalRoomId) : null;
+                const isActive = (currentRoom?.cleanlinessStatus ?? 'sale') === status;
+                return (
+                  <TouchableOpacity
+                    key={status}
+                    style={[clnMod.item, { borderBottomColor: d.borderLight }, isActive && { backgroundColor: d.accentSoft }]}
+                    onPress={() => {
+                      if (cleanlinessModalRoomId) {
+                        updateRoom({ roomId: cleanlinessModalRoomId, updates: { cleanlinessStatus: status } });
+                        console.log('[Reception] Updated cleanliness status for room', cleanlinessModalRoomId, 'to', status);
+                      }
+                      setCleanlinessModalRoomId(null);
+                      if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  >
+                    <View style={[clnMod.iconCircle, { backgroundColor: cfg.color + '18' }]}>
+                      <Text style={clnMod.iconText}>{cfg.icon}</Text>
+                    </View>
+                    <Text style={[clnMod.label, { color: d.textSec }, isActive && { fontWeight: '700' as const, color: d.text }]}>{cfg.label}</Text>
+                    {isActive && <Check size={16} color={d.accent} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={etaModalRoomId !== null} transparent animationType="fade" onRequestClose={() => setEtaModalRoomId(null)}>
+        <TouchableOpacity style={etaMod.overlay} activeOpacity={1} onPress={() => setEtaModalRoomId(null)}>
+          <TouchableOpacity style={[etaMod.card, { backgroundColor: d.surface }]} activeOpacity={1} onPress={() => {}}>
+            <View style={[etaMod.header, { borderBottomColor: d.borderLight }]}>
+              <View>
+                <Text style={[etaMod.headerTitle, { color: d.text }]}>Heure d'arrivée (ETA)</Text>
+                <Text style={[etaMod.headerSub, { color: d.textMuted }]}>
+                  {etaModalRoomId ? `Chambre ${rooms.find((r) => r.id === etaModalRoomId)?.roomNumber ?? ''}` : ''}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setEtaModalRoomId(null)} style={etaMod.closeBtn}>
+                <X size={18} color={d.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={etaMod.body}>
+              <Text style={[etaMod.sectionLabel, { color: d.textSec }]}>Raccourcis</Text>
+              <View style={etaMod.presetsRow}>
+                {[
+                  { label: 'Early arrival', value: 'Early arrival', color: '#F59E0B', bg: 'rgba(245,158,11,0.08)' },
+                  { label: 'Late check-in', value: 'Late check-in', color: '#8B5CF6', bg: 'rgba(139,92,246,0.08)' },
+                  { label: 'Late check-out', value: 'Late check-out', color: '#EF4444', bg: 'rgba(239,68,68,0.08)' },
+                ].map((preset) => (
+                  <TouchableOpacity
+                    key={preset.value}
+                    style={[etaMod.presetChip, { backgroundColor: preset.bg, borderColor: preset.color + '30' }]}
+                    onPress={() => {
+                      if (etaModalRoomId) {
+                        updateRoom({ roomId: etaModalRoomId, updates: { etaArrival: preset.value } });
+                        console.log('[Reception] Set ETA preset for room', etaModalRoomId, ':', preset.value);
+                      }
+                      setEtaModalRoomId(null);
+                      if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  >
+                    <Text style={[etaMod.presetText, { color: preset.color }]}>{preset.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[etaMod.sectionLabel, { color: d.textSec, marginTop: 16 }]}>Horaires rapides</Text>
+              <View style={etaMod.timesGrid}>
+                {['12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00'].map((time) => {
+                  const currentRoom = etaModalRoomId ? rooms.find((r) => r.id === etaModalRoomId) : null;
+                  const isActive = currentRoom?.etaArrival === time;
+                  return (
+                    <TouchableOpacity
+                      key={time}
+                      style={[etaMod.timeChip, { backgroundColor: d.surfaceWarm, borderColor: d.border }, isActive && { backgroundColor: d.accent, borderColor: d.accent }]}
+                      onPress={() => {
+                        if (etaModalRoomId) {
+                          updateRoom({ roomId: etaModalRoomId, updates: { etaArrival: time } });
+                          console.log('[Reception] Set ETA time for room', etaModalRoomId, ':', time);
+                        }
+                        setEtaModalRoomId(null);
+                        if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                    >
+                      <Text style={[etaMod.timeText, { color: d.textSec }, isActive && { color: '#FFF', fontWeight: '700' as const }]}>{time}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={[etaMod.sectionLabel, { color: d.textSec, marginTop: 16 }]}>Horaire personnalisé</Text>
+              <View style={etaMod.customRow}>
+                <TextInput
+                  style={[etaMod.customInput, { backgroundColor: d.surfaceWarm, borderColor: d.border, color: d.text }]}
+                  value={etaCustomTime}
+                  onChangeText={setEtaCustomTime}
+                  placeholder="Ex: 15:30"
+                  placeholderTextColor={d.textMuted}
+                  testID="eta-custom-input"
+                />
+                <TouchableOpacity
+                  style={[etaMod.customBtn, { backgroundColor: d.accent }]}
+                  onPress={() => {
+                    if (etaModalRoomId && etaCustomTime.trim()) {
+                      updateRoom({ roomId: etaModalRoomId, updates: { etaArrival: etaCustomTime.trim() } });
+                      console.log('[Reception] Set custom ETA for room', etaModalRoomId, ':', etaCustomTime.trim());
+                    }
+                    setEtaModalRoomId(null);
+                    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  }}
+                >
+                  <Check size={16} color="#FFF" />
+                </TouchableOpacity>
+              </View>
+
+              {(() => {
+                const currentRoom = etaModalRoomId ? rooms.find((r) => r.id === etaModalRoomId) : null;
+                if (!currentRoom?.etaArrival) return null;
+                return (
+                  <TouchableOpacity
+                    style={[etaMod.clearBtn, { borderColor: d.danger + '30' }]}
+                    onPress={() => {
+                      if (etaModalRoomId) {
+                        updateRoom({ roomId: etaModalRoomId, updates: { etaArrival: null } });
+                        console.log('[Reception] Cleared ETA for room', etaModalRoomId);
+                      }
+                      setEtaModalRoomId(null);
+                      if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  >
+                    <X size={14} color={d.danger} />
+                    <Text style={[etaMod.clearText, { color: d.danger }]}>Supprimer l'ETA</Text>
+                  </TouchableOpacity>
+                );
+              })()}
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
       <Modal visible={showImportModal} transparent animationType="fade" onRequestClose={() => setShowImportModal(false)}>
         <TouchableOpacity style={impMod.overlay} activeOpacity={1} onPress={() => setShowImportModal(false)}>
           <TouchableOpacity style={[impMod.card, { backgroundColor: d.surface }]} activeOpacity={1} onPress={() => {}}>
@@ -1519,8 +1696,10 @@ const tbl = StyleSheet.create({
   dateOut: { fontSize: 12, fontWeight: '600' as const, color: '#EF4444' },
   dash: { fontSize: 12, color: DS.textLight },
   etaArrivalCell: { width: 90, paddingHorizontal: 8, justifyContent: 'center' as const },
-  etaArrivalPill: { backgroundColor: DS.accentSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: 'flex-start' as const },
+  etaArrivalPill: { backgroundColor: DS.accentSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: 'flex-start' as const, flexDirection: 'row' as const, alignItems: 'center' as const },
   etaArrivalText: { fontSize: 11, fontWeight: '600' as const, color: DS.accent },
+  etaArrivalEmpty: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderStyle: 'dashed' as const, alignSelf: 'flex-start' as const, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4 },
+  etaArrivalEmptyText: { fontSize: 10, fontWeight: '500' as const },
   sourceCell: { width: 125, paddingHorizontal: 8, justifyContent: 'center' as const, overflow: 'visible' as const, zIndex: 50 },
   sourceWrap: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 7 },
   sourceDot: { width: 26, height: 26, borderRadius: 8, justifyContent: 'center' as const, alignItems: 'center' as const },
@@ -1596,6 +1775,41 @@ const srcMod = StyleSheet.create({
   labelActive: { fontWeight: '700' as const, color: DS.text },
   tag: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5 },
   tagText: { fontSize: 9, fontWeight: '700' as const },
+});
+
+const clnMod = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  card: { borderRadius: 20, width: '100%', maxWidth: 340, overflow: 'hidden' as const, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 16, elevation: 5 },
+  header: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, paddingHorizontal: 22, paddingVertical: 18, borderBottomWidth: 1 },
+  headerTitle: { fontSize: 17, fontWeight: '700' as const },
+  closeBtn: { padding: 4 },
+  list: { paddingVertical: 4 },
+  item: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 14, paddingHorizontal: 22, paddingVertical: 16, borderBottomWidth: 1 },
+  iconCircle: { width: 36, height: 36, borderRadius: 12, justifyContent: 'center' as const, alignItems: 'center' as const },
+  iconText: { fontSize: 14 },
+  label: { flex: 1, fontSize: 15, fontWeight: '500' as const },
+});
+
+const etaMod = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  card: { borderRadius: 20, width: '100%', maxWidth: 400, overflow: 'hidden' as const, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 16, elevation: 5 },
+  header: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, paddingHorizontal: 22, paddingVertical: 18, borderBottomWidth: 1 },
+  headerTitle: { fontSize: 17, fontWeight: '700' as const },
+  headerSub: { fontSize: 12, marginTop: 2 },
+  closeBtn: { padding: 4 },
+  body: { padding: 22 },
+  sectionLabel: { fontSize: 11, fontWeight: '600' as const, letterSpacing: 0.5, textTransform: 'uppercase' as const, marginBottom: 10 },
+  presetsRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 8 },
+  presetChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
+  presetText: { fontSize: 13, fontWeight: '600' as const },
+  timesGrid: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 8 },
+  timeChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, borderWidth: 1, minWidth: 64, alignItems: 'center' as const },
+  timeText: { fontSize: 13, fontWeight: '500' as const },
+  customRow: { flexDirection: 'row' as const, gap: 10, alignItems: 'center' as const },
+  customInput: { flex: 1, borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 14 },
+  customBtn: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center' as const, alignItems: 'center' as const },
+  clearBtn: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 6, marginTop: 16, paddingVertical: 12, borderRadius: 12, borderWidth: 1 },
+  clearText: { fontSize: 13, fontWeight: '600' as const },
 });
 
 const impMod = StyleSheet.create({
