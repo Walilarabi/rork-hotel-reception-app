@@ -39,6 +39,28 @@ export interface RoomHistoryEntry {
   details: string;
 }
 
+export type RoomCleanlinessStatus = 'propre' | 'en_nettoyage' | 'sale' | 'inspectee';
+
+export type BookingSource = 'Booking' | 'Expedia' | 'Direct' | 'Airbnb' | 'Téléphone' | 'Agoda' | 'HRS' | 'Autre';
+
+export const ROOM_CLEANLINESS_CONFIG: Record<RoomCleanlinessStatus, { label: string; color: string; icon: string }> = {
+  propre: { label: 'Propre', color: '#43A047', icon: '🟢' },
+  en_nettoyage: { label: 'En nettoyage', color: '#FB8C00', icon: '🟡' },
+  sale: { label: 'Sale', color: '#E53935', icon: '🔴' },
+  inspectee: { label: 'Inspectée', color: '#1E88E5', icon: '🔵' },
+};
+
+export const BOOKING_SOURCE_CONFIG: Record<BookingSource, { label: string; color: string }> = {
+  Booking: { label: 'Booking', color: '#003580' },
+  Expedia: { label: 'Expedia', color: '#FFCC00' },
+  Direct: { label: 'Direct', color: '#43A047' },
+  Airbnb: { label: 'Airbnb', color: '#FF5A5F' },
+  'Téléphone': { label: 'Téléphone', color: '#78909C' },
+  Agoda: { label: 'Agoda', color: '#5392F9' },
+  HRS: { label: 'HRS', color: '#C8102E' },
+  Autre: { label: 'Autre', color: '#94A3B8' },
+};
+
 export interface Room {
   id: string;
   roomNumber: string;
@@ -62,6 +84,9 @@ export interface Room {
   capacity: number;
   equipment: string[];
   dotation: string[];
+  cleanlinessStatus?: RoomCleanlinessStatus;
+  etaArrival?: string | null;
+  bookingSource?: BookingSource;
 }
 
 export interface StaffMember {

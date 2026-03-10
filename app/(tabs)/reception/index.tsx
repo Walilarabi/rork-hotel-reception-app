@@ -23,7 +23,7 @@ import { useHotel, useFilteredRooms } from '@/providers/HotelProvider';
 import { PMSStatusIndicator } from '@/components/PMSStatusIndicator';
 import { useTheme } from '@/providers/ThemeProvider';
 import { FT } from '@/constants/flowtym';
-import { RoomStatus, ClientBadge, Room, ROOM_STATUS_CONFIG, CLEANING_STATUS_CONFIG } from '@/constants/types';
+import { RoomStatus, ClientBadge, Room, ROOM_STATUS_CONFIG, CLEANING_STATUS_CONFIG, ROOM_CLEANLINESS_CONFIG, BOOKING_SOURCE_CONFIG } from '@/constants/types';
 
 const formatShortDate = (dateStr: string) => {
   try {
@@ -530,6 +530,19 @@ export default function ReceptionDashboard() {
           </View>
         </View>
 
+        <View style={tableStyles.cleanlinessCell}>
+          {(() => {
+            const cls = room.cleanlinessStatus ?? 'sale';
+            const cfg = ROOM_CLEANLINESS_CONFIG[cls];
+            return (
+              <View style={[tableStyles.cleanlinessBadge, { backgroundColor: cfg.color + '14' }]}>
+                <Text style={tableStyles.cleanlinessIcon}>{cfg.icon}</Text>
+                <Text style={[tableStyles.cleanlinessLabel, { color: cfg.color }]} numberOfLines={1}>{cfg.label}</Text>
+              </View>
+            );
+          })()}
+        </View>
+
         <TouchableOpacity style={tableStyles.clientCell} onPress={() => handleEditClient(room)} activeOpacity={0.6}>
           {hasClient ? (
             <>
@@ -555,6 +568,19 @@ export default function ReceptionDashboard() {
           )}
         </TouchableOpacity>
 
+        <View style={tableStyles.paxCell}>
+          {hasClient ? (
+            <Text style={tableStyles.paxText}>
+              {room.currentReservation?.adults ?? 1}
+              {(room.currentReservation?.children ?? 0) > 0
+                ? ` + ${room.currentReservation?.children} enf.`
+                : ''}
+            </Text>
+          ) : (
+            <Text style={tableStyles.emptyDash}>{'—'}</Text>
+          )}
+        </View>
+
         <View style={tableStyles.arriveeCell}>
           {hasClient && room.currentReservation?.checkInDate ? (
             <Text style={tableStyles.dateText}>{formatShortDate(room.currentReservation.checkInDate)}</Text>
@@ -566,6 +592,28 @@ export default function ReceptionDashboard() {
         <View style={tableStyles.departCell}>
           {hasClient && room.currentReservation?.checkOutDate ? (
             <Text style={tableStyles.dateTextDepart}>{formatShortDate(room.currentReservation.checkOutDate)}</Text>
+          ) : (
+            <Text style={tableStyles.emptyDash}>{'—'}</Text>
+          )}
+        </View>
+
+        <View style={tableStyles.etaArrivalCell}>
+          {room.etaArrival ? (
+            <Text style={tableStyles.etaArrivalText}>{room.etaArrival}</Text>
+          ) : (
+            <Text style={tableStyles.emptyDash}>{'—'}</Text>
+          )}
+        </View>
+
+        <View style={tableStyles.sourceCell}>
+          {room.bookingSource && room.bookingSource !== 'Autre' ? (
+            <View style={[tableStyles.sourceBadge, { backgroundColor: BOOKING_SOURCE_CONFIG[room.bookingSource].color + '14' }]}>
+              <Text style={[tableStyles.sourceText, { color: BOOKING_SOURCE_CONFIG[room.bookingSource].color }]} numberOfLines={1}>
+                {BOOKING_SOURCE_CONFIG[room.bookingSource].label}
+              </Text>
+            </View>
+          ) : room.bookingSource === 'Autre' ? (
+            <Text style={tableStyles.sourceTextMuted}>{'Autre'}</Text>
           ) : (
             <Text style={tableStyles.emptyDash}>{'—'}</Text>
           )}
@@ -1006,14 +1054,26 @@ export default function ReceptionDashboard() {
                   <View style={tableStyles.chambreCell}>
                     <Text style={tableStyles.headerText}>{'CHAMBRE'}</Text>
                   </View>
+                  <View style={tableStyles.cleanlinessCell}>
+                    <Text style={tableStyles.headerText}>{'STATUT'}</Text>
+                  </View>
                   <View style={tableStyles.clientCell}>
                     <Text style={tableStyles.headerText}>{'CLIENT'}</Text>
+                  </View>
+                  <View style={tableStyles.paxCell}>
+                    <Text style={tableStyles.headerText}>{'PAX'}</Text>
                   </View>
                   <View style={tableStyles.arriveeCell}>
                     <Text style={tableStyles.headerText}>{'ARRIVÉE'}</Text>
                   </View>
                   <View style={tableStyles.departCell}>
                     <Text style={tableStyles.headerText}>{'DÉPART'}</Text>
+                  </View>
+                  <View style={tableStyles.etaArrivalCell}>
+                    <Text style={tableStyles.headerText}>{'ETA CLIENT'}</Text>
+                  </View>
+                  <View style={tableStyles.sourceCell}>
+                    <Text style={tableStyles.headerText}>{'SOURCE'}</Text>
                   </View>
                   <View style={tableStyles.hkCell}>
                     <Text style={tableStyles.headerText}>{'HOUSEKEEPING'}</Text>
@@ -1285,7 +1345,7 @@ const ftStyles = StyleSheet.create({
   roomAvatarText: { fontSize: 8, fontWeight: '700' as const, color: '#FFF' },
 });
 
-const TABLE_MIN_WIDTH = 1340;
+const TABLE_MIN_WIDTH = 1680;
 
 const tableStyles = StyleSheet.create({
   stickyHeader: {
@@ -1438,6 +1498,31 @@ const tableStyles = StyleSheet.create({
     borderColor: '#FDE68A',
   },
   emptyDash: { fontSize: 12, color: '#CBD5E1' },
+  cleanlinessCell: { width: 110, paddingHorizontal: 8, justifyContent: 'center' as const },
+  cleanlinessBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 16,
+    alignSelf: 'flex-start' as const,
+  },
+  cleanlinessIcon: { fontSize: 10 },
+  cleanlinessLabel: { fontSize: 10, fontWeight: '600' as const },
+  paxCell: { width: 80, paddingHorizontal: 8, justifyContent: 'center' as const },
+  paxText: { fontSize: 12, fontWeight: '500' as const, color: '#475569' },
+  etaArrivalCell: { width: 90, paddingHorizontal: 8, justifyContent: 'center' as const },
+  etaArrivalText: { fontSize: 12, fontWeight: '500' as const, color: '#64748B' },
+  sourceCell: { width: 100, paddingHorizontal: 8, justifyContent: 'center' as const },
+  sourceBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start' as const,
+  },
+  sourceText: { fontSize: 10, fontWeight: '700' as const },
+  sourceTextMuted: { fontSize: 11, color: '#94A3B8', fontWeight: '500' as const },
 });
 
 const modalStyles = StyleSheet.create({
