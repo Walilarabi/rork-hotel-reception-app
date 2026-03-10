@@ -23,7 +23,7 @@ import { useHotel, useFilteredRooms } from '@/providers/HotelProvider';
 import { PMSStatusIndicator } from '@/components/PMSStatusIndicator';
 import { useTheme } from '@/providers/ThemeProvider';
 
-import { RoomStatus, ClientBadge, Room, ROOM_STATUS_CONFIG, CLEANING_STATUS_CONFIG, ROOM_CLEANLINESS_CONFIG, BOOKING_SOURCE_CONFIG, CHANNEL_TYPE_CONFIG, ALL_BOOKING_SOURCES } from '@/constants/types';
+import { RoomStatus, ClientBadge, Room, ROOM_STATUS_CONFIG, CLEANING_STATUS_CONFIG, ROOM_CLEANLINESS_CONFIG, BOOKING_SOURCE_CONFIG, CHANNEL_TYPE_CONFIG, ALL_BOOKING_SOURCES, BookingSource } from '@/constants/types';
 
 const DS_LIGHT = {
   bg: '#F5F6FA',
@@ -323,6 +323,7 @@ export default function ReceptionDashboard() {
   const [badgeFilter, setBadgeFilter] = useState<ClientBadge | 'all'>('all');
   const [searchText, setSearchText] = useState('');
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState<BookingSource | 'all' | 'none'>('all');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [viewMode, setViewMode] = useState<'plan' | 'table'>('plan');
   const [showImportModal, setShowImportModal] = useState(false);
@@ -343,6 +344,7 @@ export default function ReceptionDashboard() {
   const [showStatusDrop, setShowStatusDrop] = useState(false);
   const [showBadgeDrop, setShowBadgeDrop] = useState(false);
   const [showAssigneeDrop, setShowAssigneeDrop] = useState(false);
+  const [showSourceDrop, setShowSourceDrop] = useState(false);
   const [sourceDropdownRoomId, setSourceDropdownRoomId] = useState<string | null>(null);
   const [cleanlinessModalRoomId, setCleanlinessModalRoomId] = useState<string | null>(null);
   const [etaModalRoomId, setEtaModalRoomId] = useState<string | null>(null);
@@ -355,13 +357,19 @@ export default function ReceptionDashboard() {
     search: searchText,
   });
 
-  const filtered = useMemo(() => {
+  const filteredByAssignee = useMemo(() => {
     if (assigneeFilter === 'all') return preFiltered;
     return preFiltered.filter((r) => {
       if (assigneeFilter === 'none') return !r.cleaningAssignee;
       return r.cleaningAssignee === assigneeFilter;
     });
   }, [preFiltered, assigneeFilter]);
+
+  const filtered = useMemo(() => {
+    if (sourceFilter === 'all') return filteredByAssignee;
+    if (sourceFilter === 'none') return filteredByAssignee.filter((r) => !r.bookingSource);
+    return filteredByAssignee.filter((r) => r.bookingSource === sourceFilter);
+  }, [filteredByAssignee, sourceFilter]);
 
   const assigneeList = useMemo(() => {
     const set = new Set<string>();
@@ -410,6 +418,7 @@ export default function ReceptionDashboard() {
     setShowStatusDrop(false);
     setShowBadgeDrop(false);
     setShowAssigneeDrop(false);
+    setShowSourceDrop(false);
   }, []);
 
   const handleRoomPress = useCallback((room: Room) => {
@@ -1099,6 +1108,17 @@ export default function ReceptionDashboard() {
               </Text>
               <ChevronDown size={10} color={assigneeFilter !== 'all' ? d.accent : d.textMuted} />
             </TouchableOpacity>
+            {viewMode === 'table' && (
+              <TouchableOpacity
+                style={[s.pill, { backgroundColor: d.surfaceWarm, borderColor: sourceFilter !== 'all' ? d.accent : d.border }]}
+                onPress={() => { closeAllDropdowns(); setShowSourceDrop(!showSourceDrop); }}
+              >
+                <Text style={[s.pillText, { color: sourceFilter !== 'all' ? d.accent : d.textSec }]}>
+                  {sourceFilter === 'all' ? 'Source' : sourceFilter === 'none' ? 'Sans source' : BOOKING_SOURCE_CONFIG[sourceFilter].label}
+                </Text>
+                <ChevronDown size={10} color={sourceFilter !== 'all' ? d.accent : d.textMuted} />
+              </TouchableOpacity>
+            )}
           </ScrollView>
 
           <View style={s.toolbarRight}>
@@ -1177,6 +1197,25 @@ export default function ReceptionDashboard() {
           <TouchableOpacity style={[s.dropItem, badgeFilter === 'prioritaire' && s.dropItemActive]} onPress={() => { setBadgeFilter('prioritaire'); setShowBadgeDrop(false); }}>
             <Text style={[s.dropText, { color: d.text }, badgeFilter === 'prioritaire' && { color: d.accent }]}>Prioritaire</Text>
           </TouchableOpacity>
+        </View>
+      )}
+      {showSourceDrop && viewMode === 'table' && (
+        <View style={[s.dropdown, { backgroundColor: d.surface, borderColor: d.border }]}>
+          <TouchableOpacity style={[s.dropItem, sourceFilter === 'all' && s.dropItemActive]} onPress={() => { setSourceFilter('all'); setShowSourceDrop(false); }}>
+            <Text style={[s.dropText, { color: d.text }, sourceFilter === 'all' && { color: d.accent }]}>Toutes sources</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[s.dropItem, sourceFilter === 'none' && s.dropItemActive]} onPress={() => { setSourceFilter('none'); setShowSourceDrop(false); }}>
+            <Text style={[s.dropText, { color: d.text }, sourceFilter === 'none' && { color: d.accent }]}>Sans source</Text>
+          </TouchableOpacity>
+          {ALL_BOOKING_SOURCES.map((src) => {
+            const cfg = BOOKING_SOURCE_CONFIG[src];
+            return (
+              <TouchableOpacity key={src} style={[s.dropItem, sourceFilter === src && s.dropItemActive]} onPress={() => { setSourceFilter(src); setShowSourceDrop(false); }}>
+                <View style={[s.dropDot, { backgroundColor: cfg.color }]} />
+                <Text style={[s.dropText, { color: d.text }, sourceFilter === src && { color: d.accent }]}>{cfg.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       )}
       {showAssigneeDrop && (
