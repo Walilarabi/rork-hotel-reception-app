@@ -20,6 +20,9 @@ import {
   ArrowRight,
   Sparkles,
   History,
+  MapPin,
+  Zap,
+  LayoutDashboard,
 } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
@@ -307,6 +310,27 @@ export default function DirectionDashboard() {
         <StaffForecastCard />
 
         <View style={styles.quickActions}>
+          <TouchableOpacity style={[styles.quickActionBtn, { borderColor: FT.brand + '30', borderWidth: 1.5 }]} onPress={() => router.push('/control-center')}>
+            <View style={[styles.quickActionIcon, { backgroundColor: FT.brand + '15' }]}>
+              <LayoutDashboard size={18} color={FT.brand} />
+            </View>
+            <Text style={styles.quickActionLabel}>Centre de contrôle</Text>
+            <ArrowRight size={14} color={FT.brand} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickActionBtn} onPress={() => router.push('/hotel-plan')}>
+            <View style={[styles.quickActionIcon, { backgroundColor: FT.infoSoft }]}>
+              <MapPin size={18} color={FT.info} />
+            </View>
+            <Text style={styles.quickActionLabel}>Plan de l'hôtel</Text>
+            <ArrowRight size={14} color={FT.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickActionBtn} onPress={() => router.push('/housekeeping-assignments')}>
+            <View style={[styles.quickActionIcon, { backgroundColor: FT.successSoft }]}>
+              <Zap size={18} color={FT.success} />
+            </View>
+            <Text style={styles.quickActionLabel}>Répartition chambres</Text>
+            <ArrowRight size={14} color={FT.textMuted} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.quickActionBtn} onPress={() => router.push('/history')}>
             <View style={[styles.quickActionIcon, { backgroundColor: FT.brandSoft }]}>
               <History size={18} color={FT.brand} />

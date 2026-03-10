@@ -1131,3 +1131,86 @@ export const RECOMMENDATION_CONFIG: Record<ReviewRecommendation, { label: string
   maybe: { label: 'Peut-être', color: '#F59E0B', icon: '🤔' },
   no: { label: 'Non', color: '#EF4444', icon: '👎' },
 };
+
+export interface HotelFloor {
+  id: string;
+  hotelId: string;
+  floorNumber: number;
+  createdAt: string;
+}
+
+export interface HousekeepingZone {
+  id: string;
+  hotelId: string;
+  zoneName: string;
+  floorId: string;
+  floorNumber: number;
+  roomIds: string[];
+  createdAt: string;
+}
+
+export interface HousekeepingAssignment {
+  id: string;
+  hotelId: string;
+  zoneId: string;
+  zoneName: string;
+  staffId: string;
+  staffName: string;
+  date: string;
+  roomIds: string[];
+  createdAt: string;
+}
+
+export type CleaningTaskType = 'departure_cleaning' | 'stay_cleaning' | 'deep_cleaning' | 'inspection';
+export type CleaningTaskStatus = 'pending' | 'in_progress' | 'completed';
+
+export interface RoomCleaningTask {
+  id: string;
+  hotelId: string;
+  roomId: string;
+  roomNumber: string;
+  date: string;
+  cleaningType: CleaningTaskType;
+  status: CleaningTaskStatus;
+  assignedTo: string | null;
+  assignedToName: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  estimatedMinutes: number;
+  createdAt: string;
+}
+
+export interface HousekeepingStaffMember {
+  id: string;
+  hotelId: string;
+  name: string;
+  status: 'available' | 'busy' | 'off';
+  maxRoomsPerDay: number;
+  createdAt: string;
+}
+
+export const CLEANING_TYPE_CONFIG: Record<CleaningTaskType, { label: string; color: string; estimatedMinutes: number }> = {
+  departure_cleaning: { label: 'Départ', color: '#EF4444', estimatedMinutes: 35 },
+  stay_cleaning: { label: 'Recouche', color: '#F59E0B', estimatedMinutes: 20 },
+  deep_cleaning: { label: 'Nettoyage profond', color: '#8B5CF6', estimatedMinutes: 60 },
+  inspection: { label: 'Inspection', color: '#3B82F6', estimatedMinutes: 10 },
+};
+
+export type RoomPlanStatus = 'clean' | 'dirty' | 'cleaning' | 'occupied' | 'inspection' | 'out_of_service';
+
+export const ROOM_PLAN_STATUS_CONFIG: Record<RoomPlanStatus, { label: string; color: string; bgColor: string }> = {
+  clean: { label: 'Propre', color: '#22C55E', bgColor: 'rgba(34,197,94,0.15)' },
+  dirty: { label: 'Sale', color: '#EF4444', bgColor: 'rgba(239,68,68,0.15)' },
+  cleaning: { label: 'En cours', color: '#EAB308', bgColor: 'rgba(234,179,8,0.15)' },
+  occupied: { label: 'Occupée', color: '#3B82F6', bgColor: 'rgba(59,130,246,0.15)' },
+  inspection: { label: 'Inspection', color: '#8B5CF6', bgColor: 'rgba(139,92,246,0.15)' },
+  out_of_service: { label: 'Hors service', color: '#6B7280', bgColor: 'rgba(107,114,128,0.15)' },
+};
+
+export interface ActivityEvent {
+  id: string;
+  time: string;
+  description: string;
+  type: 'cleaning' | 'checkin' | 'checkout' | 'review' | 'alert' | 'maintenance';
+  roomNumber?: string;
+}

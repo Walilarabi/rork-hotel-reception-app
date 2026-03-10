@@ -14,6 +14,7 @@ import { ChatbotProvider } from '@/providers/ChatbotProvider';
 import { ForecastProvider } from '@/providers/ForecastProvider';
 import { ConfigurationProvider } from '@/providers/ConfigurationProvider';
 import { SatisfactionProvider } from '@/providers/SatisfactionProvider';
+import { HousekeepingManagerProvider } from '@/providers/HousekeepingProvider';
 import ChatBot from '@/components/ChatBot';
 import { Colors } from '@/constants/colors';
 import { FT } from '@/constants/flowtym';
@@ -114,6 +115,9 @@ function RootLayoutNav() {
       <Stack.Screen name="qr-manager" options={{ title: 'QR Codes' }} />
       <Stack.Screen name="satisfaction-dashboard" options={{ title: 'Satisfaction' }} />
       <Stack.Screen name="import-hotel" options={{ presentation: 'modal', title: 'Import Hôtel' }} />
+      <Stack.Screen name="hotel-plan" options={{ title: 'Plan de l\'hôtel' }} />
+      <Stack.Screen name="housekeeping-assignments" options={{ title: 'Répartition chambres' }} />
+      <Stack.Screen name="control-center" options={{ title: 'Centre de contrôle' }} />
     </Stack>
   );
 }
@@ -174,10 +178,12 @@ export default function RootLayout() {
                     <SubscriptionProvider>
                       <ConfigurationProvider>
                         <SatisfactionProvider>
-                          <ChatbotProvider>
-                            <RootLayoutNav />
-                            <ChatBot />
-                          </ChatbotProvider>
+                          <HousekeepingManagerProvider>
+                            <ChatbotProvider>
+                              <RootLayoutNav />
+                              <ChatBot />
+                            </ChatbotProvider>
+                          </HousekeepingManagerProvider>
                         </SatisfactionProvider>
                       </ConfigurationProvider>
                     </SubscriptionProvider>

@@ -35,6 +35,7 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
 import { useSuperAdmin } from '@/providers/SuperAdminProvider';
+import { useHousekeepingManager } from '@/providers/HousekeepingProvider';
 import {
   HotelImportProfile,
   HotelImportRoom,
@@ -144,6 +145,7 @@ function generateSampleDotation(): HotelImportDotation[] {
 export default function ImportHotelScreen() {
   const router = useRouter();
   const { addHotel } = useSuperAdmin();
+  const { generateFloorsAndZones } = useHousekeepingManager();
 
   const [step, setStep] = useState<HotelImportStep>('upload');
   const [fileName, setFileName] = useState('');
@@ -277,10 +279,12 @@ export default function ImportHotelScreen() {
     goToStep('importing');
     setImportProgress(0);
 
-    const totalSteps = 5;
-    const delays = [600, 800, 1200, 1000, 800];
+    const totalSteps = 7;
+    const delays = [600, 800, 600, 800, 1200, 1000, 600];
     const labels = [
       'Création du profil hôtel...',
+      'Création des étages...',
+      'Création des zones de ménage...',
       'Import des chambres...',
       'Import de la dotation standard...',
       'Génération des QR Codes...',
@@ -300,6 +304,28 @@ export default function ImportHotelScreen() {
     }
 
     const selectedRooms = importedRooms.filter((r) => r.selected);
+
+    const roomFloors = selectedRooms.map((r) => r.floor);
+    const roomIdsByFloor = new Map<number, string[]>();
+    for (const room of selectedRooms) {
+      const existing = roomIdsByFloor.get(room.floor) || [];
+      existing.push(room.id);
+      roomIdsByFloor.set(room.floor, existing);
+    }
+
+    try {
+      const fzResult = await generateFloorsAndZones({ roomFloors, roomIds: roomIdsByFloor });
+      console.log('[ImportHotel] Floors/zones created:', fzResult);
+    } catch (e) {
+      console.log('[ImportHotel] Floors/zones generation error:', e);
+    }
+
+    const uniqueFloors = [...new Set(roomFloors)];
+    const _zonesCreated = uniqueFloors.reduce((sum, f) => {
+      const count = roomIdsByFloor.get(f)?.length ?? 0;
+      return sum + (count > 20 ? 2 : 1);
+    }, 0);
+
     const result: HotelImportResult = {
       hotelCreated: true,
       roomsCreated: selectedRooms.length,
@@ -323,7 +349,7 @@ export default function ImportHotelScreen() {
     setImportResult(result);
     goToStep('result');
     if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [profile, importedRooms, dotation, validationErrors, addHotel, goToStep, progressAnim]);
+  }, [profile, importedRooms, dotation, validationErrors, addHotel, goToStep, progressAnim, generateFloorsAndZones]);
 
   const renderStepper = () => (
     <View style={styles.stepper}>
@@ -728,11 +754,13 @@ export default function ImportHotelScreen() {
           <ActivityIndicator size="large" color={SA.accent} style={{ marginBottom: 24 }} />
           <Text style={styles.importingTitle}>Import en cours...</Text>
           <Text style={styles.importingSubtitle}>
-            {importProgress < 20 && 'Création du profil hôtel...'}
-            {importProgress >= 20 && importProgress < 40 && 'Import des chambres...'}
-            {importProgress >= 40 && importProgress < 60 && 'Import de la dotation standard...'}
-            {importProgress >= 60 && importProgress < 80 && 'Génération des QR Codes...'}
-            {importProgress >= 80 && 'Finalisation...'}
+            {importProgress < 14 && 'Création du profil hôtel...'}
+            {importProgress >= 14 && importProgress < 28 && 'Création des étages...'}
+            {importProgress >= 28 && importProgress < 42 && 'Création des zones de ménage...'}
+            {importProgress >= 42 && importProgress < 57 && 'Import des chambres...'}
+            {importProgress >= 57 && importProgress < 71 && 'Import de la dotation standard...'}
+            {importProgress >= 71 && importProgress < 85 && 'Génération des QR Codes...'}
+            {importProgress >= 85 && 'Finalisation...'}
           </Text>
 
           <View style={styles.progressBarOuter}>
