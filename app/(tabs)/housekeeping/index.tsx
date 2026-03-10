@@ -11,9 +11,12 @@ import {
   RefreshControl,
   TextInput,
   Alert,
+  Modal,
+  FlatList,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { Camera, Search, ChevronRight } from 'lucide-react-native';
+import { Camera, Search, ChevronRight, X, ScanLine, Play, CheckCircle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import UserMenuButton from '@/components/UserMenuButton';
 import { useHotel } from '@/providers/HotelProvider';
@@ -361,13 +364,66 @@ export default function HousekeepingScreen() {
 
   const progressPercent = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
 
+  const [scanModalVisible, setScanModalVisible] = useState(false);
+  const [scanInput, setScanInput] = useState('');
+
   const handleScanQR = useCallback(() => {
-    Alert.alert(
-      '📷 Scanner QR Code',
-      'Scannez le QR code sur la porte de la chambre pour accéder directement à sa fiche.',
-      [{ text: 'OK' }]
-    );
+    setScanInput('');
+    setScanModalVisible(true);
   }, []);
+
+  const handleScanRoom = useCallback((roomNumber: string) => {
+    const room = rooms.find((r) => r.roomNumber === roomNumber.trim());
+    if (!room) {
+      Alert.alert('Chambre introuvable', `Aucune chambre trouvée avec le numéro "${roomNumber.trim()}".`);
+      return;
+    }
+    if (room.cleaningStatus === 'en_cours') {
+      Alert.alert(
+        'Terminer le nettoyage',
+        `Chambre ${room.roomNumber} — Confirmer la fin du nettoyage ?`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Terminer',
+            onPress: () => {
+              completeCleaning(room.id);
+              if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              setScanModalVisible(false);
+              setScanInput('');
+            },
+          },
+        ]
+      );
+    } else if (room.cleaningStatus === 'none' || room.cleaningStatus === 'refusee') {
+      Alert.alert(
+        'Démarrer le nettoyage',
+        `Chambre ${room.roomNumber} — Démarrer le chrono de nettoyage ?`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Démarrer',
+            onPress: () => {
+              startCleaning(room.id);
+              if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setScanModalVisible(false);
+              setScanInput('');
+            },
+          },
+        ]
+      );
+    } else {
+      setScanModalVisible(false);
+      setScanInput('');
+      router.push({ pathname: '/task-detail', params: { roomId: room.id } });
+    }
+  }, [rooms, startCleaning, completeCleaning, router]);
+
+  const scanFilteredRooms = useMemo(() => {
+    if (!scanInput.trim()) return assignedRooms;
+    const q = scanInput.trim().toLowerCase();
+    return rooms.filter((r) => r.roomNumber.toLowerCase().includes(q));
+  }, [rooms, assignedRooms, scanInput]);
 
   const renderItem = useCallback(
     ({ item }: { item: Room }) => (
@@ -484,10 +540,116 @@ export default function HousekeepingScreen() {
         </View>
         <View style={styles.scannerTextCol}>
           <Text style={[styles.scannerTitle, { color: colors.text }]}>Scanner une chambre</Text>
-          <Text style={styles.scannerSub}>Scannez le QR code pour commencer</Text>
+          <Text style={styles.scannerSub}>Entrez le numéro ou sélectionnez</Text>
         </View>
         <ChevronRight size={18} color={Colors.textMuted} />
       </TouchableOpacity>
+
+      <Modal
+        visible={scanModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setScanModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.scanModalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.scanModalContainer}>
+            <View style={styles.scanModalHeader}>
+              <View style={styles.scanModalTitleRow}>
+                <ScanLine size={22} color={theme.primary} />
+                <Text style={styles.scanModalTitle}>Scanner / Sélectionner</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.scanModalClose}
+                onPress={() => setScanModalVisible(false)}
+              >
+                <X size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.scanInputRow}>
+              <View style={[styles.scanInputContainer, { borderColor: theme.primary + '40' }]}>
+                <Search size={16} color="#94A3B8" />
+                <TextInput
+                  style={styles.scanInputField}
+                  placeholder="Numéro de chambre (ex: 205)"
+                  placeholderTextColor="#94A3B8"
+                  value={scanInput}
+                  onChangeText={setScanInput}
+                  keyboardType="default"
+                  autoFocus
+                  returnKeyType="go"
+                  onSubmitEditing={() => {
+                    if (scanInput.trim()) handleScanRoom(scanInput);
+                  }}
+                  testID="scan-room-input"
+                />
+              </View>
+              <TouchableOpacity
+                style={[styles.scanGoBtn, { backgroundColor: theme.primary, opacity: scanInput.trim() ? 1 : 0.4 }]}
+                onPress={() => { if (scanInput.trim()) handleScanRoom(scanInput); }}
+                disabled={!scanInput.trim()}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.scanGoBtnText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.scanSectionLabel}>
+              {scanInput.trim() ? `Résultats (${scanFilteredRooms.length})` : `Mes chambres (${assignedRooms.length})`}
+            </Text>
+
+            <FlatList
+              data={scanFilteredRooms}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.scanListContent}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => {
+                const isInProg = item.cleaningStatus === 'en_cours';
+                const isDoneStatus = item.cleaningStatus === 'nettoyee' || item.cleaningStatus === 'validee';
+                const isRefusedStatus = item.cleaningStatus === 'refusee';
+                const canAct = isInProg || item.cleaningStatus === 'none' || isRefusedStatus;
+                const actionColor = isInProg ? '#16A34A' : theme.primary;
+                const actionIcon = isInProg ? <CheckCircle size={16} color="#FFF" /> : <Play size={16} color="#FFF" />;
+                const actionLabel = isInProg ? 'Terminer' : 'Démarrer';
+                const statusLabel = isInProg ? '🧹 En cours' : isDoneStatus ? '✅ Terminé' : isRefusedStatus ? '🔄 À refaire' : '';
+
+                return (
+                  <TouchableOpacity
+                    style={styles.scanRoomItem}
+                    onPress={() => handleScanRoom(item.roomNumber)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.scanRoomLeft}>
+                      <Text style={styles.scanRoomNumber}>{item.roomNumber}</Text>
+                      <Text style={styles.scanRoomType}>{item.roomType}</Text>
+                      {statusLabel ? <Text style={styles.scanRoomStatus}>{statusLabel}</Text> : null}
+                    </View>
+                    {canAct && (
+                      <View style={[styles.scanRoomAction, { backgroundColor: actionColor }]}>
+                        {actionIcon}
+                        <Text style={styles.scanRoomActionText}>{actionLabel}</Text>
+                      </View>
+                    )}
+                    {isDoneStatus && (
+                      <View style={[styles.scanRoomAction, { backgroundColor: '#E2E8F0' }]}>
+                        <CheckCircle size={16} color="#16A34A" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+              ListEmptyComponent={
+                <View style={styles.scanEmpty}>
+                  <Text style={styles.scanEmptyText}>Aucune chambre trouvée</Text>
+                </View>
+              }
+            />
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <View style={styles.swipeHintBar}>
         <Text style={styles.swipeHintText}>
@@ -658,4 +820,144 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 56 },
   emptyTitle: { fontSize: 18, fontWeight: '700' as const, color: '#1A2B33' },
   emptySubtext: { fontSize: 13, color: '#5A6B78' },
+
+  scanModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  scanModalContainer: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '85%',
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  scanModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  scanModalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  scanModalTitle: {
+    fontSize: 18,
+    fontWeight: '800' as const,
+    color: '#1E293B',
+  },
+  scanModalClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scanInputRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+    gap: 10,
+  },
+  scanInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1.5,
+    gap: 8,
+  },
+  scanInputField: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1E293B',
+    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
+    fontWeight: '600' as const,
+  },
+  scanGoBtn: {
+    width: 52,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scanGoBtnText: {
+    fontSize: 15,
+    fontWeight: '800' as const,
+    color: '#FFF',
+  },
+  scanSectionLabel: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#94A3B8',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+  },
+  scanListContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  scanRoomItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  scanRoomLeft: {
+    flex: 1,
+    gap: 2,
+  },
+  scanRoomNumber: {
+    fontSize: 22,
+    fontWeight: '900' as const,
+    color: '#1E293B',
+  },
+  scanRoomType: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  scanRoomStatus: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  scanRoomAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  scanRoomActionText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#FFF',
+  },
+  scanEmpty: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  scanEmptyText: {
+    fontSize: 14,
+    color: '#94A3B8',
+    fontWeight: '500' as const,
+  },
 });
