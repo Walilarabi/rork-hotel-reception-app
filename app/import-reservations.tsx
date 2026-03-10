@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
-import { Upload, FileText, ChevronRight, ChevronLeft, Check, X, Plus, Trash2, AlertTriangle, CheckCircle, Coffee } from 'lucide-react-native';
+import { Upload, FileText, ChevronRight, ChevronLeft, Check, X, Plus, Trash2, AlertTriangle, CheckCircle, Coffee, Download } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
 import * as XLSX from 'xlsx';
@@ -290,6 +290,55 @@ export default function ImportReservationsScreen() {
   const [manualRows, setManualRows] = useState<ImportedReservation[]>([
     { id: generateId(), guestName: '', checkInDate: '', checkOutDate: '', roomNumber: '', adults: 1, children: 0, preferences: '', breakfastIncluded: false, selected: true, error: null },
   ]);
+
+  const handleDownloadTemplate = useCallback(async () => {
+    console.log('[Import] Generating template file');
+    try {
+      const templateHeaders = [
+        'Chambre', 'Nom du client', 'Date arrivée', 'Date départ',
+        'Adultes', 'Enfants', 'Petit-déjeuner', 'Préférences'
+      ];
+      const templateRows = [
+        ['101', 'Jean Dupont', '15/03/2026', '18/03/2026', '2', '0', 'Oui', 'Vue mer'],
+        ['205', 'Marie Martin', '16/03/2026', '20/03/2026', '1', '1', 'Non', ''],
+        ['312', 'Pierre Bernard', '15/03/2026', '17/03/2026', '2', '2', 'Oui', 'Lit bébé'],
+        ['404', 'Sophie Leroy', '17/03/2026', '22/03/2026', '1', '0', 'Oui', 'Étage élevé'],
+        ['108', 'Ahmed Benali', '15/03/2026', '16/03/2026', '2', '0', 'Non', 'Late check-in'],
+      ];
+
+      const wsData = [templateHeaders, ...templateRows];
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+      ws['!cols'] = [
+        { wch: 10 }, { wch: 22 }, { wch: 16 }, { wch: 16 },
+        { wch: 10 }, { wch: 10 }, { wch: 15 }, { wch: 24 },
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Import Clients');
+
+      if (Platform.OS === 'web') {
+        XLSX.writeFile(wb, 'modele_import_clients.xlsx');
+      } else {
+        const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+        const { File, Paths } = await import('expo-file-system');
+        const file = new File(Paths.cache, 'modele_import_clients.xlsx');
+        const binaryString = atob(wbout);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        file.write(bytes);
+        Alert.alert('Modèle généré', 'Le fichier modèle a été enregistré. Vous pouvez le retrouver dans vos fichiers.');
+      }
+
+      if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      console.log('[Import] Template generated successfully');
+    } catch (e) {
+      console.log('[Import] Template generation error:', e);
+      Alert.alert('Erreur', 'Impossible de générer le modèle : ' + String(e));
+    }
+  }, []);
 
   const getMimeTypes = useCallback((m: ImportMode): string[] => {
     switch (m) {
@@ -606,6 +655,22 @@ export default function ImportReservationsScreen() {
         <Text style={styles.heroTitle}>{ti.noPms}</Text>
         <Text style={styles.heroDesc}>{ti.noPmsDesc}</Text>
       </View>
+
+      <TouchableOpacity
+        style={styles.templateBtn}
+        onPress={handleDownloadTemplate}
+        activeOpacity={0.7}
+        testID="download-template-btn"
+      >
+        <View style={styles.templateBtnIcon}>
+          <Download size={18} color={FT.brand} />
+        </View>
+        <View style={styles.templateBtnContent}>
+          <Text style={styles.templateBtnTitle}>Télécharger le modèle Excel</Text>
+          <Text style={styles.templateBtnDesc}>Fichier .xlsx pré-rempli avec les colonnes attendues et des exemples</Text>
+        </View>
+        <ChevronRight size={16} color={FT.textMuted} />
+      </TouchableOpacity>
 
       {([{ key: 'csv' as const, label: 'CSV / Texte', desc: '.csv, .tsv, .txt', icon: 'text' },
         { key: 'excel' as const, label: 'Excel', desc: '.xlsx, .xls, .ods', icon: 'spreadsheet' },
@@ -1049,6 +1114,12 @@ const styles = StyleSheet.create({
   heroIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: FT.brandSoft, justifyContent: 'center', alignItems: 'center' },
   heroTitle: { fontSize: 18, fontWeight: '700' as const, color: FT.text },
   heroDesc: { fontSize: 13, color: FT.textSec, textAlign: 'center' as const, paddingHorizontal: 20 },
+
+  templateBtn: { flexDirection: 'row' as const, alignItems: 'center' as const, padding: 14, borderRadius: 12, backgroundColor: '#EBF5FF', borderWidth: 1.5, borderColor: '#B3D9FF', marginBottom: 18, gap: 12 },
+  templateBtnIcon: { width: 42, height: 42, borderRadius: 10, backgroundColor: '#DBEAFE', justifyContent: 'center' as const, alignItems: 'center' as const },
+  templateBtnContent: { flex: 1, gap: 2 },
+  templateBtnTitle: { fontSize: 13, fontWeight: '700' as const, color: FT.brand },
+  templateBtnDesc: { fontSize: 11, color: '#5B8DB8', lineHeight: 15 },
 
   modeCard: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 12, backgroundColor: FT.surface, borderWidth: 1.5, borderColor: FT.border, marginBottom: 10, gap: 12 },
   modeCardActive: { borderColor: FT.brand, backgroundColor: FT.brandSoft },
