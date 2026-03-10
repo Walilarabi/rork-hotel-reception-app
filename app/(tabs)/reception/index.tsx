@@ -625,33 +625,6 @@ export default function ReceptionDashboard() {
                     <Text style={[tableStyles.channelTagText, { color: chCfg.color }]}>{srcCfg.hasCommission ? 'OTA' : chCfg.label}</Text>
                   </View>
                 </View>
-                {sourceDropdownRoomId === room.id && (
-                  <View style={tableStyles.sourceDropdown}>
-                    {ALL_BOOKING_SOURCES.map((src) => {
-                      const sc = BOOKING_SOURCE_CONFIG[src];
-                      const cc = CHANNEL_TYPE_CONFIG[sc.channelType];
-                      return (
-                        <TouchableOpacity
-                          key={src}
-                          style={[tableStyles.sourceDropItem, room.bookingSource === src && tableStyles.sourceDropItemActive]}
-                          onPress={() => {
-                            updateRoom({ roomId: room.id, updates: { bookingSource: src } });
-                            setSourceDropdownRoomId(null);
-                            if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          }}
-                        >
-                          <View style={[tableStyles.sourceDropLogo, { backgroundColor: sc.color }]}>
-                            <Text style={tableStyles.sourceDropLogoText}>{sc.icon}</Text>
-                          </View>
-                          <Text style={tableStyles.sourceDropLabel} numberOfLines={1}>{sc.label}</Text>
-                          <View style={[tableStyles.sourceDropTag, { backgroundColor: cc.bgColor }]}>
-                            <Text style={[tableStyles.sourceDropTagText, { color: cc.color }]}>{sc.hasCommission ? 'OTA' : cc.label}</Text>
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                )}
               </TouchableOpacity>
             );
           })() : (
@@ -661,33 +634,6 @@ export default function ReceptionDashboard() {
               activeOpacity={0.7}
             >
               <Text style={tableStyles.sourceEmptyText}>{'+ Source'}</Text>
-              {sourceDropdownRoomId === room.id && (
-                <View style={tableStyles.sourceDropdown}>
-                  {ALL_BOOKING_SOURCES.map((src) => {
-                    const sc = BOOKING_SOURCE_CONFIG[src];
-                    const cc = CHANNEL_TYPE_CONFIG[sc.channelType];
-                    return (
-                      <TouchableOpacity
-                        key={src}
-                        style={tableStyles.sourceDropItem}
-                        onPress={() => {
-                          updateRoom({ roomId: room.id, updates: { bookingSource: src } });
-                          setSourceDropdownRoomId(null);
-                          if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        }}
-                      >
-                        <View style={[tableStyles.sourceDropLogo, { backgroundColor: sc.color }]}>
-                          <Text style={tableStyles.sourceDropLogoText}>{sc.icon}</Text>
-                        </View>
-                        <Text style={tableStyles.sourceDropLabel} numberOfLines={1}>{sc.label}</Text>
-                        <View style={[tableStyles.sourceDropTag, { backgroundColor: cc.bgColor }]}>
-                          <Text style={[tableStyles.sourceDropTagText, { color: cc.color }]}>{sc.hasCommission ? 'OTA' : cc.label}</Text>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
             </TouchableOpacity>
           )}
         </View>
@@ -1312,6 +1258,58 @@ export default function ReceptionDashboard() {
       </Modal>
 
       <Modal
+        visible={sourceDropdownRoomId !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSourceDropdownRoomId(null)}
+      >
+        <TouchableOpacity
+          style={sourceModalStyles.overlay}
+          activeOpacity={1}
+          onPress={() => setSourceDropdownRoomId(null)}
+        >
+          <TouchableOpacity style={sourceModalStyles.card} activeOpacity={1} onPress={() => {}}>
+            <View style={sourceModalStyles.header}>
+              <Text style={sourceModalStyles.headerTitle}>{'Sélectionner la source'}</Text>
+              <TouchableOpacity onPress={() => setSourceDropdownRoomId(null)} style={sourceModalStyles.closeBtn}>
+                <X size={18} color={FT.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={sourceModalStyles.list} nestedScrollEnabled>
+              {ALL_BOOKING_SOURCES.map((src) => {
+                const sc = BOOKING_SOURCE_CONFIG[src];
+                const cc = CHANNEL_TYPE_CONFIG[sc.channelType];
+                const currentRoom = sourceDropdownRoomId ? rooms.find((r) => r.id === sourceDropdownRoomId) : null;
+                const isActive = currentRoom?.bookingSource === src;
+                return (
+                  <TouchableOpacity
+                    key={src}
+                    style={[sourceModalStyles.item, isActive && sourceModalStyles.itemActive]}
+                    onPress={() => {
+                      if (sourceDropdownRoomId) {
+                        updateRoom({ roomId: sourceDropdownRoomId, updates: { bookingSource: src } });
+                      }
+                      setSourceDropdownRoomId(null);
+                      if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  >
+                    <View style={[sourceModalStyles.logo, { backgroundColor: sc.color }]}>
+                      <Text style={sourceModalStyles.logoText}>{sc.icon}</Text>
+                    </View>
+                    <Text style={[sourceModalStyles.label, isActive && sourceModalStyles.labelActive]} numberOfLines={1}>{sc.label}</Text>
+                    <View style={[sourceModalStyles.tag, { backgroundColor: cc.bgColor }]}>
+                      <Text style={[sourceModalStyles.tagText, { color: cc.color }]}>{sc.hasCommission ? 'OTA' : cc.label}</Text>
+                    </View>
+                    {isActive && <Text style={sourceModalStyles.checkMark}>{'✓'}</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal
         visible={showImportModal}
         transparent
         animationType="fade"
@@ -1694,6 +1692,24 @@ const modalStyles = StyleSheet.create({
   dateBtnActive: { borderColor: FT.brand, backgroundColor: FT.brandSoft },
   dateBtnText: { fontSize: 14, color: FT.text },
   calendarWrap: { marginTop: 4 },
+});
+
+const sourceModalStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  card: { backgroundColor: '#FFF', borderRadius: 16, width: '100%', maxWidth: 340, overflow: 'hidden' as const, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 20 },
+  header: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  headerTitle: { fontSize: 16, fontWeight: '700' as const, color: '#1E293B' },
+  closeBtn: { padding: 4 },
+  list: { maxHeight: 400 },
+  item: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, paddingHorizontal: 20, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
+  itemActive: { backgroundColor: '#F0F9FF' },
+  logo: { width: 28, height: 28, borderRadius: 7, justifyContent: 'center' as const, alignItems: 'center' as const },
+  logoText: { fontSize: 11, fontWeight: '800' as const, color: '#FFF' },
+  label: { flex: 1, fontSize: 14, fontWeight: '500' as const, color: '#334155' },
+  labelActive: { fontWeight: '700' as const, color: '#1E293B' },
+  tag: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  tagText: { fontSize: 9, fontWeight: '700' as const },
+  checkMark: { fontSize: 14, color: '#4F46E5', fontWeight: '700' as const, marginLeft: 4 },
 });
 
 const importModalStyles = StyleSheet.create({
