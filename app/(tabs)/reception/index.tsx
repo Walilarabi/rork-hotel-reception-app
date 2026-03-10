@@ -545,9 +545,6 @@ export default function ReceptionDashboard() {
                 </Text>
                 <Pencil size={10} color={FT.textMuted} style={{ marginLeft: 4 }} />
               </View>
-              <Text style={tableStyles.clientDates} numberOfLines={1}>
-                {formatShortDate(room.currentReservation?.checkInDate ?? '')} {'→'} {formatShortDate(room.currentReservation?.checkOutDate ?? '')}
-              </Text>
             </>
           ) : (
             <View style={tableStyles.clientEmptyRow}>
@@ -557,6 +554,22 @@ export default function ReceptionDashboard() {
             </View>
           )}
         </TouchableOpacity>
+
+        <View style={tableStyles.arriveeCell}>
+          {hasClient && room.currentReservation?.checkInDate ? (
+            <Text style={tableStyles.dateText}>{formatShortDate(room.currentReservation.checkInDate)}</Text>
+          ) : (
+            <Text style={tableStyles.emptyDash}>{'—'}</Text>
+          )}
+        </View>
+
+        <View style={tableStyles.departCell}>
+          {hasClient && room.currentReservation?.checkOutDate ? (
+            <Text style={tableStyles.dateTextDepart}>{formatShortDate(room.currentReservation.checkOutDate)}</Text>
+          ) : (
+            <Text style={tableStyles.emptyDash}>{'—'}</Text>
+          )}
+        </View>
 
         <View style={tableStyles.hkCell}>
           {hkDisplay.label ? (
@@ -996,6 +1009,12 @@ export default function ReceptionDashboard() {
                   <View style={tableStyles.clientCell}>
                     <Text style={tableStyles.headerText}>{'CLIENT'}</Text>
                   </View>
+                  <View style={tableStyles.arriveeCell}>
+                    <Text style={tableStyles.headerText}>{'ARRIVÉE'}</Text>
+                  </View>
+                  <View style={tableStyles.departCell}>
+                    <Text style={tableStyles.headerText}>{'DÉPART'}</Text>
+                  </View>
                   <View style={tableStyles.hkCell}>
                     <Text style={tableStyles.headerText}>{'HOUSEKEEPING'}</Text>
                   </View>
@@ -1266,7 +1285,7 @@ const ftStyles = StyleSheet.create({
   roomAvatarText: { fontSize: 8, fontWeight: '700' as const, color: '#FFF' },
 });
 
-const TABLE_MIN_WIDTH = 1120;
+const TABLE_MIN_WIDTH = 1340;
 
 const tableStyles = StyleSheet.create({
   stickyHeader: {
@@ -1341,10 +1360,13 @@ const tableStyles = StyleSheet.create({
   roomInfo: { flexShrink: 1 },
   roomTypeText: { fontSize: 12, fontWeight: '600' as const, color: '#1E293B' },
   roomCatText: { fontSize: 10, color: '#94A3B8', marginTop: 1 },
-  clientCell: { width: 200, paddingHorizontal: 8, justifyContent: 'center' as const },
+  clientCell: { width: 180, paddingHorizontal: 8, justifyContent: 'center' as const },
   clientNameRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4 },
   clientName: { fontSize: 13, fontWeight: '600' as const, color: '#1E293B', flexShrink: 1 },
-  clientDates: { fontSize: 10, color: '#64748B', marginTop: 3, fontWeight: '500' as const },
+  arriveeCell: { width: 90, paddingHorizontal: 8, justifyContent: 'center' as const },
+  departCell: { width: 90, paddingHorizontal: 8, justifyContent: 'center' as const },
+  dateText: { fontSize: 12, fontWeight: '600' as const, color: '#1E88E5' },
+  dateTextDepart: { fontSize: 12, fontWeight: '600' as const, color: '#E53935' },
   clientEmptyRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6 },
   clientEmptyDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#CBD5E1' },
   clientEmpty: { fontSize: 12, color: '#94A3B8', fontWeight: '500' as const },
@@ -1546,7 +1568,7 @@ const styles = StyleSheet.create({
   listContent: { padding: 14, paddingBottom: 100, gap: 10 },
   tableWrapper: { flex: 1 },
   tableScrollH: { flex: 1 },
-  tableInner: { flex: 1 },
+  tableInner: { flex: 1, minWidth: TABLE_MIN_WIDTH },
 
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 8 },
   emptyIcon: { fontSize: 48 },
