@@ -30,6 +30,9 @@ import {
   BedDouble,
   History,
   Settings,
+  Upload,
+  QrCode,
+  BarChart3,
 } from 'lucide-react-native';
 import { Stack, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -263,6 +266,43 @@ export default function SettingsScreen() {
                 <View>
                   <Text style={[styles.menuBtnTitle, { color: textColor }]}>{t.rooms.rooms}</Text>
                   <Text style={[styles.menuBtnSub, { color: textSec }]}>{t.rooms.addRoom}</Text>
+                </View>
+              </View>
+              <ChevronRight size={16} color={textMut} />
+            </TouchableOpacity>
+            {(currentUser?.role === 'direction' || currentUser?.role === 'super_admin') && (
+              <>
+                <View style={{ height: 8 }} />
+                <TouchableOpacity style={[styles.menuBtn, { backgroundColor: cardBg, borderColor: borderCol }]} onPress={() => router.push('/import-rooms' as any)}>
+                  <View style={styles.menuBtnLeft}>
+                    <Upload size={18} color={Colors.teal} />
+                    <View>
+                      <Text style={[styles.menuBtnTitle, { color: textColor }]}>Importer des chambres</Text>
+                      <Text style={[styles.menuBtnSub, { color: textSec }]}>Import en masse via CSV / Excel</Text>
+                    </View>
+                  </View>
+                  <ChevronRight size={16} color={textMut} />
+                </TouchableOpacity>
+              </>
+            )}
+            <View style={{ height: 8 }} />
+            <TouchableOpacity style={[styles.menuBtn, { backgroundColor: cardBg, borderColor: borderCol }]} onPress={() => router.push('/qr-manager' as any)}>
+              <View style={styles.menuBtnLeft}>
+                <QrCode size={18} color="#6B5CE7" />
+                <View>
+                  <Text style={[styles.menuBtnTitle, { color: textColor }]}>QR Codes</Text>
+                  <Text style={[styles.menuBtnSub, { color: textSec }]}>Ménage, avis chambres, avis PDJ</Text>
+                </View>
+              </View>
+              <ChevronRight size={16} color={textMut} />
+            </TouchableOpacity>
+            <View style={{ height: 8 }} />
+            <TouchableOpacity style={[styles.menuBtn, { backgroundColor: cardBg, borderColor: borderCol }]} onPress={() => router.push('/satisfaction-dashboard' as any)}>
+              <View style={styles.menuBtnLeft}>
+                <BarChart3 size={18} color="#F59E0B" />
+                <View>
+                  <Text style={[styles.menuBtnTitle, { color: textColor }]}>Satisfaction Clients</Text>
+                  <Text style={[styles.menuBtnSub, { color: textSec }]}>Dashboard, alertes, avis</Text>
                 </View>
               </View>
               <ChevronRight size={16} color={textMut} />

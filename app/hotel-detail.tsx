@@ -272,8 +272,8 @@ export default function HotelDetailScreen() {
   }, [genType, genFloor, genCount, genStartNum]);
 
   const handleImportExcel = useCallback(() => {
-    Alert.alert('Import Excel', 'Cette fonctionnalité permet d\'importer la structure des chambres depuis un fichier Excel.\n\nTemplate attendu :\n- Onglet "Chambres" : numéro, étage, type, catégorie, vue, sdb, surface, capacité\n- Onglet "Étages" : numéro, description\n- Onglet "Espaces communs" : nom, type, capacité');
-  }, []);
+    router.push('/import-rooms' as any);
+  }, [router]);
 
   const toggleEquipment = useCallback((id: string) => {
     setSelectedEquipment((prev) => {

@@ -974,3 +974,99 @@ export const LOG_ACTION_CONFIG: Record<LogAction, { label: string; icon: string 
   pms_sync_forced: { label: 'Sync PMS forcée', icon: '🔄' },
   data_export: { label: 'Export de données', icon: '📊' },
 };
+
+export type ReviewType = 'room' | 'breakfast';
+export type ReviewRecommendation = 'yes' | 'maybe' | 'no';
+
+export interface RoomReviewRatings {
+  cleanliness: number;
+  bedComfort: number;
+  equipment: number;
+  bathroom: number;
+  quietness: number;
+  temperature: number;
+  overall: number;
+}
+
+export interface BreakfastReviewRatings {
+  overallQuality: number;
+  variety: number;
+  freshness: number;
+  presentation: number;
+  cleanliness: number;
+  availability: number;
+  serviceQuality: number;
+  valueForMoney: number;
+  overallSatisfaction: number;
+}
+
+export interface ClientReview {
+  id: string;
+  hotelId: string;
+  type: ReviewType;
+  roomId: string | null;
+  roomNumber: string | null;
+  ratings: RoomReviewRatings | BreakfastReviewRatings;
+  hasProblem: boolean;
+  problemDescription: string;
+  comment: string;
+  recommendation: ReviewRecommendation;
+  createdAt: string;
+}
+
+export interface QualityAlert {
+  id: string;
+  hotelId: string;
+  roomId: string | null;
+  roomNumber: string | null;
+  reviewId: string;
+  category: string;
+  score: number;
+  clientComment: string;
+  status: 'active' | 'resolved';
+  createdAt: string;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+}
+
+export interface RecurringIssue {
+  id: string;
+  hotelId: string;
+  roomId: string;
+  roomNumber: string;
+  category: string;
+  occurrences: number;
+  periodDays: number;
+  averageScore: number;
+  status: 'active' | 'resolved';
+  detectedAt: string;
+  resolvedAt: string | null;
+}
+
+export const ROOM_REVIEW_CATEGORIES: { key: keyof RoomReviewRatings; label: string; icon: string }[] = [
+  { key: 'cleanliness', label: 'Propreté générale', icon: '✨' },
+  { key: 'bedComfort', label: 'Confort de la literie', icon: '🛏️' },
+  { key: 'equipment', label: 'Équipements', icon: '📺' },
+  { key: 'bathroom', label: 'Salle de bain', icon: '🚿' },
+  { key: 'quietness', label: 'Calme & insonorisation', icon: '🤫' },
+  { key: 'temperature', label: 'Température & confort', icon: '🌡️' },
+  { key: 'overall', label: 'Satisfaction globale', icon: '⭐' },
+];
+
+export const BREAKFAST_REVIEW_CATEGORIES: { key: keyof BreakfastReviewRatings; label: string; icon: string }[] = [
+  { key: 'overallQuality', label: 'Qualité globale', icon: '🍽️' },
+  { key: 'variety', label: 'Variété des produits', icon: '🥐' },
+  { key: 'freshness', label: 'Fraîcheur des produits', icon: '🥗' },
+  { key: 'presentation', label: 'Présentation du buffet', icon: '🎨' },
+  { key: 'cleanliness', label: 'Propreté de la salle', icon: '✨' },
+  { key: 'availability', label: 'Disponibilité (réassort)', icon: '📦' },
+  { key: 'serviceQuality', label: 'Accueil & service', icon: '👋' },
+  { key: 'valueForMoney', label: 'Rapport qualité/prix', icon: '💰' },
+  { key: 'overallSatisfaction', label: 'Satisfaction globale', icon: '⭐' },
+];
+
+export const RECOMMENDATION_CONFIG: Record<ReviewRecommendation, { label: string; color: string; icon: string }> = {
+  yes: { label: 'Oui certainement', color: '#22C55E', icon: '👍' },
+  maybe: { label: 'Peut-être', color: '#F59E0B', icon: '🤔' },
+  no: { label: 'Non', color: '#EF4444', icon: '👎' },
+};

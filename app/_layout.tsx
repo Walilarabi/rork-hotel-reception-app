@@ -13,6 +13,7 @@ import { ThemeProvider } from '@/providers/ThemeProvider';
 import { ChatbotProvider } from '@/providers/ChatbotProvider';
 import { ForecastProvider } from '@/providers/ForecastProvider';
 import { ConfigurationProvider } from '@/providers/ConfigurationProvider';
+import { SatisfactionProvider } from '@/providers/SatisfactionProvider';
 import ChatBot from '@/components/ChatBot';
 import { Colors } from '@/constants/colors';
 import { FT } from '@/constants/flowtym';
@@ -109,6 +110,9 @@ function RootLayoutNav() {
       <Stack.Screen name="forecast-config" options={{ presentation: 'modal', title: 'Planification' }} />
       <Stack.Screen name="import-reservations" options={{ presentation: 'modal', title: 'Import réservations' }} />
       <Stack.Screen name="configuration" options={{ presentation: 'modal', title: 'Configuration' }} />
+      <Stack.Screen name="import-rooms" options={{ presentation: 'modal', title: 'Import chambres' }} />
+      <Stack.Screen name="qr-manager" options={{ title: 'QR Codes' }} />
+      <Stack.Screen name="satisfaction-dashboard" options={{ title: 'Satisfaction' }} />
     </Stack>
   );
 }
@@ -168,10 +172,12 @@ export default function RootLayout() {
                   <SuperAdminProvider>
                     <SubscriptionProvider>
                       <ConfigurationProvider>
-                        <ChatbotProvider>
-                          <RootLayoutNav />
-                          <ChatBot />
-                        </ChatbotProvider>
+                        <SatisfactionProvider>
+                          <ChatbotProvider>
+                            <RootLayoutNav />
+                            <ChatBot />
+                          </ChatbotProvider>
+                        </SatisfactionProvider>
                       </ConfigurationProvider>
                     </SubscriptionProvider>
                   </SuperAdminProvider>
