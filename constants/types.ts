@@ -975,6 +975,67 @@ export const LOG_ACTION_CONFIG: Record<LogAction, { label: string; icon: string 
   data_export: { label: 'Export de données', icon: '📊' },
 };
 
+export interface HotelImportProfile {
+  hotelName: string;
+  floors: number;
+  totalRooms: number;
+  address: string;
+  phone: string;
+  email: string;
+}
+
+export interface HotelImportRoom {
+  id: string;
+  roomNumber: string;
+  floor: number;
+  roomType: string;
+  category: string;
+  view: string;
+  bathroomType: string;
+  capacity: number;
+  size: number;
+  connectingRoom: boolean;
+  accessiblePMR: boolean;
+  error: string | null;
+  selected: boolean;
+}
+
+export interface HotelImportDotation {
+  id: string;
+  roomType: string;
+  drapPetit: number;
+  drapMoyen: number;
+  drapGrand: number;
+  houssePetit: number;
+  housseMoyen: number;
+  housseGrand: number;
+  serviette: number;
+  drapBain: number;
+  tapisBain: number;
+  peignoir: number;
+  slippers: number;
+  savon: number;
+  gelDouche: number;
+  shampoing: number;
+  laitCorps: number;
+  cafe: number;
+  the: number;
+  eau: number;
+  soda: number;
+  snack: number;
+}
+
+export interface HotelImportResult {
+  hotelCreated: boolean;
+  roomsCreated: number;
+  roomsIgnored: number;
+  dotationCreated: number;
+  qrCodesGenerated: number;
+  errors: string[];
+}
+
+export type HotelImportStep = 'upload' | 'profile' | 'rooms' | 'dotation' | 'importing' | 'result';
+
 export type ReviewType = 'room' | 'breakfast';
 export type ReviewRecommendation = 'yes' | 'maybe' | 'no';
 

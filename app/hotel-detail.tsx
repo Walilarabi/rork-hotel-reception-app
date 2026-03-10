@@ -157,7 +157,7 @@ export default function HotelDetailScreen() {
       addHotel({ name, email, phone, address, subscriptionPlan: plan, status, subscriptionStart: subStart, subscriptionEnd: subEnd });
     }
 
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.back();
   }, [name, email, phone, address, plan, status, subStart, subEnd, isEditing, existingHotel, updateHotel, addHotel, router]);
 
@@ -173,7 +173,7 @@ export default function HotelDetailScreen() {
       setIsTesting(false);
       setTestResult(success ? 'success' : 'error');
       if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(
+        void Haptics.notificationAsync(
           success ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error
         );
       }
@@ -191,7 +191,7 @@ export default function HotelDetailScreen() {
       return;
     }
     Alert.alert('Configuration PMS sauvegardée', `La configuration pour ${PMS_TYPE_CONFIG[pmsType].label} a été enregistrée.`);
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [pmsConnectionName, pmsType]);
 
   const validateIBAN = useCallback((iban: string) => {
@@ -219,7 +219,7 @@ export default function HotelDetailScreen() {
       });
     }
     Alert.alert('Facturation sauvegardée', 'Les informations de facturation ont été enregistrées.');
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [billing, isEditing, existingHotel, updateHotel, validateIBAN, validateBIC]);
 
   const handleGenerateMandate = useCallback(() => {
@@ -235,7 +235,7 @@ export default function HotelDetailScreen() {
       mandateStatus: 'pending',
     }));
     Alert.alert('Mandat généré', `Référence: ${ref}\n\nLe mandat SEPA a été généré. Vous pouvez l'envoyer pour signature.`);
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [billing, existingHotel]);
 
   const handleSendMandate = useCallback(() => {
@@ -249,7 +249,7 @@ export default function HotelDetailScreen() {
       mandateStatus: 'sent',
     }));
     Alert.alert('Mandat envoyé', `Le mandat a été envoyé à ${billing.billingEmail} pour signature.`);
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [billing.billingEmail]);
 
   const handleGenerateRooms = useCallback(() => {
@@ -263,7 +263,7 @@ export default function HotelDetailScreen() {
       'Chambres générées',
       `${count} chambres de type "${genType}" créées à partir du numéro ${startNum}${genFloor ? `, étage ${genFloor}` : ''}.`,
     );
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setGenType('');
     setGenCategory('');
     setGenFloor('');
@@ -565,15 +565,23 @@ export default function HotelDetailScreen() {
         <TouchableOpacity style={styles.importBtn} onPress={handleImportExcel}>
           <FileSpreadsheet size={18} color={SA.accent} />
           <View style={styles.importBtnInfo}>
-            <Text style={styles.importBtnTitle}>Importer depuis Excel</Text>
-            <Text style={styles.importBtnSub}>Configurez en masse via un fichier template</Text>
+            <Text style={styles.importBtnTitle}>Importer des chambres</Text>
+            <Text style={styles.importBtnSub}>Configurez en masse via un fichier CSV/Excel</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.importBtn, { marginTop: 10, borderColor: '#14B8A640' }]} onPress={() => router.push('/import-hotel' as any)}>
+          <FileSpreadsheet size={18} color="#14B8A6" />
+          <View style={styles.importBtnInfo}>
+            <Text style={[styles.importBtnTitle, { color: '#14B8A6' }]}>Import complet hôtel</Text>
+            <Text style={styles.importBtnSub}>Profil + chambres + dotation + QR codes</Text>
           </View>
         </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.saveBtn} onPress={() => {
         Alert.alert('Configuration sauvegardée', 'La configuration de l\'hôtel a été enregistrée.');
-        if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }}>
         <Save size={18} color="#FFFFFF" />
         <Text style={styles.saveBtnText}>Enregistrer la configuration</Text>
@@ -737,8 +745,8 @@ export default function HotelDetailScreen() {
     const ref = `CTR-${existingHotel?.id?.toUpperCase().slice(0, 6) ?? 'NEW'}-${new Date().toISOString().slice(0, 7).replace('-', '')}`;
     setContractRef(ref);
     setContractStatus('draft');
-    Alert.alert('Contrat généré', `Référence: ${ref}\n\nLe contrat a été généré en brouillon. Vous pouvez l\'envoyer pour signature.`);
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert('Contrat généré', `Référence: ${ref}\n\nLe contrat a été généré en brouillon. Vous pouvez l'envoyer pour signature.`);
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [name, existingHotel]);
 
   const handleSendContract = useCallback(() => {
@@ -748,13 +756,13 @@ export default function HotelDetailScreen() {
     }
     setContractStatus('sent');
     Alert.alert('Contrat envoyé', `Le contrat a été envoyé à ${email} pour signature électronique.`);
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [email]);
 
   const handleSignContract = useCallback(() => {
     setContractStatus('signed');
     Alert.alert('Contrat signé', 'Le contrat a été marqué comme signé.');
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, []);
 
   const renderContractTab = () => {

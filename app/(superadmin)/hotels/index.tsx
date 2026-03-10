@@ -19,6 +19,7 @@ import {
   Play,
   Trash2,
   ChevronDown,
+  FileSpreadsheet,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useSuperAdmin, useFilteredHotels } from '@/providers/SuperAdminProvider';
@@ -65,7 +66,7 @@ export default function HotelsScreen() {
         style: newStatus === 'suspended' ? 'destructive' : 'default',
         onPress: () => {
           toggleHotelStatus({ hotelId: hotel.id, newStatus });
-          if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         },
       },
     ]);
@@ -79,7 +80,7 @@ export default function HotelsScreen() {
         style: 'destructive',
         onPress: () => {
           deleteHotel(hotel.id);
-          if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         },
       },
     ]);
@@ -246,6 +247,10 @@ export default function HotelsScreen() {
         }
       />
 
+      <TouchableOpacity style={styles.importFab} onPress={() => router.push('/import-hotel' as any)} activeOpacity={0.7}>
+        <FileSpreadsheet size={18} color="#FFFFFF" />
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.fab} onPress={() => router.push('/hotel-detail')}>
         <Plus size={22} color="#FFFFFF" />
       </TouchableOpacity>
@@ -290,5 +295,6 @@ const styles = StyleSheet.create({
   actionBtn: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
   emptyTitle: { fontSize: 16, fontWeight: '600' as const, color: SA.textMuted },
+  importFab: { position: 'absolute', bottom: 88, right: 20, width: 44, height: 44, borderRadius: 14, backgroundColor: '#14B8A6', justifyContent: 'center', alignItems: 'center', elevation: 6, shadowColor: '#14B8A6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
   fab: { position: 'absolute', bottom: 24, right: 20, width: 52, height: 52, borderRadius: 16, backgroundColor: SA.accent, justifyContent: 'center', alignItems: 'center', elevation: 6, shadowColor: SA.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
 });

@@ -113,6 +113,7 @@ function RootLayoutNav() {
       <Stack.Screen name="import-rooms" options={{ presentation: 'modal', title: 'Import chambres' }} />
       <Stack.Screen name="qr-manager" options={{ title: 'QR Codes' }} />
       <Stack.Screen name="satisfaction-dashboard" options={{ title: 'Satisfaction' }} />
+      <Stack.Screen name="import-hotel" options={{ presentation: 'modal', title: 'Import Hôtel' }} />
     </Stack>
   );
 }
