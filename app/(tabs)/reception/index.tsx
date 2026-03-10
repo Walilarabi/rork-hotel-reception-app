@@ -13,7 +13,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { DoorOpen, UserPlus, X, ChevronDown, Coffee, List, LayoutGrid, Eye, Star, Pencil, Upload, Check, Search, FileText, Download, SlidersHorizontal, BedDouble, LogOut, RefreshCw, CheckCircle, AlertTriangle, Clock } from 'lucide-react-native';
+import { DoorOpen, UserPlus, X, ChevronDown, Coffee, List, LayoutGrid, Eye, Star, Pencil, Upload, Check, Search, FileText, Download, SlidersHorizontal, BedDouble, LogOut, RefreshCw, CheckCircle, AlertTriangle, Clock, Moon, Sun } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
 import DeskFloorSection from '@/components/DeskFloorSection';
@@ -25,26 +25,22 @@ import { useTheme } from '@/providers/ThemeProvider';
 
 import { RoomStatus, ClientBadge, Room, ROOM_STATUS_CONFIG, CLEANING_STATUS_CONFIG, ROOM_CLEANLINESS_CONFIG, BOOKING_SOURCE_CONFIG, CHANNEL_TYPE_CONFIG, ALL_BOOKING_SOURCES } from '@/constants/types';
 
-const DS = {
+const DS_LIGHT = {
   bg: '#F5F6FA',
   surface: '#FFFFFF',
   surfaceWarm: '#FAFBFD',
   surfaceHover: '#F0F1F6',
   headerBg: '#0F172A',
-
   accent: '#4F6BED',
   accentSoft: 'rgba(79,107,237,0.07)',
   accentLight: '#6B83F2',
   accentDark: '#3A50C7',
-
   text: '#0F172A',
   textSec: '#475569',
   textMuted: '#94A3B8',
   textLight: '#CBD5E1',
-
   border: '#E8ECF1',
   borderLight: '#F1F5F9',
-
   success: '#10B981',
   successSoft: 'rgba(16,185,129,0.08)',
   warning: '#F59E0B',
@@ -55,7 +51,15 @@ const DS = {
   infoSoft: 'rgba(59,130,246,0.08)',
   teal: '#14B8A6',
   tealSoft: 'rgba(20,184,166,0.08)',
-
+  rowEven: '#FFFFFF',
+  rowOdd: '#FAFBFD',
+  rowSelected: 'rgba(79,107,237,0.06)',
+  rowSelectedBorder: 'rgba(79,107,237,0.12)',
+  rowBorder: '#F1F5F9',
+  checkboxBg: '#FFF',
+  checkboxBorder: '#D1D5DB',
+  tableHeaderBg: '#0F172A',
+  tableHeaderText: 'rgba(255,255,255,0.5)',
   shadow: {
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 1 },
@@ -71,6 +75,73 @@ const DS = {
     elevation: 5,
   } as const,
 };
+
+const DS_DARK = {
+  bg: '#0B0E14',
+  surface: '#141820',
+  surfaceWarm: '#1A1F2B',
+  surfaceHover: '#222836',
+  headerBg: '#0B0E14',
+  accent: '#6B83F2',
+  accentSoft: 'rgba(107,131,242,0.12)',
+  accentLight: '#8B9DF5',
+  accentDark: '#4F6BED',
+  text: '#E2E8F0',
+  textSec: '#94A3B8',
+  textMuted: '#64748B',
+  textLight: '#475569',
+  border: '#1E2433',
+  borderLight: '#171C26',
+  success: '#34D399',
+  successSoft: 'rgba(52,211,153,0.12)',
+  warning: '#FBBF24',
+  warningSoft: 'rgba(251,191,36,0.12)',
+  danger: '#F87171',
+  dangerSoft: 'rgba(248,113,113,0.10)',
+  info: '#60A5FA',
+  infoSoft: 'rgba(96,165,250,0.12)',
+  teal: '#2DD4BF',
+  tealSoft: 'rgba(45,212,191,0.12)',
+  rowEven: '#141820',
+  rowOdd: '#171C26',
+  rowSelected: 'rgba(107,131,242,0.10)',
+  rowSelectedBorder: 'rgba(107,131,242,0.18)',
+  rowBorder: '#1E2433',
+  checkboxBg: '#1A1F2B',
+  checkboxBorder: '#374151',
+  tableHeaderBg: '#0B0E14',
+  tableHeaderText: 'rgba(255,255,255,0.4)',
+  shadow: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 2,
+  } as const,
+  shadowMd: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 5,
+  } as const,
+};
+
+interface DSColors {
+  bg: string; surface: string; surfaceWarm: string; surfaceHover: string; headerBg: string;
+  accent: string; accentSoft: string; accentLight: string; accentDark: string;
+  text: string; textSec: string; textMuted: string; textLight: string;
+  border: string; borderLight: string;
+  success: string; successSoft: string; warning: string; warningSoft: string;
+  danger: string; dangerSoft: string; info: string; infoSoft: string;
+  teal: string; tealSoft: string;
+  rowEven: string; rowOdd: string; rowSelected: string; rowSelectedBorder: string; rowBorder: string;
+  checkboxBg: string; checkboxBorder: string; tableHeaderBg: string; tableHeaderText: string;
+  shadow: { shadowColor: string; shadowOffset: { width: number; height: number }; shadowOpacity: number; shadowRadius: number; elevation: number };
+  shadowMd: { shadowColor: string; shadowOffset: { width: number; height: number }; shadowOpacity: number; shadowRadius: number; elevation: number };
+}
+
+const DS: DSColors = DS_LIGHT;
 
 const formatShortDate = (dateStr: string) => {
   try {
@@ -225,7 +296,8 @@ const KPI_CARDS_CONFIG = [
 
 export default function ReceptionDashboard() {
   const router = useRouter();
-  const { t } = useTheme();
+  const { t, isDarkMode, toggleDarkMode } = useTheme();
+  const d: DSColors = useMemo(() => isDarkMode ? DS_DARK : DS_LIGHT, [isDarkMode]);
   const {
     rooms,
     selectedRoomIds,
@@ -562,7 +634,7 @@ export default function ReceptionDashboard() {
     const statusColor = STATUS_SOFT_COLORS[room.status] ?? '#94A3B8';
 
     return (
-      <View style={[tbl.row, isEven ? tbl.rowEven : tbl.rowOdd, isSelected && tbl.rowSelected]}>
+      <View style={[tbl.row, { backgroundColor: isSelected ? d.rowSelected : isEven ? d.rowEven : d.rowOdd, borderBottomColor: isSelected ? d.rowSelectedBorder : d.rowBorder }]}>
         <TouchableOpacity
           style={tbl.checkCell}
           onPress={() => {
@@ -570,7 +642,7 @@ export default function ReceptionDashboard() {
             if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           }}
         >
-          <View style={[tbl.checkbox, isSelected && tbl.checkboxActive]}>
+          <View style={[tbl.checkbox, { backgroundColor: d.checkboxBg, borderColor: d.checkboxBorder }, isSelected && tbl.checkboxActive]}>
             {isSelected && <Check size={10} color="#FFF" />}
           </View>
         </TouchableOpacity>
@@ -580,8 +652,8 @@ export default function ReceptionDashboard() {
             <Text style={tbl.roomBadgeText}>{room.roomNumber}</Text>
           </View>
           <View style={tbl.roomMeta}>
-            <Text style={tbl.roomTypeLabel}>{room.roomType}</Text>
-            <Text style={tbl.roomSubLabel} numberOfLines={1}>
+            <Text style={[tbl.roomTypeLabel, { color: d.text }]}>{room.roomType}</Text>
+            <Text style={[tbl.roomSubLabel, { color: d.textMuted }]} numberOfLines={1}>
               {room.roomCategory ?? 'Classique'} · {room.roomSize ?? 16}m²
             </Text>
           </View>
@@ -612,29 +684,29 @@ export default function ReceptionDashboard() {
                 {room.clientBadge === 'prioritaire' && (
                   <Star size={11} color="#F59E0B" fill="#F59E0B" />
                 )}
-                <Text style={tbl.clientName} numberOfLines={1}>
+                <Text style={[tbl.clientName, { color: d.text }]} numberOfLines={1}>
                   {room.currentReservation?.guestName}
                 </Text>
               </View>
-              <Pencil size={10} color={DS.textMuted} />
+              <Pencil size={10} color={d.textMuted} />
             </View>
           ) : (
             <View style={tbl.clientEmptyWrap}>
-              <View style={tbl.clientEmptyDot} />
-              <Text style={tbl.clientEmptyText}>Libre</Text>
-              <Text style={tbl.clientAddBtn}>+ Ajouter</Text>
+              <View style={[tbl.clientEmptyDot, { backgroundColor: d.textLight }]} />
+              <Text style={[tbl.clientEmptyText, { color: d.textMuted }]}>Libre</Text>
+              <Text style={[tbl.clientAddBtn, { color: d.accent }]}>+ Ajouter</Text>
             </View>
           )}
         </TouchableOpacity>
 
         <View style={tbl.paxCell}>
           {hasClient ? (
-            <Text style={tbl.paxText}>
+            <Text style={[tbl.paxText, { color: d.textSec }]}>
               {room.currentReservation?.adults ?? 1}
               {(room.currentReservation?.children ?? 0) > 0 ? ` + ${room.currentReservation?.children}` : ''}
             </Text>
           ) : (
-            <Text style={tbl.dash}>—</Text>
+            <Text style={[tbl.dash, { color: d.textLight }]}>—</Text>
           )}
         </View>
 
@@ -642,7 +714,7 @@ export default function ReceptionDashboard() {
           {hasClient && room.currentReservation?.checkInDate ? (
             <Text style={tbl.dateIn}>{formatShortDate(room.currentReservation.checkInDate)}</Text>
           ) : (
-            <Text style={tbl.dash}>—</Text>
+            <Text style={[tbl.dash, { color: d.textLight }]}>—</Text>
           )}
         </View>
 
@@ -650,17 +722,17 @@ export default function ReceptionDashboard() {
           {hasClient && room.currentReservation?.checkOutDate ? (
             <Text style={tbl.dateOut}>{formatShortDate(room.currentReservation.checkOutDate)}</Text>
           ) : (
-            <Text style={tbl.dash}>—</Text>
+            <Text style={[tbl.dash, { color: d.textLight }]}>—</Text>
           )}
         </View>
 
         <View style={tbl.etaArrivalCell}>
           {room.etaArrival ? (
-            <View style={tbl.etaArrivalPill}>
-              <Text style={tbl.etaArrivalText}>{room.etaArrival}</Text>
+            <View style={[tbl.etaArrivalPill, { backgroundColor: d.accentSoft }]}>
+              <Text style={[tbl.etaArrivalText, { color: d.accent }]}>{room.etaArrival}</Text>
             </View>
           ) : (
-            <Text style={tbl.dash}>—</Text>
+            <Text style={[tbl.dash, { color: d.textLight }]}>—</Text>
           )}
         </View>
 
@@ -691,11 +763,11 @@ export default function ReceptionDashboard() {
             );
           })() : (
             <TouchableOpacity
-              style={tbl.sourceEmpty}
+              style={[tbl.sourceEmpty, { borderColor: d.textLight }]}
               onPress={() => setSourceDropdownRoomId(sourceDropdownRoomId === room.id ? null : room.id)}
               activeOpacity={0.7}
             >
-              <Text style={tbl.sourceEmptyText}>+ Source</Text>
+              <Text style={[tbl.sourceEmptyText, { color: d.textMuted }]}>+ Source</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -709,7 +781,7 @@ export default function ReceptionDashboard() {
               </Text>
             </View>
           ) : (
-            <Text style={tbl.dash}>—</Text>
+            <Text style={[tbl.dash, { color: d.textLight }]}>—</Text>
           )}
         </View>
 
@@ -719,7 +791,7 @@ export default function ReceptionDashboard() {
               <Text style={[tbl.softBadgeLabel, { color: gouvDisplay.color }]}>{gouvDisplay.label}</Text>
             </View>
           ) : (
-            <Text style={tbl.dash}>—</Text>
+            <Text style={[tbl.dash, { color: d.textLight }]}>—</Text>
           )}
         </View>
 
@@ -729,16 +801,16 @@ export default function ReceptionDashboard() {
               <View style={tbl.assignAvatar}>
                 <Text style={tbl.assignAvatarText}>{assigneeInitials}</Text>
               </View>
-              <Text style={tbl.assignName} numberOfLines={1}>{assignee}</Text>
+              <Text style={[tbl.assignName, { color: d.textSec }]} numberOfLines={1}>{assignee}</Text>
             </View>
           ) : (
-            <Text style={tbl.dash}>—</Text>
+            <Text style={[tbl.dash, { color: d.textLight }]}>—</Text>
           )}
         </View>
 
         <View style={tbl.viewSdbCell}>
-          <Text style={tbl.viewText}>{room.viewType ?? 'Rue'}</Text>
-          <Text style={tbl.sdbText}>{room.bathroomType ?? 'Douche'}</Text>
+          <Text style={[tbl.viewText, { color: d.text }]}>{room.viewType ?? 'Rue'}</Text>
+          <Text style={[tbl.sdbText, { color: d.textMuted }]}>{room.bathroomType ?? 'Douche'}</Text>
         </View>
 
         <View style={tbl.pdjCell}>
@@ -750,28 +822,28 @@ export default function ReceptionDashboard() {
 
         <View style={tbl.etaCell}>
           {eta ? (
-            <View style={tbl.etaPill}>
-              <Text style={tbl.etaPillText}>{eta}</Text>
+            <View style={[tbl.etaPill, { backgroundColor: d.infoSoft }]}>
+              <Text style={[tbl.etaPillText, { color: d.info }]}>{eta}</Text>
             </View>
           ) : (
-            <Text style={tbl.dash}>—</Text>
+            <Text style={[tbl.dash, { color: d.textLight }]}>—</Text>
           )}
         </View>
 
         <View style={tbl.actionsCell}>
           <TouchableOpacity
             onPress={() => handleRoomPress(room)}
-            style={tbl.actionBtn}
+            style={[tbl.actionBtn, { backgroundColor: d.surfaceWarm, borderColor: d.border }]}
             testID={`action-detail-${room.roomNumber}`}
           >
-            <Eye size={14} color={DS.accent} />
+            <Eye size={14} color={d.accent} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleSetDeparture(room)}
-            style={[tbl.actionBtn, tbl.actionBtnDanger]}
+            style={[tbl.actionBtn, tbl.actionBtnDanger, { borderColor: isDarkMode ? 'rgba(239,68,68,0.25)' : 'rgba(239,68,68,0.15)' }]}
             testID={`action-depart-${room.roomNumber}`}
           >
-            <DoorOpen size={14} color="#EF4444" />
+            <DoorOpen size={14} color={d.danger} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleTogglePriority(room)}
@@ -780,14 +852,14 @@ export default function ReceptionDashboard() {
           >
             <Star
               size={14}
-              color={room.clientBadge === 'prioritaire' ? '#F59E0B' : DS.textMuted}
+              color={room.clientBadge === 'prioritaire' ? '#F59E0B' : d.textMuted}
               fill={room.clientBadge === 'prioritaire' ? '#F59E0B' : 'transparent'}
             />
           </TouchableOpacity>
         </View>
       </View>
     );
-  }, [selectedRoomIds, handleRoomPress, toggleRoomSelection, handleEditClient, handleToggleBreakfast, handleSetDeparture, handleTogglePriority, getHousekeepingDisplay, getGouvernanteDisplay, getCleaningEta, sourceDropdownRoomId]);
+  }, [selectedRoomIds, handleRoomPress, toggleRoomSelection, handleEditClient, handleToggleBreakfast, handleSetDeparture, handleTogglePriority, getHousekeepingDisplay, getGouvernanteDisplay, getCleaningEta, sourceDropdownRoomId, d, isDarkMode]);
 
   const renderFloorSection = useCallback(
     ({ item }: { item: { floor: number; rooms: Room[] } }) => {
@@ -844,19 +916,19 @@ export default function ReceptionDashboard() {
 
   if (isLoading) {
     return (
-      <View style={s.loadingWrap}>
+      <View style={[s.loadingWrap, { backgroundColor: d.bg }]}>
         <Stack.Screen options={{ title: t.reception.title }} />
-        <ActivityIndicator size="large" color={DS.accent} />
-        <Text style={s.loadingText}>{t.common.loading}...</Text>
+        <ActivityIndicator size="large" color={d.accent} />
+        <Text style={[s.loadingText, { color: d.textSec }]}>{t.common.loading}...</Text>
       </View>
     );
   }
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, { backgroundColor: d.bg }]}>
       <Stack.Screen
         options={{
-          headerStyle: { backgroundColor: DS.headerBg },
+          headerStyle: { backgroundColor: d.headerBg },
           headerTintColor: '#FFF',
           headerShadowVisible: false,
           headerTitle: () => (
@@ -887,7 +959,7 @@ export default function ReceptionDashboard() {
                     <Text style={s.csvBtnText}>CSV</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={s.importBtn}
+                    style={[s.importBtn, { backgroundColor: d.accent }]}
                     onPress={handleImportPress}
                     testID="import-clients-btn"
                   >
@@ -904,18 +976,18 @@ export default function ReceptionDashboard() {
       />
 
       {showKpi && (
-        <View style={s.kpiSection}>
+        <View style={[s.kpiSection, { backgroundColor: d.surface, borderBottomColor: d.borderLight }]}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.kpiScroll}>
             {KPI_CARDS_CONFIG.map((cfg) => {
               const IconComp = cfg.icon;
               return (
-                <View key={cfg.key} style={[s.kpiCard, DS.shadow]}>
+                <View key={cfg.key} style={[s.kpiCard, d.shadow, { backgroundColor: d.surface, borderColor: d.borderLight }]}>
                   <View style={[s.kpiIconWrap, { backgroundColor: cfg.bg }]}>
                     <IconComp size={16} color={cfg.color} />
                   </View>
                   <View style={s.kpiTextBlock}>
                     <Text style={[s.kpiValue, { color: cfg.color }]}>{kpiData[cfg.key]}</Text>
-                    <Text style={s.kpiLabel}>{cfg.label}</Text>
+                    <Text style={[s.kpiLabel, { color: d.textMuted }]}>{cfg.label}</Text>
                   </View>
                 </View>
               );
@@ -924,178 +996,188 @@ export default function ReceptionDashboard() {
         </View>
       )}
 
-      <View style={s.toolbar}>
+      <View style={[s.toolbar, { backgroundColor: d.surface, borderBottomColor: d.borderLight }]}>
         <View style={s.toolbarTop}>
-          <View style={s.searchWrap}>
-            <Search size={15} color={DS.textMuted} />
+          <View style={[s.searchWrap, { backgroundColor: d.surfaceWarm, borderColor: d.border }]}>
+            <Search size={15} color={d.textMuted} />
             <TextInput
-              style={s.searchInput}
+              style={[s.searchInput, { color: d.text }]}
               placeholder="Chambre, client..."
-              placeholderTextColor={DS.textMuted}
+              placeholderTextColor={d.textMuted}
               value={searchText}
               onChangeText={setSearchText}
               testID="search-rooms"
             />
             {searchText.length > 0 && (
               <TouchableOpacity onPress={() => setSearchText('')}>
-                <X size={14} color={DS.textMuted} />
+                <X size={14} color={d.textMuted} />
               </TouchableOpacity>
             )}
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pillsScroll} style={s.pillsWrap}>
             <TouchableOpacity
-              style={[s.pill, floorFilter !== 'all' && s.pillActive]}
+              style={[s.pill, { backgroundColor: d.surfaceWarm, borderColor: floorFilter !== 'all' ? d.accent : d.border }]}
               onPress={() => { closeAllDropdowns(); setShowFloorDrop(!showFloorDrop); }}
             >
-              <Text style={[s.pillText, floorFilter !== 'all' && s.pillTextActive]}>
+              <Text style={[s.pillText, { color: floorFilter !== 'all' ? d.accent : d.textSec }]}>
                 {floorFilter === 'all' ? 'Étage' : `Ét. ${floorFilter}`}
               </Text>
-              <ChevronDown size={10} color={floorFilter !== 'all' ? DS.accent : DS.textMuted} />
+              <ChevronDown size={10} color={floorFilter !== 'all' ? d.accent : d.textMuted} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[s.pill, statusFilter !== 'all' && s.pillActive]}
+              style={[s.pill, { backgroundColor: d.surfaceWarm, borderColor: statusFilter !== 'all' ? d.accent : d.border }]}
               onPress={() => { closeAllDropdowns(); setShowStatusDrop(!showStatusDrop); }}
             >
-              <Text style={[s.pillText, statusFilter !== 'all' && s.pillTextActive]}>
+              <Text style={[s.pillText, { color: statusFilter !== 'all' ? d.accent : d.textSec }]}>
                 {statusFilter === 'all' ? 'Statut' : ROOM_STATUS_CONFIG[statusFilter].label}
               </Text>
-              <ChevronDown size={10} color={statusFilter !== 'all' ? DS.accent : DS.textMuted} />
+              <ChevronDown size={10} color={statusFilter !== 'all' ? d.accent : d.textMuted} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[s.pill, badgeFilter !== 'all' && s.pillActive]}
+              style={[s.pill, { backgroundColor: d.surfaceWarm, borderColor: badgeFilter !== 'all' ? d.accent : d.border }]}
               onPress={() => { closeAllDropdowns(); setShowBadgeDrop(!showBadgeDrop); }}
             >
-              <Text style={[s.pillText, badgeFilter !== 'all' && s.pillTextActive]}>
+              <Text style={[s.pillText, { color: badgeFilter !== 'all' ? d.accent : d.textSec }]}>
                 {badgeFilter === 'all' ? 'Badge' : badgeFilter === 'vip' ? 'VIP' : 'Prioritaire'}
               </Text>
-              <ChevronDown size={10} color={badgeFilter !== 'all' ? DS.accent : DS.textMuted} />
+              <ChevronDown size={10} color={badgeFilter !== 'all' ? d.accent : d.textMuted} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[s.pill, assigneeFilter !== 'all' && s.pillActive]}
+              style={[s.pill, { backgroundColor: d.surfaceWarm, borderColor: assigneeFilter !== 'all' ? d.accent : d.border }]}
               onPress={() => { closeAllDropdowns(); setShowAssigneeDrop(!showAssigneeDrop); }}
             >
-              <Text style={[s.pillText, assigneeFilter !== 'all' && s.pillTextActive]}>
+              <Text style={[s.pillText, { color: assigneeFilter !== 'all' ? d.accent : d.textSec }]}>
                 {assigneeFilter === 'all' ? 'Assignée' : assigneeFilter === 'none' ? 'Non assignées' : assigneeFilter}
               </Text>
-              <ChevronDown size={10} color={assigneeFilter !== 'all' ? DS.accent : DS.textMuted} />
+              <ChevronDown size={10} color={assigneeFilter !== 'all' ? d.accent : d.textMuted} />
             </TouchableOpacity>
           </ScrollView>
 
           <View style={s.toolbarRight}>
-            <View style={s.viewSwitch}>
+            <View style={[s.viewSwitch, { backgroundColor: d.surfaceWarm, borderColor: d.border }]}>
               <TouchableOpacity
-                style={[s.viewBtn, viewMode === 'plan' && s.viewBtnActive]}
+                style={[s.viewBtn, viewMode === 'plan' && { backgroundColor: d.accent }]}
                 onPress={() => setViewMode('plan')}
               >
-                <LayoutGrid size={14} color={viewMode === 'plan' ? '#FFF' : DS.textMuted} />
+                <LayoutGrid size={14} color={viewMode === 'plan' ? '#FFF' : d.textMuted} />
               </TouchableOpacity>
               <TouchableOpacity
-                style={[s.viewBtn, viewMode === 'table' && s.viewBtnActive]}
+                style={[s.viewBtn, viewMode === 'table' && { backgroundColor: d.accent }]}
                 onPress={() => setViewMode('table')}
               >
-                <List size={14} color={viewMode === 'table' ? '#FFF' : DS.textMuted} />
+                <List size={14} color={viewMode === 'table' ? '#FFF' : d.textMuted} />
               </TouchableOpacity>
             </View>
-            <Text style={s.counterText}>{filtered.length}/{total}</Text>
             <TouchableOpacity
-              style={s.kpiToggle}
+              style={[s.kpiToggle, { backgroundColor: isDarkMode ? d.accent : d.surfaceWarm, borderColor: isDarkMode ? d.accent : d.border }]}
+              onPress={() => {
+                void toggleDarkMode();
+                if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              testID="toggle-dark-mode-btn"
+            >
+              {isDarkMode ? <Sun size={14} color="#FFF" /> : <Moon size={14} color={d.textMuted} />}
+            </TouchableOpacity>
+            <Text style={[s.counterText, { color: d.textMuted }]}>{filtered.length}/{total}</Text>
+            <TouchableOpacity
+              style={[s.kpiToggle, { backgroundColor: d.surfaceWarm, borderColor: d.border }]}
               onPress={() => {
                 setShowKpi(!showKpi);
                 if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               }}
               testID="toggle-kpi-btn"
             >
-              <SlidersHorizontal size={14} color={showKpi ? DS.accent : DS.textMuted} />
+              <SlidersHorizontal size={14} color={showKpi ? d.accent : d.textMuted} />
             </TouchableOpacity>
           </View>
         </View>
       </View>
 
       {showFloorDrop && (
-        <View style={s.dropdown}>
+        <View style={[s.dropdown, { backgroundColor: d.surface, borderColor: d.border }]}>
           <TouchableOpacity style={[s.dropItem, floorFilter === 'all' && s.dropItemActive]} onPress={() => { setFloorFilter('all'); setShowFloorDrop(false); }}>
-            <Text style={[s.dropText, floorFilter === 'all' && s.dropTextActive]}>Tous étages</Text>
+            <Text style={[s.dropText, { color: d.text }, floorFilter === 'all' && { color: d.accent }]}>Tous étages</Text>
           </TouchableOpacity>
           {floors.map((f) => (
             <TouchableOpacity key={f} style={[s.dropItem, floorFilter === f && s.dropItemActive]} onPress={() => { setFloorFilter(f); setShowFloorDrop(false); }}>
-              <Text style={[s.dropText, floorFilter === f && s.dropTextActive]}>{`Étage ${f}`}</Text>
+              <Text style={[s.dropText, { color: d.text }, floorFilter === f && { color: d.accent }]}>{`Étage ${f}`}</Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
       {showStatusDrop && (
-        <View style={s.dropdown}>
+        <View style={[s.dropdown, { backgroundColor: d.surface, borderColor: d.border }]}>
           <TouchableOpacity style={[s.dropItem, statusFilter === 'all' && s.dropItemActive]} onPress={() => { setStatusFilter('all'); setShowStatusDrop(false); }}>
-            <Text style={[s.dropText, statusFilter === 'all' && s.dropTextActive]}>Tous statuts</Text>
+            <Text style={[s.dropText, { color: d.text }, statusFilter === 'all' && { color: d.accent }]}>Tous statuts</Text>
           </TouchableOpacity>
           {(['libre', 'occupe', 'depart', 'recouche', 'hors_service'] as const).map((st) => (
             <TouchableOpacity key={st} style={[s.dropItem, statusFilter === st && s.dropItemActive]} onPress={() => { setStatusFilter(st); setShowStatusDrop(false); }}>
               <View style={[s.dropDot, { backgroundColor: ROOM_STATUS_CONFIG[st].color }]} />
-              <Text style={[s.dropText, statusFilter === st && s.dropTextActive]}>{ROOM_STATUS_CONFIG[st].label}</Text>
+              <Text style={[s.dropText, { color: d.text }, statusFilter === st && { color: d.accent }]}>{ROOM_STATUS_CONFIG[st].label}</Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
       {showBadgeDrop && (
-        <View style={s.dropdown}>
+        <View style={[s.dropdown, { backgroundColor: d.surface, borderColor: d.border }]}>
           <TouchableOpacity style={[s.dropItem, badgeFilter === 'all' && s.dropItemActive]} onPress={() => { setBadgeFilter('all'); setShowBadgeDrop(false); }}>
-            <Text style={[s.dropText, badgeFilter === 'all' && s.dropTextActive]}>Tous</Text>
+            <Text style={[s.dropText, { color: d.text }, badgeFilter === 'all' && { color: d.accent }]}>Tous</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[s.dropItem, badgeFilter === 'vip' && s.dropItemActive]} onPress={() => { setBadgeFilter('vip'); setShowBadgeDrop(false); }}>
-            <Text style={[s.dropText, badgeFilter === 'vip' && s.dropTextActive]}>VIP</Text>
+            <Text style={[s.dropText, { color: d.text }, badgeFilter === 'vip' && { color: d.accent }]}>VIP</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[s.dropItem, badgeFilter === 'prioritaire' && s.dropItemActive]} onPress={() => { setBadgeFilter('prioritaire'); setShowBadgeDrop(false); }}>
-            <Text style={[s.dropText, badgeFilter === 'prioritaire' && s.dropTextActive]}>Prioritaire</Text>
+            <Text style={[s.dropText, { color: d.text }, badgeFilter === 'prioritaire' && { color: d.accent }]}>Prioritaire</Text>
           </TouchableOpacity>
         </View>
       )}
       {showAssigneeDrop && (
-        <View style={s.dropdown}>
+        <View style={[s.dropdown, { backgroundColor: d.surface, borderColor: d.border }]}>
           <TouchableOpacity style={[s.dropItem, assigneeFilter === 'all' && s.dropItemActive]} onPress={() => { setAssigneeFilter('all'); setShowAssigneeDrop(false); }}>
-            <Text style={[s.dropText, assigneeFilter === 'all' && s.dropTextActive]}>Toutes</Text>
+            <Text style={[s.dropText, { color: d.text }, assigneeFilter === 'all' && { color: d.accent }]}>Toutes</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[s.dropItem, assigneeFilter === 'none' && s.dropItemActive]} onPress={() => { setAssigneeFilter('none'); setShowAssigneeDrop(false); }}>
-            <Text style={[s.dropText, assigneeFilter === 'none' && s.dropTextActive]}>Non assignées</Text>
+            <Text style={[s.dropText, { color: d.text }, assigneeFilter === 'none' && { color: d.accent }]}>Non assignées</Text>
           </TouchableOpacity>
           {assigneeList.map((a) => (
             <TouchableOpacity key={a} style={[s.dropItem, assigneeFilter === a && s.dropItemActive]} onPress={() => { setAssigneeFilter(a); setShowAssigneeDrop(false); }}>
-              <Text style={[s.dropText, assigneeFilter === a && s.dropTextActive]}>{a}</Text>
+              <Text style={[s.dropText, { color: d.text }, assigneeFilter === a && { color: d.accent }]}>{a}</Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
 
       {showMoreMenu && (
-        <View style={s.moreMenu}>
+        <View style={[s.moreMenu, { backgroundColor: d.surface, borderColor: d.border }]}>
           <TouchableOpacity style={s.moreItem} onPress={() => { router.push('/history'); setShowMoreMenu(false); }}>
             <Text style={s.moreIcon}>📋</Text>
-            <Text style={s.moreText}>{t.direction.historyLabel}</Text>
+            <Text style={[s.moreText, { color: d.text }]}>{t.direction.historyLabel}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.moreItem} onPress={() => { router.push('/breakfast-stats'); setShowMoreMenu(false); }}>
             <Text style={s.moreIcon}>☕</Text>
-            <Text style={s.moreText}>{t.breakfast.title}</Text>
+            <Text style={[s.moreText, { color: d.text }]}>{t.breakfast.title}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.moreItem} onPress={() => { router.push('/economat'); setShowMoreMenu(false); }}>
             <Text style={s.moreIcon}>📦</Text>
-            <Text style={s.moreText}>{t.economat.title}</Text>
+            <Text style={[s.moreText, { color: d.text }]}>{t.economat.title}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.moreItem} onPress={() => { router.push('/settings'); setShowMoreMenu(false); }}>
             <Text style={s.moreIcon}>⚙️</Text>
-            <Text style={s.moreText}>{t.menu.settings}</Text>
+            <Text style={[s.moreText, { color: d.text }]}>{t.menu.settings}</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {selectionCount > 0 && (
-        <View style={s.selBar}>
+        <View style={[s.selBar, { backgroundColor: d.accentSoft, borderBottomColor: isDarkMode ? 'rgba(107,131,242,0.15)' : 'rgba(79,107,237,0.1)' }]}>
           <View style={s.selLeft}>
-            <View style={s.selBadge}>
+            <View style={[s.selBadge, { backgroundColor: d.accent }]}>
               <Text style={s.selBadgeText}>{selectionCount}</Text>
             </View>
-            <Text style={s.selLabel}>{t.common.selected}</Text>
+            <Text style={[s.selLabel, { color: d.accent }]}>{t.common.selected}</Text>
             <TouchableOpacity onPress={clearSelection} style={s.selClear}>
-              <X size={14} color={DS.textMuted} />
+              <X size={14} color={d.textMuted} />
             </TouchableOpacity>
           </View>
           <View style={s.selActions}>
@@ -1126,7 +1208,7 @@ export default function ReceptionDashboard() {
           ListEmptyComponent={
             <View style={s.emptyWrap}>
               <Text style={s.emptyIcon}>🏨</Text>
-              <Text style={s.emptyTitle}>{t.rooms.noRoomFound}</Text>
+              <Text style={[s.emptyTitle, { color: d.textSec }]}>{t.rooms.noRoomFound}</Text>
             </View>
           }
         />
@@ -1134,24 +1216,24 @@ export default function ReceptionDashboard() {
         <View style={s.tableWrap}>
           <ScrollView horizontal showsHorizontalScrollIndicator={true} style={s.tableScrollH}>
             <View style={s.tableInner}>
-              <View style={tbl.headerWrap}>
+              <View style={[tbl.headerWrap, { backgroundColor: d.tableHeaderBg }]}>
                 <View style={tbl.headerRow}>
-                  <View style={tbl.checkCell}><Text style={tbl.hText}>✓</Text></View>
-                  <View style={tbl.chambreCell}><Text style={tbl.hText}>CHAMBRE</Text></View>
-                  <View style={tbl.cleanlinessCell}><Text style={tbl.hText}>STATUT</Text></View>
-                  <View style={tbl.clientCell}><Text style={tbl.hText}>CLIENT</Text></View>
-                  <View style={tbl.paxCell}><Text style={tbl.hText}>PAX</Text></View>
-                  <View style={tbl.dateCell}><Text style={tbl.hText}>ARRIVÉE</Text></View>
-                  <View style={tbl.dateCell}><Text style={tbl.hText}>DÉPART</Text></View>
-                  <View style={tbl.etaArrivalCell}><Text style={tbl.hText}>ETA</Text></View>
-                  <View style={tbl.sourceCell}><Text style={tbl.hText}>SOURCE</Text></View>
-                  <View style={tbl.hkCell}><Text style={tbl.hText}>HOUSEKEEPING</Text></View>
-                  <View style={tbl.gouvCell}><Text style={tbl.hText}>GOUVERNANTE</Text></View>
-                  <View style={tbl.assignCell}><Text style={tbl.hText}>ASSIGNÉE</Text></View>
-                  <View style={tbl.viewSdbCell}><Text style={tbl.hText}>VUE / SDB</Text></View>
-                  <View style={tbl.pdjCell}><Text style={tbl.hText}>PDJ</Text></View>
-                  <View style={tbl.etaCell}><Text style={tbl.hText}>TEMPS</Text></View>
-                  <View style={tbl.actionsCell}><Text style={tbl.hText}>ACTIONS</Text></View>
+                  <View style={tbl.checkCell}><Text style={[tbl.hText, { color: d.tableHeaderText }]}>✓</Text></View>
+                  <View style={tbl.chambreCell}><Text style={[tbl.hText, { color: d.tableHeaderText }]}>CHAMBRE</Text></View>
+                  <View style={tbl.cleanlinessCell}><Text style={[tbl.hText, { color: d.tableHeaderText }]}>STATUT</Text></View>
+                  <View style={tbl.clientCell}><Text style={[tbl.hText, { color: d.tableHeaderText }]}>CLIENT</Text></View>
+                  <View style={tbl.paxCell}><Text style={[tbl.hText, { color: d.tableHeaderText }]}>PAX</Text></View>
+                  <View style={tbl.dateCell}><Text style={[tbl.hText, { color: d.tableHeaderText }]}>ARRIVÉE</Text></View>
+                  <View style={tbl.dateCell}><Text style={[tbl.hText, { color: d.tableHeaderText }]}>DÉPART</Text></View>
+                  <View style={tbl.etaArrivalCell}><Text style={[tbl.hText, { color: d.tableHeaderText }]}>ETA</Text></View>
+                  <View style={tbl.sourceCell}><Text style={[tbl.hText, { color: d.tableHeaderText }]}>SOURCE</Text></View>
+                  <View style={tbl.hkCell}><Text style={[tbl.hText, { color: d.tableHeaderText }]}>HOUSEKEEPING</Text></View>
+                  <View style={tbl.gouvCell}><Text style={[tbl.hText, { color: d.tableHeaderText }]}>GOUVERNANTE</Text></View>
+                  <View style={tbl.assignCell}><Text style={[tbl.hText, { color: d.tableHeaderText }]}>ASSIGNÉE</Text></View>
+                  <View style={tbl.viewSdbCell}><Text style={[tbl.hText, { color: d.tableHeaderText }]}>VUE / SDB</Text></View>
+                  <View style={tbl.pdjCell}><Text style={[tbl.hText, { color: d.tableHeaderText }]}>PDJ</Text></View>
+                  <View style={tbl.etaCell}><Text style={[tbl.hText, { color: d.tableHeaderText }]}>TEMPS</Text></View>
+                  <View style={tbl.actionsCell}><Text style={[tbl.hText, { color: d.tableHeaderText }]}>ACTIONS</Text></View>
                 </View>
               </View>
               <FlatList
@@ -1174,54 +1256,54 @@ export default function ReceptionDashboard() {
 
       <Modal visible={editModalVisible} transparent animationType="fade" onRequestClose={() => setEditModalVisible(false)}>
         <TouchableOpacity style={mod.overlay} activeOpacity={1} onPress={() => setEditModalVisible(false)}>
-          <TouchableOpacity style={mod.card} activeOpacity={1} onPress={() => {}}>
+          <TouchableOpacity style={[mod.card, { backgroundColor: d.surface }]} activeOpacity={1} onPress={() => {}}>
             <View style={mod.topBar}>
               <View>
-                <Text style={mod.title}>Modifier le client</Text>
-                <Text style={mod.subtitle}>Chambre {editingRoom?.roomNumber}</Text>
+                <Text style={[mod.title, { color: d.text }]}>Modifier le client</Text>
+                <Text style={[mod.subtitle, { color: d.textMuted }]}>Chambre {editingRoom?.roomNumber}</Text>
               </View>
               <TouchableOpacity onPress={() => setEditModalVisible(false)} style={mod.closeBtn}>
-                <X size={18} color={DS.textMuted} />
+                <X size={18} color={d.textMuted} />
               </TouchableOpacity>
             </View>
 
-            <Text style={mod.label}>Nom du client</Text>
+            <Text style={[mod.label, { color: d.textSec }]}>Nom du client</Text>
             <TextInput
-              style={mod.input}
+              style={[mod.input, { backgroundColor: d.surfaceWarm, borderColor: d.border, color: d.text }]}
               value={editGuestName}
               onChangeText={setEditGuestName}
               placeholder="Nom du client"
-              placeholderTextColor={DS.textMuted}
+              placeholderTextColor={d.textMuted}
               testID="edit-guest-name"
             />
 
             <View style={mod.dateRow}>
               <View style={mod.dateField}>
-                <Text style={mod.label}>Arrivée</Text>
+                <Text style={[mod.label, { color: d.textSec }]}>Arrivée</Text>
                 <TouchableOpacity
-                  style={[mod.input, mod.dateBtn, calendarField === 'checkIn' && mod.dateBtnActive]}
+                  style={[mod.input, mod.dateBtn, { backgroundColor: d.surfaceWarm, borderColor: d.border }, calendarField === 'checkIn' && { borderColor: d.accent, backgroundColor: d.accentSoft }]}
                   onPress={() => {
                     setCalendarField(calendarField === 'checkIn' ? null : 'checkIn');
                     if (editCheckIn) { try { setCalendarMonth(new Date(editCheckIn)); } catch { /* */ } }
                   }}
                   testID="edit-check-in"
                 >
-                  <Text style={[mod.dateBtnText, !editCheckIn && { color: DS.textMuted }]}>
+                  <Text style={[mod.dateBtnText, { color: d.text }, !editCheckIn && { color: d.textMuted }]}>
                     {editCheckIn ? formatShortDate(editCheckIn) : 'Sélectionner'}
                   </Text>
                 </TouchableOpacity>
               </View>
               <View style={mod.dateField}>
-                <Text style={mod.label}>Départ</Text>
+                <Text style={[mod.label, { color: d.textSec }]}>Départ</Text>
                 <TouchableOpacity
-                  style={[mod.input, mod.dateBtn, calendarField === 'checkOut' && mod.dateBtnActive]}
+                  style={[mod.input, mod.dateBtn, { backgroundColor: d.surfaceWarm, borderColor: d.border }, calendarField === 'checkOut' && { borderColor: d.accent, backgroundColor: d.accentSoft }]}
                   onPress={() => {
                     setCalendarField(calendarField === 'checkOut' ? null : 'checkOut');
                     if (editCheckOut) { try { setCalendarMonth(new Date(editCheckOut)); } catch { /* */ } }
                   }}
                   testID="edit-check-out"
                 >
-                  <Text style={[mod.dateBtnText, !editCheckOut && { color: DS.textMuted }]}>
+                  <Text style={[mod.dateBtnText, { color: d.text }, !editCheckOut && { color: d.textMuted }]}>
                     {editCheckOut ? formatShortDate(editCheckOut) : 'Sélectionner'}
                   </Text>
                 </TouchableOpacity>
@@ -1243,20 +1325,20 @@ export default function ReceptionDashboard() {
               </View>
             )}
 
-            <TouchableOpacity style={mod.moveToggle} onPress={() => setShowMoveRoomPicker(!showMoveRoomPicker)}>
-              <Text style={mod.moveText}>Déplacer vers une autre chambre</Text>
-              <ChevronDown size={14} color={DS.accent} />
+            <TouchableOpacity style={[mod.moveToggle, { backgroundColor: d.accentSoft, borderColor: isDarkMode ? 'rgba(107,131,242,0.18)' : 'rgba(79,107,237,0.12)' }]} onPress={() => setShowMoveRoomPicker(!showMoveRoomPicker)}>
+              <Text style={[mod.moveText, { color: d.accent }]}>Déplacer vers une autre chambre</Text>
+              <ChevronDown size={14} color={d.accent} />
             </TouchableOpacity>
 
             {showMoveRoomPicker && (
-              <ScrollView style={mod.roomScroll} nestedScrollEnabled>
+              <ScrollView style={[mod.roomScroll, { borderColor: d.border, backgroundColor: d.surfaceWarm }]} nestedScrollEnabled>
                 {freeRooms.length > 0 ? freeRooms.map((r) => (
                   <TouchableOpacity
                     key={r.id}
                     style={[mod.roomOpt, moveToRoomId === r.id && mod.roomOptActive]}
                     onPress={() => setMoveToRoomId(moveToRoomId === r.id ? null : r.id)}
                   >
-                    <Text style={[mod.roomOptText, moveToRoomId === r.id && mod.roomOptTextActive]}>
+                    <Text style={[mod.roomOptText, { color: d.text }, moveToRoomId === r.id && { color: d.accent }]}>
                       {r.roomNumber} — {r.roomType}
                     </Text>
                   </TouchableOpacity>
@@ -1267,11 +1349,11 @@ export default function ReceptionDashboard() {
             )}
 
             <View style={mod.actionRow}>
-              <TouchableOpacity style={mod.saveBtn} onPress={handleSaveClient}>
+              <TouchableOpacity style={[mod.saveBtn, { backgroundColor: d.accent }]} onPress={handleSaveClient}>
                 <Text style={mod.saveBtnText}>Enregistrer</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={mod.cancelBtn} onPress={() => setEditModalVisible(false)}>
-                <Text style={mod.cancelBtnText}>Annuler</Text>
+              <TouchableOpacity style={[mod.cancelBtn, { borderColor: d.border }]} onPress={() => setEditModalVisible(false)}>
+                <Text style={[mod.cancelBtnText, { color: d.textSec }]}>Annuler</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -1280,11 +1362,11 @@ export default function ReceptionDashboard() {
 
       <Modal visible={sourceDropdownRoomId !== null} transparent animationType="fade" onRequestClose={() => setSourceDropdownRoomId(null)}>
         <TouchableOpacity style={srcMod.overlay} activeOpacity={1} onPress={() => setSourceDropdownRoomId(null)}>
-          <TouchableOpacity style={srcMod.card} activeOpacity={1} onPress={() => {}}>
-            <View style={srcMod.header}>
-              <Text style={srcMod.headerTitle}>Sélectionner la source</Text>
+          <TouchableOpacity style={[srcMod.card, { backgroundColor: d.surface }]} activeOpacity={1} onPress={() => {}}>
+            <View style={[srcMod.header, { borderBottomColor: d.borderLight }]}>
+              <Text style={[srcMod.headerTitle, { color: d.text }]}>Sélectionner la source</Text>
               <TouchableOpacity onPress={() => setSourceDropdownRoomId(null)} style={srcMod.closeBtn}>
-                <X size={18} color={DS.textMuted} />
+                <X size={18} color={d.textMuted} />
               </TouchableOpacity>
             </View>
             <ScrollView style={srcMod.list} nestedScrollEnabled>
@@ -1296,7 +1378,7 @@ export default function ReceptionDashboard() {
                 return (
                   <TouchableOpacity
                     key={src}
-                    style={[srcMod.item, isActive && srcMod.itemActive]}
+                    style={[srcMod.item, { borderBottomColor: d.borderLight }, isActive && { backgroundColor: d.accentSoft }]}
                     onPress={() => {
                       if (sourceDropdownRoomId) {
                         updateRoom({ roomId: sourceDropdownRoomId, updates: { bookingSource: src } });
@@ -1308,11 +1390,11 @@ export default function ReceptionDashboard() {
                     <View style={[srcMod.logo, { backgroundColor: sc.color }]}>
                       <Text style={srcMod.logoText}>{sc.icon}</Text>
                     </View>
-                    <Text style={[srcMod.label, isActive && srcMod.labelActive]} numberOfLines={1}>{sc.label}</Text>
+                    <Text style={[srcMod.label, { color: d.textSec }, isActive && { fontWeight: '700' as const, color: d.text }]} numberOfLines={1}>{sc.label}</Text>
                     <View style={[srcMod.tag, { backgroundColor: cc.bgColor }]}>
                       <Text style={[srcMod.tagText, { color: cc.color }]}>{sc.hasCommission ? 'OTA' : cc.label}</Text>
                     </View>
-                    {isActive && <Check size={14} color={DS.accent} />}
+                    {isActive && <Check size={14} color={d.accent} />}
                   </TouchableOpacity>
                 );
               })}
@@ -1323,8 +1405,8 @@ export default function ReceptionDashboard() {
 
       <Modal visible={showImportModal} transparent animationType="fade" onRequestClose={() => setShowImportModal(false)}>
         <TouchableOpacity style={impMod.overlay} activeOpacity={1} onPress={() => setShowImportModal(false)}>
-          <TouchableOpacity style={impMod.card} activeOpacity={1} onPress={() => {}}>
-            <View style={impMod.headerBg}>
+          <TouchableOpacity style={[impMod.card, { backgroundColor: d.surface }]} activeOpacity={1} onPress={() => {}}>
+            <View style={[impMod.headerBg, { backgroundColor: d.headerBg }]}>
               <View style={impMod.headerRow}>
                 <View>
                   <Text style={impMod.headerTag}>IMPORT CLIENTS</Text>
@@ -1337,44 +1419,44 @@ export default function ReceptionDashboard() {
             </View>
 
             <View style={impMod.body}>
-              <Text style={impMod.desc}>
+              <Text style={[impMod.desc, { color: d.textSec }]}>
                 {"Importez vos données clients depuis "}
-                <Text style={impMod.descBold}>{"n'importe quel format"}</Text>
+                <Text style={[impMod.descBold, { color: d.text }]}>{"n'importe quel format"}</Text>
                 {". L'IA extrait et normalise automatiquement les données."}
               </Text>
 
               <View style={impMod.modeRow}>
                 {([
-                  { key: 'csv' as const, label: 'CSV / TXT', color: DS.accent },
+                  { key: 'csv' as const, label: 'CSV / TXT', color: d.accent },
                   { key: 'excel' as const, label: 'Excel', color: '#10B981' },
                   { key: 'pdf' as const, label: 'PDF', color: '#EF4444' },
                   { key: 'image' as const, label: 'Image', color: '#F59E0B' },
                 ] as const).map((opt) => (
                   <TouchableOpacity
                     key={opt.key}
-                    style={[impMod.modeChip, importMode === opt.key && { borderColor: opt.color, backgroundColor: opt.color + '08' }]}
+                    style={[impMod.modeChip, { borderColor: d.border, backgroundColor: d.surfaceWarm }, importMode === opt.key && { borderColor: opt.color, backgroundColor: opt.color + '12' }]}
                     onPress={() => setImportMode(opt.key)}
                     activeOpacity={0.7}
                   >
-                    <FileText size={14} color={importMode === opt.key ? opt.color : DS.textMuted} />
-                    <Text style={[impMod.modeText, importMode === opt.key && { color: opt.color, fontWeight: '700' as const }]}>
+                    <FileText size={14} color={importMode === opt.key ? opt.color : d.textMuted} />
+                    <Text style={[impMod.modeText, { color: d.textSec }, importMode === opt.key && { color: opt.color, fontWeight: '700' as const }]}>
                       {opt.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <TouchableOpacity style={impMod.dropzone} onPress={handleImportFile} activeOpacity={0.7} testID="import-dropzone">
-                <View style={impMod.dropzoneIcon}>
-                  <Upload size={24} color={DS.textMuted} />
+              <TouchableOpacity style={[impMod.dropzone, { borderColor: d.border, backgroundColor: d.surfaceWarm }]} onPress={handleImportFile} activeOpacity={0.7} testID="import-dropzone">
+                <View style={[impMod.dropzoneIcon, { backgroundColor: d.surface, borderColor: d.border }]}>
+                  <Upload size={24} color={d.textMuted} />
                 </View>
-                <Text style={impMod.dropzoneTitle}>Glissez votre fichier ici</Text>
-                <Text style={impMod.dropzoneDesc}>CSV · Excel · PDF · Image — ou cliquez</Text>
+                <Text style={[impMod.dropzoneTitle, { color: d.text }]}>Glissez votre fichier ici</Text>
+                <Text style={[impMod.dropzoneDesc, { color: d.textMuted }]}>CSV · Excel · PDF · Image — ou cliquez</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={impMod.templateBtn} onPress={handleDownloadTemplate} activeOpacity={0.7}>
-                <Download size={14} color={DS.textSec} />
-                <Text style={impMod.templateText}>Modèle CSV</Text>
+              <TouchableOpacity style={[impMod.templateBtn, { borderColor: d.border, backgroundColor: d.surface }]} onPress={handleDownloadTemplate} activeOpacity={0.7}>
+                <Download size={14} color={d.textSec} />
+                <Text style={[impMod.templateText, { color: d.textSec }]}>Modèle CSV</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
