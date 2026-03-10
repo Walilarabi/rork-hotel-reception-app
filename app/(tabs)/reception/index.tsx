@@ -23,7 +23,7 @@ import { useHotel, useFilteredRooms } from '@/providers/HotelProvider';
 import { PMSStatusIndicator } from '@/components/PMSStatusIndicator';
 import { useTheme } from '@/providers/ThemeProvider';
 import { FT } from '@/constants/flowtym';
-import { RoomStatus, ClientBadge, Room, ROOM_STATUS_CONFIG, CLEANING_STATUS_CONFIG, ROOM_CLEANLINESS_CONFIG, BOOKING_SOURCE_CONFIG } from '@/constants/types';
+import { RoomStatus, ClientBadge, Room, ROOM_STATUS_CONFIG, CLEANING_STATUS_CONFIG, ROOM_CLEANLINESS_CONFIG, BOOKING_SOURCE_CONFIG, CHANNEL_TYPE_CONFIG, ALL_BOOKING_SOURCES } from '@/constants/types';
 
 const formatShortDate = (dateStr: string) => {
   try {
@@ -224,6 +224,7 @@ export default function ReceptionDashboard() {
   const [showStatusDrop, setShowStatusDrop] = useState(false);
   const [showBadgeDrop, setShowBadgeDrop] = useState(false);
   const [showAssigneeDrop, setShowAssigneeDrop] = useState(false);
+  const [sourceDropdownRoomId, setSourceDropdownRoomId] = useState<string | null>(null);
 
   const { filtered: preFiltered, floors, total } = useFilteredRooms({
     status: statusFilter,
@@ -606,16 +607,88 @@ export default function ReceptionDashboard() {
         </View>
 
         <View style={tableStyles.sourceCell}>
-          {room.bookingSource && room.bookingSource !== 'Autre' ? (
-            <View style={[tableStyles.sourceBadge, { backgroundColor: BOOKING_SOURCE_CONFIG[room.bookingSource].color + '14' }]}>
-              <Text style={[tableStyles.sourceText, { color: BOOKING_SOURCE_CONFIG[room.bookingSource].color }]} numberOfLines={1}>
-                {BOOKING_SOURCE_CONFIG[room.bookingSource].label}
-              </Text>
-            </View>
-          ) : room.bookingSource === 'Autre' ? (
-            <Text style={tableStyles.sourceTextMuted}>{'Autre'}</Text>
-          ) : (
-            <Text style={tableStyles.emptyDash}>{'—'}</Text>
+          {room.bookingSource ? (() => {
+            const srcCfg = BOOKING_SOURCE_CONFIG[room.bookingSource];
+            const chCfg = CHANNEL_TYPE_CONFIG[srcCfg.channelType];
+            return (
+              <TouchableOpacity
+                style={tableStyles.sourceWrapper}
+                onPress={() => setSourceDropdownRoomId(sourceDropdownRoomId === room.id ? null : room.id)}
+                activeOpacity={0.7}
+              >
+                <View style={[tableStyles.sourceLogo, { backgroundColor: srcCfg.color }]}>
+                  <Text style={tableStyles.sourceLogoText}>{srcCfg.icon}</Text>
+                </View>
+                <View style={tableStyles.sourceInfo}>
+                  <Text style={[tableStyles.sourceLabel, { color: srcCfg.color }]} numberOfLines={1}>{room.bookingSource === 'Téléphone' ? 'Tél.' : room.bookingSource === 'Walk-in' ? 'Walk-in' : room.bookingSource}</Text>
+                  <View style={[tableStyles.channelTag, { backgroundColor: chCfg.bgColor }]}>
+                    <Text style={[tableStyles.channelTagText, { color: chCfg.color }]}>{srcCfg.hasCommission ? 'OTA' : chCfg.label}</Text>
+                  </View>
+                </View>
+                {sourceDropdownRoomId === room.id && (
+                  <View style={tableStyles.sourceDropdown}>
+                    {ALL_BOOKING_SOURCES.map((src) => {
+                      const sc = BOOKING_SOURCE_CONFIG[src];
+                      const cc = CHANNEL_TYPE_CONFIG[sc.channelType];
+                      return (
+                        <TouchableOpacity
+                          key={src}
+                          style={[tableStyles.sourceDropItem, room.bookingSource === src && tableStyles.sourceDropItemActive]}
+                          onPress={() => {
+                            updateRoom({ roomId: room.id, updates: { bookingSource: src } });
+                            setSourceDropdownRoomId(null);
+                            if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          }}
+                        >
+                          <View style={[tableStyles.sourceDropLogo, { backgroundColor: sc.color }]}>
+                            <Text style={tableStyles.sourceDropLogoText}>{sc.icon}</Text>
+                          </View>
+                          <Text style={tableStyles.sourceDropLabel} numberOfLines={1}>{sc.label}</Text>
+                          <View style={[tableStyles.sourceDropTag, { backgroundColor: cc.bgColor }]}>
+                            <Text style={[tableStyles.sourceDropTagText, { color: cc.color }]}>{sc.hasCommission ? 'OTA' : cc.label}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })() : (
+            <TouchableOpacity
+              style={tableStyles.sourceEmptyBtn}
+              onPress={() => setSourceDropdownRoomId(sourceDropdownRoomId === room.id ? null : room.id)}
+              activeOpacity={0.7}
+            >
+              <Text style={tableStyles.sourceEmptyText}>{'+ Source'}</Text>
+              {sourceDropdownRoomId === room.id && (
+                <View style={tableStyles.sourceDropdown}>
+                  {ALL_BOOKING_SOURCES.map((src) => {
+                    const sc = BOOKING_SOURCE_CONFIG[src];
+                    const cc = CHANNEL_TYPE_CONFIG[sc.channelType];
+                    return (
+                      <TouchableOpacity
+                        key={src}
+                        style={tableStyles.sourceDropItem}
+                        onPress={() => {
+                          updateRoom({ roomId: room.id, updates: { bookingSource: src } });
+                          setSourceDropdownRoomId(null);
+                          if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        }}
+                      >
+                        <View style={[tableStyles.sourceDropLogo, { backgroundColor: sc.color }]}>
+                          <Text style={tableStyles.sourceDropLogoText}>{sc.icon}</Text>
+                        </View>
+                        <Text style={tableStyles.sourceDropLabel} numberOfLines={1}>{sc.label}</Text>
+                        <View style={[tableStyles.sourceDropTag, { backgroundColor: cc.bgColor }]}>
+                          <Text style={[tableStyles.sourceDropTagText, { color: cc.color }]}>{sc.hasCommission ? 'OTA' : cc.label}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </TouchableOpacity>
           )}
         </View>
 
@@ -708,7 +781,7 @@ export default function ReceptionDashboard() {
         </View>
       </View>
     );
-  }, [selectedRoomIds, handleRoomPress, toggleRoomSelection, handleEditClient, handleToggleBreakfast, handleSetDeparture, handleTogglePriority, getHousekeepingDisplay, getGouvernanteDisplay, getCleaningEta]);
+  }, [selectedRoomIds, handleRoomPress, toggleRoomSelection, handleEditClient, handleToggleBreakfast, handleSetDeparture, handleTogglePriority, getHousekeepingDisplay, getGouvernanteDisplay, getCleaningEta, sourceDropdownRoomId, updateRoom]);
 
   const renderFloorSection = useCallback(
     ({ item }: { item: { floor: number; rooms: Room[] } }) => {
@@ -1345,7 +1418,7 @@ const ftStyles = StyleSheet.create({
   roomAvatarText: { fontSize: 8, fontWeight: '700' as const, color: '#FFF' },
 });
 
-const TABLE_MIN_WIDTH = 1680;
+const TABLE_MIN_WIDTH = 1700;
 
 const tableStyles = StyleSheet.create({
   stickyHeader: {
@@ -1514,15 +1587,83 @@ const tableStyles = StyleSheet.create({
   paxText: { fontSize: 12, fontWeight: '500' as const, color: '#475569' },
   etaArrivalCell: { width: 90, paddingHorizontal: 8, justifyContent: 'center' as const },
   etaArrivalText: { fontSize: 12, fontWeight: '500' as const, color: '#64748B' },
-  sourceCell: { width: 100, paddingHorizontal: 8, justifyContent: 'center' as const },
-  sourceBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+  sourceCell: { width: 120, paddingHorizontal: 6, justifyContent: 'center' as const, overflow: 'visible' as const, zIndex: 50 },
+  sourceWrapper: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6, position: 'relative' as const },
+  sourceLogo: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  sourceLogoText: { fontSize: 11, fontWeight: '800' as const, color: '#FFF' },
+  sourceInfo: { flexShrink: 1, gap: 2 },
+  sourceLabel: { fontSize: 11, fontWeight: '700' as const },
+  channelTag: {
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
     alignSelf: 'flex-start' as const,
   },
-  sourceText: { fontSize: 10, fontWeight: '700' as const },
-  sourceTextMuted: { fontSize: 11, color: '#94A3B8', fontWeight: '500' as const },
+  channelTagText: { fontSize: 8, fontWeight: '700' as const, letterSpacing: 0.3 },
+  sourceEmptyBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderStyle: 'dashed' as const,
+    borderColor: '#CBD5E1',
+    alignSelf: 'flex-start' as const,
+    position: 'relative' as const,
+  },
+  sourceEmptyText: { fontSize: 11, fontWeight: '600' as const, color: '#94A3B8' },
+  sourceDropdown: {
+    position: 'absolute' as const,
+    top: 30,
+    left: 0,
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 20,
+    zIndex: 999,
+    width: 200,
+    paddingVertical: 4,
+  },
+  sourceDropItem: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  sourceDropItemActive: { backgroundColor: '#F0F9FF' },
+  sourceDropLogo: {
+    width: 22,
+    height: 22,
+    borderRadius: 5,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  sourceDropLogoText: { fontSize: 9, fontWeight: '800' as const, color: '#FFF' },
+  sourceDropLabel: { flex: 1, fontSize: 12, fontWeight: '500' as const, color: '#334155' },
+  sourceDropTag: {
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  sourceDropTagText: { fontSize: 8, fontWeight: '700' as const },
 });
 
 const modalStyles = StyleSheet.create({

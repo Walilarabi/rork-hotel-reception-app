@@ -41,7 +41,17 @@ export interface RoomHistoryEntry {
 
 export type RoomCleanlinessStatus = 'propre' | 'en_nettoyage' | 'sale' | 'inspectee';
 
-export type BookingSource = 'Booking' | 'Expedia' | 'Direct' | 'Airbnb' | 'Téléphone' | 'Agoda' | 'HRS' | 'Autre';
+export type BookingSource = 'Booking' | 'Expedia' | 'Direct' | 'Airbnb' | 'Téléphone' | 'Agoda' | 'HRS' | 'Ctrip' | 'Walk-in' | 'Autre';
+
+export type BookingChannelType = 'ota' | 'direct' | 'phone' | 'walkin' | 'other';
+
+export const CHANNEL_TYPE_CONFIG: Record<BookingChannelType, { label: string; color: string; bgColor: string }> = {
+  ota: { label: 'OTA', color: '#7C3AED', bgColor: 'rgba(124,58,237,0.10)' },
+  direct: { label: 'Direct', color: '#16A34A', bgColor: 'rgba(22,163,74,0.10)' },
+  phone: { label: 'Téléphone', color: '#64748B', bgColor: 'rgba(100,116,139,0.10)' },
+  walkin: { label: 'Walk-in', color: '#EA580C', bgColor: 'rgba(234,88,12,0.10)' },
+  other: { label: 'Autre', color: '#94A3B8', bgColor: 'rgba(148,163,184,0.10)' },
+};
 
 export const ROOM_CLEANLINESS_CONFIG: Record<RoomCleanlinessStatus, { label: string; color: string; icon: string }> = {
   propre: { label: 'Propre', color: '#43A047', icon: '🟢' },
@@ -50,16 +60,20 @@ export const ROOM_CLEANLINESS_CONFIG: Record<RoomCleanlinessStatus, { label: str
   inspectee: { label: 'Inspectée', color: '#1E88E5', icon: '🔵' },
 };
 
-export const BOOKING_SOURCE_CONFIG: Record<BookingSource, { label: string; color: string }> = {
-  Booking: { label: 'Booking', color: '#003580' },
-  Expedia: { label: 'Expedia', color: '#FFCC00' },
-  Direct: { label: 'Direct', color: '#43A047' },
-  Airbnb: { label: 'Airbnb', color: '#FF5A5F' },
-  'Téléphone': { label: 'Téléphone', color: '#78909C' },
-  Agoda: { label: 'Agoda', color: '#5392F9' },
-  HRS: { label: 'HRS', color: '#C8102E' },
-  Autre: { label: 'Autre', color: '#94A3B8' },
+export const BOOKING_SOURCE_CONFIG: Record<BookingSource, { label: string; color: string; icon: string; channelType: BookingChannelType; hasCommission: boolean }> = {
+  Booking: { label: 'Booking.com', color: '#003580', icon: 'B', channelType: 'ota', hasCommission: true },
+  Expedia: { label: 'Expedia', color: '#1A1A6C', icon: 'E', channelType: 'ota', hasCommission: true },
+  Direct: { label: 'Site direct', color: '#16A34A', icon: 'D', channelType: 'direct', hasCommission: false },
+  Airbnb: { label: 'Airbnb', color: '#FF5A5F', icon: 'A', channelType: 'ota', hasCommission: true },
+  'Téléphone': { label: 'Téléphone', color: '#64748B', icon: '☎', channelType: 'phone', hasCommission: false },
+  Agoda: { label: 'Agoda', color: '#5392F9', icon: 'Ag', channelType: 'ota', hasCommission: true },
+  HRS: { label: 'HRS', color: '#C8102E', icon: 'H', channelType: 'ota', hasCommission: true },
+  Ctrip: { label: 'Trip.com / Ctrip', color: '#287DFA', icon: 'T', channelType: 'ota', hasCommission: true },
+  'Walk-in': { label: 'Walk-in', color: '#EA580C', icon: 'W', channelType: 'walkin', hasCommission: false },
+  Autre: { label: 'Autre', color: '#94A3B8', icon: '?', channelType: 'other', hasCommission: false },
 };
+
+export const ALL_BOOKING_SOURCES: BookingSource[] = ['Booking', 'Expedia', 'Agoda', 'Ctrip', 'Airbnb', 'HRS', 'Direct', 'Téléphone', 'Walk-in', 'Autre'];
 
 export interface Room {
   id: string;
