@@ -23,6 +23,8 @@ import {
   MapPin,
   Zap,
   LayoutDashboard,
+  BarChart3,
+  FileText,
 } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
@@ -94,10 +96,6 @@ export default function DirectionDashboard() {
           headerTitle: () => (
             <FlowtymHeader
               hotelName={currentUser?.hotelName ?? t.direction.title}
-              navItems={[
-                { label: t.settings.statistics, icon: '📊', onPress: () => router.push('/breakfast-stats') },
-                { label: t.reception.reports, icon: '📋', onPress: () => router.push('/history') },
-              ]}
             />
           ),
           headerStyle: { backgroundColor: FT.headerBg },
@@ -121,6 +119,33 @@ export default function DirectionDashboard() {
             <Text style={styles.dateText}>{today}</Text>
           </View>
         </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.navStrip}>
+          {[
+            { label: 'Centre de contrôle', icon: LayoutDashboard, color: FT.brand, route: '/control-center' as const },
+            { label: 'Plan Chambres', icon: MapPin, color: FT.info, route: '/hotel-plan' as const },
+            { label: 'Répartition', icon: Zap, color: FT.success, route: '/housekeeping-assignments' as const },
+            { label: 'Historique', icon: History, color: FT.orange, route: '/history' as const },
+            { label: 'Maintenance', icon: Wrench, color: FT.warning, route: '/maintenance-tracking' as const },
+            { label: 'Statistiques', icon: BarChart3, color: FT.teal, route: '/breakfast-stats' as const },
+            { label: 'Rapports', icon: FileText, color: FT.brandDark, route: '/history' as const },
+          ].map((item) => {
+            const IconComp = item.icon;
+            return (
+              <TouchableOpacity
+                key={item.label}
+                style={styles.navStripItem}
+                onPress={() => router.push(item.route)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.navStripIcon, { backgroundColor: item.color + '15' }]}>
+                  <IconComp size={16} color={item.color} />
+                </View>
+                <Text style={styles.navStripLabel} numberOfLines={1}>{item.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
         <View style={styles.kpiRow}>
           <View style={[styles.kpiCard, styles.kpiCardHighlight]}>
@@ -309,44 +334,6 @@ export default function DirectionDashboard() {
 
         <StaffForecastCard />
 
-        <View style={styles.quickActions}>
-          <TouchableOpacity style={[styles.quickActionBtn, { borderColor: FT.brand + '30', borderWidth: 1.5 }]} onPress={() => router.push('/control-center')}>
-            <View style={[styles.quickActionIcon, { backgroundColor: FT.brand + '15' }]}>
-              <LayoutDashboard size={18} color={FT.brand} />
-            </View>
-            <Text style={styles.quickActionLabel}>Centre de contrôle</Text>
-            <ArrowRight size={14} color={FT.brand} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickActionBtn} onPress={() => router.push('/hotel-plan')}>
-            <View style={[styles.quickActionIcon, { backgroundColor: FT.infoSoft }]}>
-              <MapPin size={18} color={FT.info} />
-            </View>
-            <Text style={styles.quickActionLabel}>Plan de l'hôtel</Text>
-            <ArrowRight size={14} color={FT.textMuted} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickActionBtn} onPress={() => router.push('/housekeeping-assignments')}>
-            <View style={[styles.quickActionIcon, { backgroundColor: FT.successSoft }]}>
-              <Zap size={18} color={FT.success} />
-            </View>
-            <Text style={styles.quickActionLabel}>Répartition chambres</Text>
-            <ArrowRight size={14} color={FT.textMuted} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickActionBtn} onPress={() => router.push('/history')}>
-            <View style={[styles.quickActionIcon, { backgroundColor: FT.brandSoft }]}>
-              <History size={18} color={FT.brand} />
-            </View>
-            <Text style={styles.quickActionLabel}>{t.direction.historyLabel}</Text>
-            <ArrowRight size={14} color={FT.textMuted} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickActionBtn} onPress={() => router.push('/maintenance-tracking')}>
-            <View style={[styles.quickActionIcon, { backgroundColor: FT.warningSoft }]}>
-              <Wrench size={18} color={FT.warning} />
-            </View>
-            <Text style={styles.quickActionLabel}>{t.direction.maintenanceTracking}</Text>
-            <ArrowRight size={14} color={FT.textMuted} />
-          </TouchableOpacity>
-        </View>
-
         <View style={{ height: 30 }} />
       </ScrollView>
     </View>
@@ -434,17 +421,23 @@ const styles = StyleSheet.create({
   emptyStaff: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 16, justifyContent: 'center' },
   emptyStaffText: { fontSize: 13, color: FT.textMuted },
 
-  quickActions: { gap: 8 },
-  quickActionBtn: {
-    flexDirection: 'row',
+  navStrip: { gap: 10, paddingHorizontal: 2, paddingVertical: 2 },
+  navStripItem: {
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: FT.surface,
-    borderRadius: FT.cardRadius,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: FT.border,
+    gap: 6,
+    width: 76,
   },
-  quickActionIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  quickActionLabel: { flex: 1, fontSize: 14, fontWeight: '600' as const, color: FT.text },
+  navStripIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  navStripLabel: {
+    fontSize: 10,
+    fontWeight: '600' as const,
+    color: FT.textSec,
+    textAlign: 'center' as const,
+  },
 });

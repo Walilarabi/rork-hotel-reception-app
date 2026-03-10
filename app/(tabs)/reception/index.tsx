@@ -13,7 +13,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { DoorOpen, UserPlus, X, ChevronDown, Coffee, List, LayoutGrid, Eye, Star, Pencil, Upload, Check, Search, FileText, Download, SlidersHorizontal, BedDouble, LogOut, RefreshCw, CheckCircle, AlertTriangle, Clock, Moon, Sun } from 'lucide-react-native';
+import { DoorOpen, UserPlus, X, ChevronDown, Coffee, List, LayoutGrid, Eye, Star, Pencil, Upload, Check, Search, FileText, Download, SlidersHorizontal, BedDouble, LogOut, RefreshCw, CheckCircle, AlertTriangle, Clock, Moon, Sun, MapPin, Zap } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
 import DeskFloorSection from '@/components/DeskFloorSection';
@@ -998,6 +998,30 @@ export default function ReceptionDashboard() {
         }}
       />
 
+      <View style={[s.navStripSection, { backgroundColor: d.surface, borderBottomColor: d.borderLight }]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.navStripScroll}>
+          {[
+            { label: 'Plan Chambres', icon: MapPin, color: d.info, route: '/hotel-plan' as const },
+            { label: 'Répartition', icon: Zap, color: d.success, route: '/housekeeping-assignments' as const },
+          ].map((item) => {
+            const IconComp = item.icon;
+            return (
+              <TouchableOpacity
+                key={item.label}
+                style={[s.navStripItem, { backgroundColor: d.surfaceWarm, borderColor: d.border }]}
+                onPress={() => router.push(item.route)}
+                activeOpacity={0.7}
+              >
+                <View style={[s.navStripIcon, { backgroundColor: item.color + '15' }]}>
+                  <IconComp size={16} color={item.color} />
+                </View>
+                <Text style={[s.navStripLabel, { color: d.text }]} numberOfLines={1}>{item.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
       {showKpi && (
         <View style={[s.kpiSection, { backgroundColor: d.surface, borderBottomColor: d.borderLight }]}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.kpiScroll}>
@@ -1847,6 +1871,12 @@ const s = StyleSheet.create({
   csvBtnText: { fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: '500' as const },
   importBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: DS.accent, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
   importBtnText: { fontSize: 12, fontWeight: '700' as const, color: '#FFF' },
+
+  navStripSection: { backgroundColor: DS.surface, borderBottomWidth: 1, borderBottomColor: DS.borderLight, paddingVertical: 10 },
+  navStripScroll: { paddingHorizontal: 16, gap: 10 },
+  navStripItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: DS.border, backgroundColor: DS.surfaceWarm },
+  navStripIcon: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  navStripLabel: { fontSize: 13, fontWeight: '600' as const, color: DS.text },
 
   kpiSection: { backgroundColor: DS.surface, borderBottomWidth: 1, borderBottomColor: DS.borderLight, paddingVertical: 12 },
   kpiScroll: { paddingHorizontal: 16, gap: 10 },

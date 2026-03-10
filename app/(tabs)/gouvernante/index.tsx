@@ -9,7 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { Search, ChevronDown, CheckCircle, Package, Users, ArrowRight, RefreshCw, History } from 'lucide-react-native';
+import { Search, ChevronDown, CheckCircle, Package, Users, ArrowRight, RefreshCw, History, MapPin, Zap } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
 import DeskKPI from '@/components/DeskKPI';
@@ -341,6 +341,30 @@ export default function GouvernanteScreen() {
         }}
       />
 
+      <View style={styles.navStripSection}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.navStripScroll}>
+          {[
+            { label: 'Plan Chambres', icon: MapPin, color: FT.info, route: '/hotel-plan' as const },
+            { label: 'Répartition', icon: Zap, color: FT.success, route: '/housekeeping-assignments' as const },
+          ].map((item) => {
+            const IconComp = item.icon;
+            return (
+              <TouchableOpacity
+                key={item.label}
+                style={styles.navStripItem}
+                onPress={() => router.push(item.route)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.navStripIcon, { backgroundColor: item.color + '15' }]}>
+                  <IconComp size={16} color={item.color} />
+                </View>
+                <Text style={styles.navStripLabel} numberOfLines={1}>{item.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
       <View style={styles.dashTitle}>
         <Text style={styles.dashTitleBold}>{t.gouvernante.supervision}</Text>
       </View>
@@ -459,6 +483,12 @@ export default function GouvernanteScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: FT.bg },
+
+  navStripSection: { backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.border, paddingVertical: 10 },
+  navStripScroll: { paddingHorizontal: 16, gap: 10 },
+  navStripItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: FT.border, backgroundColor: FT.surfaceAlt },
+  navStripIcon: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  navStripLabel: { fontSize: 13, fontWeight: '600' as const, color: FT.text },
 
   dashTitle: { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 },
   dashTitleBold: { fontSize: 18, fontWeight: '800' as const, color: FT.text },
