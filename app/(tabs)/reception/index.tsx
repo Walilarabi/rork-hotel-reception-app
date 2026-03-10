@@ -13,7 +13,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { DoorOpen, UserPlus, X, ChevronDown, Coffee, List, LayoutGrid, Eye, Star, Pencil, Upload, Check, Search, FileText, Image, Download } from 'lucide-react-native';
+import { DoorOpen, UserPlus, X, ChevronDown, Coffee, List, LayoutGrid, Eye, Star, Pencil, Upload, Check, Search, FileText, Download, SlidersHorizontal, BedDouble, LogOut, RefreshCw, CheckCircle, AlertTriangle, Clock } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
 import DeskFloorSection from '@/components/DeskFloorSection';
@@ -22,8 +22,55 @@ import * as Haptics from 'expo-haptics';
 import { useHotel, useFilteredRooms } from '@/providers/HotelProvider';
 import { PMSStatusIndicator } from '@/components/PMSStatusIndicator';
 import { useTheme } from '@/providers/ThemeProvider';
-import { FT } from '@/constants/flowtym';
+
 import { RoomStatus, ClientBadge, Room, ROOM_STATUS_CONFIG, CLEANING_STATUS_CONFIG, ROOM_CLEANLINESS_CONFIG, BOOKING_SOURCE_CONFIG, CHANNEL_TYPE_CONFIG, ALL_BOOKING_SOURCES } from '@/constants/types';
+
+const DS = {
+  bg: '#F5F6FA',
+  surface: '#FFFFFF',
+  surfaceWarm: '#FAFBFD',
+  surfaceHover: '#F0F1F6',
+  headerBg: '#0F172A',
+
+  accent: '#4F6BED',
+  accentSoft: 'rgba(79,107,237,0.07)',
+  accentLight: '#6B83F2',
+  accentDark: '#3A50C7',
+
+  text: '#0F172A',
+  textSec: '#475569',
+  textMuted: '#94A3B8',
+  textLight: '#CBD5E1',
+
+  border: '#E8ECF1',
+  borderLight: '#F1F5F9',
+
+  success: '#10B981',
+  successSoft: 'rgba(16,185,129,0.08)',
+  warning: '#F59E0B',
+  warningSoft: 'rgba(245,158,11,0.08)',
+  danger: '#EF4444',
+  dangerSoft: 'rgba(239,68,68,0.06)',
+  info: '#3B82F6',
+  infoSoft: 'rgba(59,130,246,0.08)',
+  teal: '#14B8A6',
+  tealSoft: 'rgba(20,184,166,0.08)',
+
+  shadow: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  } as const,
+  shadowMd: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 16,
+    elevation: 5,
+  } as const,
+};
 
 const formatShortDate = (dateStr: string) => {
   try {
@@ -46,7 +93,7 @@ const PdjToggleButtons = React.memo(function PdjToggleButtons({ included, onTogg
   return (
     <View style={pdjStyles.container}>
       <TouchableOpacity
-        style={[pdjStyles.btn, pdjStyles.btnRed, !included && pdjStyles.btnActiveRed]}
+        style={[pdjStyles.btn, !included ? pdjStyles.btnActiveOff : pdjStyles.btnOff]}
         onPress={() => {
           onToggle(false);
           if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -54,10 +101,10 @@ const PdjToggleButtons = React.memo(function PdjToggleButtons({ included, onTogg
         activeOpacity={0.7}
         testID="pdj-toggle-off"
       >
-        <X size={11} color={!included ? '#FFF' : FT.danger} />
+        <X size={10} color={!included ? '#FFF' : DS.textMuted} />
       </TouchableOpacity>
       <TouchableOpacity
-        style={[pdjStyles.btn, pdjStyles.btnGreen, included && pdjStyles.btnActiveGreen]}
+        style={[pdjStyles.btn, included ? pdjStyles.btnActiveOn : pdjStyles.btnOn]}
         onPress={() => {
           onToggle(true);
           if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -65,7 +112,7 @@ const PdjToggleButtons = React.memo(function PdjToggleButtons({ included, onTogg
         activeOpacity={0.7}
         testID="pdj-toggle-on"
       >
-        <Check size={11} color={included ? '#FFF' : FT.success} />
+        <Check size={10} color={included ? '#FFF' : DS.textMuted} />
       </TouchableOpacity>
     </View>
   );
@@ -73,11 +120,11 @@ const PdjToggleButtons = React.memo(function PdjToggleButtons({ included, onTogg
 
 const pdjStyles = StyleSheet.create({
   container: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4 },
-  btn: { width: 26, height: 26, borderRadius: 6, justifyContent: 'center' as const, alignItems: 'center' as const },
-  btnRed: { backgroundColor: 'rgba(239,68,68,0.12)' },
-  btnGreen: { backgroundColor: 'rgba(34,197,94,0.12)' },
-  btnActiveRed: { backgroundColor: FT.danger },
-  btnActiveGreen: { backgroundColor: FT.success },
+  btn: { width: 28, height: 28, borderRadius: 8, justifyContent: 'center' as const, alignItems: 'center' as const },
+  btnOff: { backgroundColor: DS.borderLight },
+  btnOn: { backgroundColor: DS.borderLight },
+  btnActiveOff: { backgroundColor: '#EF4444' },
+  btnActiveOn: { backgroundColor: '#10B981' },
 });
 
 interface MiniCalendarProps {
@@ -109,11 +156,11 @@ const MiniCalendar = React.memo(function MiniCalendar({ month, selectedDate, onS
     <View style={calStyles.wrap}>
       <View style={calStyles.header}>
         <TouchableOpacity onPress={prevMonth} style={calStyles.navBtn}>
-          <Text style={calStyles.navBtnText}>{'<'}</Text>
+          <Text style={calStyles.navBtnText}>{'‹'}</Text>
         </TouchableOpacity>
         <Text style={calStyles.monthLabel}>{MONTHS_FR[mo]} {year}</Text>
         <TouchableOpacity onPress={nextMonth} style={calStyles.navBtn}>
-          <Text style={calStyles.navBtnText}>{'>'}</Text>
+          <Text style={calStyles.navBtnText}>{'›'}</Text>
         </TouchableOpacity>
       </View>
       <View style={calStyles.daysRow}>
@@ -148,32 +195,32 @@ const MiniCalendar = React.memo(function MiniCalendar({ month, selectedDate, onS
 });
 
 const calStyles = StyleSheet.create({
-  wrap: { marginTop: 8, backgroundColor: FT.surfaceAlt, borderRadius: 12, padding: 10, borderWidth: 1, borderColor: FT.borderLight },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  navBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: FT.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: FT.borderLight },
-  navBtnText: { fontSize: 14, fontWeight: '700' as const, color: FT.brand },
-  monthLabel: { fontSize: 13, fontWeight: '700' as const, color: FT.text },
+  wrap: { marginTop: 8, backgroundColor: DS.surfaceWarm, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: DS.border },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  navBtn: { width: 30, height: 30, borderRadius: 10, backgroundColor: DS.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: DS.border },
+  navBtnText: { fontSize: 16, fontWeight: '600' as const, color: DS.accent },
+  monthLabel: { fontSize: 14, fontWeight: '700' as const, color: DS.text },
   daysRow: { flexDirection: 'row' },
-  dayHeaderCell: { flex: 1, alignItems: 'center', paddingVertical: 4 },
-  dayHeaderText: { fontSize: 10, fontWeight: '600' as const, color: FT.textMuted },
+  dayHeaderCell: { flex: 1, alignItems: 'center', paddingVertical: 6 },
+  dayHeaderText: { fontSize: 10, fontWeight: '600' as const, color: DS.textMuted, textTransform: 'uppercase' as const },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start' },
   cell: { width: 38, height: 38, justifyContent: 'center', alignItems: 'center' },
-  cellSelected: { backgroundColor: FT.brand, borderRadius: 20 },
-  cellToday: { backgroundColor: FT.brandSoft, borderRadius: 20 },
-  cellText: { fontSize: 12, fontWeight: '500' as const, color: FT.text },
+  cellSelected: { backgroundColor: DS.accent, borderRadius: 12 },
+  cellToday: { backgroundColor: DS.accentSoft, borderRadius: 12 },
+  cellText: { fontSize: 13, fontWeight: '500' as const, color: DS.text },
   cellTextSelected: { color: '#FFF', fontWeight: '700' as const },
-  cellTextToday: { color: FT.brand, fontWeight: '700' as const },
+  cellTextToday: { color: DS.accent, fontWeight: '700' as const },
 });
 
 const KPI_CARDS_CONFIG = [
-  { key: 'chambres', label: 'CHAMBRES', color: FT.brand, borderColor: FT.brand, iconBg: FT.brandSoft },
-  { key: 'departs', label: 'DÉPARTS', color: '#E53935', borderColor: '#E53935', iconBg: 'rgba(229,57,53,0.10)' },
-  { key: 'recouches', label: 'RECOUCHES', color: '#FB8C00', borderColor: '#FB8C00', iconBg: 'rgba(251,140,0,0.10)' },
-  { key: 'en_cours', label: 'EN COURS', color: '#1E88E5', borderColor: '#1E88E5', iconBg: 'rgba(30,136,229,0.10)' },
-  { key: 'terminees', label: 'TERMINÉES', color: '#43A047', borderColor: '#43A047', iconBg: 'rgba(67,160,71,0.10)' },
-  { key: 'a_valider', label: 'À VALIDER', color: '#F59E0B', borderColor: '#F59E0B', iconBg: 'rgba(245,158,11,0.10)' },
-  { key: 'pdj_inclus', label: 'PDJ INCLUS', color: FT.brand, borderColor: FT.brand, iconBg: FT.brandSoft },
-  { key: 'eta_urgents', label: 'ETA URGENTS', color: '#EF4444', borderColor: '#EF4444', iconBg: 'rgba(239,68,68,0.10)' },
+  { key: 'chambres', label: 'Chambres', icon: BedDouble, color: DS.accent, bg: DS.accentSoft },
+  { key: 'departs', label: 'Départs', icon: LogOut, color: '#EF4444', bg: 'rgba(239,68,68,0.06)' },
+  { key: 'recouches', label: 'Recouches', icon: RefreshCw, color: '#F59E0B', bg: 'rgba(245,158,11,0.06)' },
+  { key: 'en_cours', label: 'En cours', icon: Clock, color: '#3B82F6', bg: 'rgba(59,130,246,0.06)' },
+  { key: 'terminees', label: 'Terminées', icon: CheckCircle, color: '#10B981', bg: 'rgba(16,185,129,0.06)' },
+  { key: 'a_valider', label: 'À valider', icon: AlertTriangle, color: '#F59E0B', bg: 'rgba(245,158,11,0.06)' },
+  { key: 'pdj_inclus', label: 'PDJ inclus', icon: Coffee, color: '#8B5CF6', bg: 'rgba(139,92,246,0.06)' },
+  { key: 'eta_urgents', label: 'ETA urgents', icon: AlertTriangle, color: '#EF4444', bg: 'rgba(239,68,68,0.06)' },
 ] as const;
 
 export default function ReceptionDashboard() {
@@ -467,20 +514,20 @@ export default function ReceptionDashboard() {
   }, [filtered]);
 
   const getHousekeepingDisplay = useCallback((room: Room) => {
-    if (room.status === 'depart') return { label: 'Départ', color: '#E53935', icon: '↪' };
-    if (room.status === 'recouche') return { label: 'Recouche', color: '#FB8C00', icon: '' };
-    if (room.status === 'hors_service') return { label: 'Bloquée', color: '#78909C', icon: '🔒' };
-    if (room.cleaningStatus === 'en_cours') return { label: 'En cours', color: '#00897B', icon: '' };
-    if (room.cleaningStatus === 'nettoyee') return { label: 'Terminé', color: '#43A047', icon: '✓' };
-    if (room.cleaningStatus === 'validee') return { label: 'Terminé', color: '#43A047', icon: '✓' };
-    if (room.status === 'libre') return { label: 'Libre', color: '#94A3B8', icon: '' };
-    return { label: '', color: '#94A3B8', icon: '' };
+    if (room.status === 'depart') return { label: 'Départ', color: '#EF4444', softBg: 'rgba(239,68,68,0.06)' };
+    if (room.status === 'recouche') return { label: 'Recouche', color: '#F59E0B', softBg: 'rgba(245,158,11,0.06)' };
+    if (room.status === 'hors_service') return { label: 'Bloquée', color: '#64748B', softBg: 'rgba(100,116,139,0.06)' };
+    if (room.cleaningStatus === 'en_cours') return { label: 'En cours', color: '#14B8A6', softBg: 'rgba(20,184,166,0.06)' };
+    if (room.cleaningStatus === 'nettoyee') return { label: 'Terminé', color: '#10B981', softBg: 'rgba(16,185,129,0.06)' };
+    if (room.cleaningStatus === 'validee') return { label: 'Validé', color: '#10B981', softBg: 'rgba(16,185,129,0.06)' };
+    if (room.status === 'libre') return { label: 'Libre', color: '#94A3B8', softBg: 'rgba(148,163,184,0.06)' };
+    return { label: '', color: '#94A3B8', softBg: 'transparent' };
   }, []);
 
   const getGouvernanteDisplay = useCallback((room: Room) => {
-    if (room.cleaningStatus === 'nettoyee') return { label: 'À valider', color: '#FB8C00', bg: 'rgba(251,140,0,0.12)' };
-    if (room.cleaningStatus === 'validee') return { label: 'Validé', color: '#43A047', bg: 'rgba(67,160,71,0.12)' };
-    if (room.cleaningStatus === 'refusee') return { label: 'Refusé', color: '#E53935', bg: 'rgba(229,57,53,0.12)' };
+    if (room.cleaningStatus === 'nettoyee') return { label: 'À valider', color: '#F59E0B', bg: 'rgba(245,158,11,0.08)' };
+    if (room.cleaningStatus === 'validee') return { label: 'Validé', color: '#10B981', bg: 'rgba(16,185,129,0.08)' };
+    if (room.cleaningStatus === 'refusee') return { label: 'Refusé', color: '#EF4444', bg: 'rgba(239,68,68,0.08)' };
     return null;
   }, []);
 
@@ -505,229 +552,242 @@ export default function ReceptionDashboard() {
       : null;
     const isEven = index % 2 === 0;
 
+    const STATUS_SOFT_COLORS: Record<string, string> = {
+      libre: '#10B981',
+      occupe: '#3B82F6',
+      depart: '#EF4444',
+      recouche: '#F59E0B',
+      hors_service: '#64748B',
+    };
+    const statusColor = STATUS_SOFT_COLORS[room.status] ?? '#94A3B8';
+
     return (
-      <View style={[tableStyles.row, isEven && tableStyles.rowEven, isSelected && tableStyles.rowSelected]}>
+      <View style={[tbl.row, isEven ? tbl.rowEven : tbl.rowOdd, isSelected && tbl.rowSelected]}>
         <TouchableOpacity
-          style={tableStyles.checkCell}
+          style={tbl.checkCell}
           onPress={() => {
             toggleRoomSelection(room.id);
             if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           }}
         >
-          <View style={[tableStyles.checkbox, isSelected && tableStyles.checkboxActive]}>
-            {isSelected && <Text style={tableStyles.checkMark}>{'✓'}</Text>}
+          <View style={[tbl.checkbox, isSelected && tbl.checkboxActive]}>
+            {isSelected && <Check size={10} color="#FFF" />}
           </View>
         </TouchableOpacity>
 
-        <View style={tableStyles.chambreCell}>
-          <View style={[tableStyles.roomBadge, { backgroundColor: ROOM_STATUS_CONFIG[room.status].color }]}>
-            <Text style={tableStyles.roomBadgeText}>{room.roomNumber}</Text>
+        <View style={tbl.chambreCell}>
+          <View style={[tbl.roomBadge, { backgroundColor: statusColor }]}>
+            <Text style={tbl.roomBadgeText}>{room.roomNumber}</Text>
           </View>
-          <View style={tableStyles.roomInfo}>
-            <Text style={tableStyles.roomTypeText}>{room.roomType}</Text>
-            <Text style={tableStyles.roomCatText} numberOfLines={1}>
-              {room.roomCategory ?? 'Classique'} {'·'} {room.roomSize ?? 16}{'m²'}
+          <View style={tbl.roomMeta}>
+            <Text style={tbl.roomTypeLabel}>{room.roomType}</Text>
+            <Text style={tbl.roomSubLabel} numberOfLines={1}>
+              {room.roomCategory ?? 'Classique'} · {room.roomSize ?? 16}m²
             </Text>
           </View>
         </View>
 
-        <View style={tableStyles.cleanlinessCell}>
+        <View style={tbl.cleanlinessCell}>
           {(() => {
             const cls = room.cleanlinessStatus ?? 'sale';
             const cfg = ROOM_CLEANLINESS_CONFIG[cls];
             return (
-              <View style={[tableStyles.cleanlinessBadge, { backgroundColor: cfg.color + '14' }]}>
-                <Text style={tableStyles.cleanlinessIcon}>{cfg.icon}</Text>
-                <Text style={[tableStyles.cleanlinessLabel, { color: cfg.color }]} numberOfLines={1}>{cfg.label}</Text>
+              <View style={[tbl.softBadge, { backgroundColor: cfg.color + '0D' }]}>
+                <Text style={tbl.softBadgeIcon}>{cfg.icon}</Text>
+                <Text style={[tbl.softBadgeLabel, { color: cfg.color }]} numberOfLines={1}>{cfg.label}</Text>
               </View>
             );
           })()}
         </View>
 
-        <TouchableOpacity style={tableStyles.clientCell} onPress={() => handleEditClient(room)} activeOpacity={0.6}>
+        <TouchableOpacity style={tbl.clientCell} onPress={() => handleEditClient(room)} activeOpacity={0.6}>
           {hasClient ? (
-            <>
-              <View style={tableStyles.clientNameRow}>
+            <View style={tbl.clientContent}>
+              <View style={tbl.clientRow}>
                 {room.clientBadge === 'vip' && (
-                  <View style={tableStyles.vipBadgeInline}>
-                    <Text style={tableStyles.vipBadgeInlineText}>{'VIP'}</Text>
+                  <View style={tbl.vipTag}>
+                    <Text style={tbl.vipTagText}>VIP</Text>
                   </View>
                 )}
-                {room.clientBadge === 'prioritaire' && <Text style={tableStyles.priorityStar}>{'★'}</Text>}
-                <Text style={tableStyles.clientName} numberOfLines={1}>
+                {room.clientBadge === 'prioritaire' && (
+                  <Star size={11} color="#F59E0B" fill="#F59E0B" />
+                )}
+                <Text style={tbl.clientName} numberOfLines={1}>
                   {room.currentReservation?.guestName}
                 </Text>
-                <Pencil size={10} color={FT.textMuted} style={{ marginLeft: 4 }} />
               </View>
-            </>
+              <Pencil size={10} color={DS.textMuted} />
+            </View>
           ) : (
-            <View style={tableStyles.clientEmptyRow}>
-              <View style={tableStyles.clientEmptyDot} />
-              <Text style={tableStyles.clientEmpty}>{'Libre'}</Text>
-              <Text style={tableStyles.clientAddLink}>{'+ Ajouter'}</Text>
+            <View style={tbl.clientEmptyWrap}>
+              <View style={tbl.clientEmptyDot} />
+              <Text style={tbl.clientEmptyText}>Libre</Text>
+              <Text style={tbl.clientAddBtn}>+ Ajouter</Text>
             </View>
           )}
         </TouchableOpacity>
 
-        <View style={tableStyles.paxCell}>
+        <View style={tbl.paxCell}>
           {hasClient ? (
-            <Text style={tableStyles.paxText}>
+            <Text style={tbl.paxText}>
               {room.currentReservation?.adults ?? 1}
-              {(room.currentReservation?.children ?? 0) > 0
-                ? ` + ${room.currentReservation?.children} enf.`
-                : ''}
+              {(room.currentReservation?.children ?? 0) > 0 ? ` + ${room.currentReservation?.children}` : ''}
             </Text>
           ) : (
-            <Text style={tableStyles.emptyDash}>{'—'}</Text>
+            <Text style={tbl.dash}>—</Text>
           )}
         </View>
 
-        <View style={tableStyles.arriveeCell}>
+        <View style={tbl.dateCell}>
           {hasClient && room.currentReservation?.checkInDate ? (
-            <Text style={tableStyles.dateText}>{formatShortDate(room.currentReservation.checkInDate)}</Text>
+            <Text style={tbl.dateIn}>{formatShortDate(room.currentReservation.checkInDate)}</Text>
           ) : (
-            <Text style={tableStyles.emptyDash}>{'—'}</Text>
+            <Text style={tbl.dash}>—</Text>
           )}
         </View>
 
-        <View style={tableStyles.departCell}>
+        <View style={tbl.dateCell}>
           {hasClient && room.currentReservation?.checkOutDate ? (
-            <Text style={tableStyles.dateTextDepart}>{formatShortDate(room.currentReservation.checkOutDate)}</Text>
+            <Text style={tbl.dateOut}>{formatShortDate(room.currentReservation.checkOutDate)}</Text>
           ) : (
-            <Text style={tableStyles.emptyDash}>{'—'}</Text>
+            <Text style={tbl.dash}>—</Text>
           )}
         </View>
 
-        <View style={tableStyles.etaArrivalCell}>
+        <View style={tbl.etaArrivalCell}>
           {room.etaArrival ? (
-            <Text style={tableStyles.etaArrivalText}>{room.etaArrival}</Text>
+            <View style={tbl.etaArrivalPill}>
+              <Text style={tbl.etaArrivalText}>{room.etaArrival}</Text>
+            </View>
           ) : (
-            <Text style={tableStyles.emptyDash}>{'—'}</Text>
+            <Text style={tbl.dash}>—</Text>
           )}
         </View>
 
-        <View style={tableStyles.sourceCell}>
+        <View style={tbl.sourceCell}>
           {room.bookingSource ? (() => {
             const srcCfg = BOOKING_SOURCE_CONFIG[room.bookingSource];
             const chCfg = CHANNEL_TYPE_CONFIG[srcCfg.channelType];
             return (
               <TouchableOpacity
-                style={tableStyles.sourceWrapper}
+                style={tbl.sourceWrap}
                 onPress={() => setSourceDropdownRoomId(sourceDropdownRoomId === room.id ? null : room.id)}
                 activeOpacity={0.7}
               >
-                <View style={[tableStyles.sourceLogo, { backgroundColor: srcCfg.color }]}>
-                  <Text style={tableStyles.sourceLogoText}>{srcCfg.icon}</Text>
+                <View style={[tbl.sourceDot, { backgroundColor: srcCfg.color }]}>
+                  <Text style={tbl.sourceDotText}>{srcCfg.icon}</Text>
                 </View>
-                <View style={tableStyles.sourceInfo}>
-                  <Text style={[tableStyles.sourceLabel, { color: srcCfg.color }]} numberOfLines={1}>{room.bookingSource === 'Téléphone' ? 'Tél.' : room.bookingSource === 'Walk-in' ? 'Walk-in' : room.bookingSource}</Text>
-                  <View style={[tableStyles.channelTag, { backgroundColor: chCfg.bgColor }]}>
-                    <Text style={[tableStyles.channelTagText, { color: chCfg.color }]}>{srcCfg.hasCommission ? 'OTA' : chCfg.label}</Text>
+                <View style={tbl.sourceInfo}>
+                  <Text style={[tbl.sourceLabel, { color: srcCfg.color }]} numberOfLines={1}>
+                    {room.bookingSource === 'Téléphone' ? 'Tél.' : room.bookingSource === 'Walk-in' ? 'Walk-in' : room.bookingSource}
+                  </Text>
+                  <View style={[tbl.channelPill, { backgroundColor: chCfg.bgColor }]}>
+                    <Text style={[tbl.channelPillText, { color: chCfg.color }]}>
+                      {srcCfg.hasCommission ? 'OTA' : chCfg.label}
+                    </Text>
                   </View>
                 </View>
               </TouchableOpacity>
             );
           })() : (
             <TouchableOpacity
-              style={tableStyles.sourceEmptyBtn}
+              style={tbl.sourceEmpty}
               onPress={() => setSourceDropdownRoomId(sourceDropdownRoomId === room.id ? null : room.id)}
               activeOpacity={0.7}
             >
-              <Text style={tableStyles.sourceEmptyText}>{'+ Source'}</Text>
+              <Text style={tbl.sourceEmptyText}>+ Source</Text>
             </TouchableOpacity>
           )}
         </View>
 
-        <View style={tableStyles.hkCell}>
+        <View style={tbl.hkCell}>
           {hkDisplay.label ? (
-            <View style={[tableStyles.hkBadge, { backgroundColor: hkDisplay.color + '14' }]}>
-              <View style={[tableStyles.hkDotInner, { backgroundColor: hkDisplay.color }]} />
-              <Text style={[tableStyles.hkLabel, { color: hkDisplay.color }]} numberOfLines={1}>
+            <View style={[tbl.softBadge, { backgroundColor: hkDisplay.softBg }]}>
+              <View style={[tbl.hkDot, { backgroundColor: hkDisplay.color }]} />
+              <Text style={[tbl.softBadgeLabel, { color: hkDisplay.color }]} numberOfLines={1}>
                 {hkDisplay.label}
               </Text>
             </View>
           ) : (
-            <Text style={tableStyles.emptyDash}>{'—'}</Text>
+            <Text style={tbl.dash}>—</Text>
           )}
         </View>
 
-        <View style={tableStyles.gouvCell}>
+        <View style={tbl.gouvCell}>
           {gouvDisplay ? (
-            <View style={[tableStyles.gouvBadge, { backgroundColor: gouvDisplay.bg }]}>
-              <Text style={[tableStyles.gouvText, { color: gouvDisplay.color }]}>{gouvDisplay.label}</Text>
+            <View style={[tbl.softBadge, { backgroundColor: gouvDisplay.bg }]}>
+              <Text style={[tbl.softBadgeLabel, { color: gouvDisplay.color }]}>{gouvDisplay.label}</Text>
             </View>
           ) : (
-            <Text style={tableStyles.emptyDash}>{'—'}</Text>
+            <Text style={tbl.dash}>—</Text>
           )}
         </View>
 
-        <View style={tableStyles.assignCell}>
+        <View style={tbl.assignCell}>
           {assignee ? (
-            <View style={tableStyles.assignRow}>
-              <View style={tableStyles.assignAvatar}>
-                <Text style={tableStyles.assignAvatarText}>{assigneeInitials}</Text>
+            <View style={tbl.assignWrap}>
+              <View style={tbl.assignAvatar}>
+                <Text style={tbl.assignAvatarText}>{assigneeInitials}</Text>
               </View>
-              <Text style={tableStyles.assignName} numberOfLines={1}>{assignee}</Text>
+              <Text style={tbl.assignName} numberOfLines={1}>{assignee}</Text>
             </View>
           ) : (
-            <Text style={tableStyles.emptyDash}>{'—'}</Text>
+            <Text style={tbl.dash}>—</Text>
           )}
         </View>
 
-        <View style={tableStyles.vueSdbCell}>
-          <View>
-            <Text style={tableStyles.vueSdbText}>{room.viewType ?? 'Rue'}</Text>
-            <Text style={tableStyles.vueSdbSubtext}>{room.bathroomType ?? 'Douche'}</Text>
-          </View>
+        <View style={tbl.viewSdbCell}>
+          <Text style={tbl.viewText}>{room.viewType ?? 'Rue'}</Text>
+          <Text style={tbl.sdbText}>{room.bathroomType ?? 'Douche'}</Text>
         </View>
 
-        <View style={tableStyles.pdjCell}>
+        <View style={tbl.pdjCell}>
           <PdjToggleButtons
             included={pdjIncluded}
             onToggle={(val) => handleToggleBreakfast(room.id, val)}
           />
         </View>
 
-        <View style={tableStyles.etaCell}>
+        <View style={tbl.etaCell}>
           {eta ? (
-            <View style={tableStyles.etaBadge}>
-              <Text style={tableStyles.etaText}>{eta}</Text>
+            <View style={tbl.etaPill}>
+              <Text style={tbl.etaPillText}>{eta}</Text>
             </View>
           ) : (
-            <Text style={tableStyles.emptyDash}>{'—'}</Text>
+            <Text style={tbl.dash}>—</Text>
           )}
         </View>
 
-        <View style={tableStyles.actionsCell}>
+        <View style={tbl.actionsCell}>
           <TouchableOpacity
             onPress={() => handleRoomPress(room)}
-            style={tableStyles.actionIconBtn}
+            style={tbl.actionBtn}
             testID={`action-detail-${room.roomNumber}`}
           >
-            <Eye size={13} color={FT.brand} />
+            <Eye size={14} color={DS.accent} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleSetDeparture(room)}
-            style={[tableStyles.actionIconBtn, tableStyles.actionIconDeparture]}
+            style={[tbl.actionBtn, tbl.actionBtnDanger]}
             testID={`action-depart-${room.roomNumber}`}
           >
-            <DoorOpen size={13} color={'#E53935'} />
+            <DoorOpen size={14} color="#EF4444" />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleTogglePriority(room)}
-            style={[tableStyles.actionIconBtn, room.clientBadge === 'prioritaire' && tableStyles.actionIconPriority]}
+            style={[tbl.actionBtn, room.clientBadge === 'prioritaire' && tbl.actionBtnStar]}
             testID={`action-priority-${room.roomNumber}`}
           >
             <Star
-              size={13}
-              color={room.clientBadge === 'prioritaire' ? '#F59E0B' : FT.textMuted}
+              size={14}
+              color={room.clientBadge === 'prioritaire' ? '#F59E0B' : DS.textMuted}
               fill={room.clientBadge === 'prioritaire' ? '#F59E0B' : 'transparent'}
             />
           </TouchableOpacity>
         </View>
       </View>
     );
-  }, [selectedRoomIds, handleRoomPress, toggleRoomSelection, handleEditClient, handleToggleBreakfast, handleSetDeparture, handleTogglePriority, getHousekeepingDisplay, getGouvernanteDisplay, getCleaningEta, sourceDropdownRoomId, updateRoom]);
+  }, [selectedRoomIds, handleRoomPress, toggleRoomSelection, handleEditClient, handleToggleBreakfast, handleSetDeparture, handleTogglePriority, getHousekeepingDisplay, getGouvernanteDisplay, getCleaningEta, sourceDropdownRoomId]);
 
   const renderFloorSection = useCallback(
     ({ item }: { item: { floor: number; rooms: Room[] } }) => {
@@ -761,10 +821,10 @@ export default function ReceptionDashboard() {
                 activeOpacity={0.7}
                 testID={`room-card-${room.roomNumber}`}
               >
-                {isSelected && <View style={ftStyles.roomCheck}><Text style={ftStyles.roomCheckText}>{'✓'}</Text></View>}
+                {isSelected && <View style={ftStyles.roomCheck}><Text style={ftStyles.roomCheckText}>✓</Text></View>}
                 <Text style={ftStyles.roomNum}>{room.roomNumber}</Text>
-                {room.clientBadge === 'vip' && <Text style={ftStyles.roomBadge}>{'⭐'}</Text>}
-                {room.clientBadge === 'prioritaire' && <Text style={ftStyles.roomBadge}>{'⚡'}</Text>}
+                {room.clientBadge === 'vip' && <Text style={ftStyles.roomBadge}>⭐</Text>}
+                {room.clientBadge === 'prioritaire' && <Text style={ftStyles.roomBadge}>⚡</Text>}
                 {room.cleaningStatus !== 'none' && (
                   <Text style={ftStyles.roomCleanIcon}>{CLEANING_STATUS_CONFIG[room.cleaningStatus].icon}</Text>
                 )}
@@ -784,19 +844,19 @@ export default function ReceptionDashboard() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={s.loadingWrap}>
         <Stack.Screen options={{ title: t.reception.title }} />
-        <ActivityIndicator size="large" color={FT.brand} />
-        <Text style={styles.loadingText}>{t.common.loading}...</Text>
+        <ActivityIndicator size="large" color={DS.accent} />
+        <Text style={s.loadingText}>{t.common.loading}...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={s.root}>
       <Stack.Screen
         options={{
-          headerStyle: { backgroundColor: FT.headerBg },
+          headerStyle: { backgroundColor: DS.headerBg },
           headerTintColor: '#FFF',
           headerShadowVisible: false,
           headerTitle: () => (
@@ -806,9 +866,9 @@ export default function ReceptionDashboard() {
                 { label: t.direction.todayAlerts, icon: '🔔', badge: unbilledBreakfasts.length },
               ]}
               rightItems={
-                <View style={styles.headerRight}>
+                <View style={s.headerRight}>
                   {unbilledBreakfasts.length > 0 && (
-                    <TouchableOpacity style={styles.billingBtn} onPress={() => {
+                    <TouchableOpacity style={s.billingBtn} onPress={() => {
                       Alert.alert(
                         `${unbilledBreakfasts.length} PDJ ${t.reception.billing}`,
                         unbilledBreakfasts.map((o) => `Ch. ${o.roomNumber} — ${o.personCount} pers.`).join('\n'),
@@ -816,22 +876,23 @@ export default function ReceptionDashboard() {
                       );
                     }}>
                       <Coffee size={16} color="#FFF" />
-                      <View style={styles.billingBadge}>
-                        <Text style={styles.billingBadgeText}>{unbilledBreakfasts.length}</Text>
+                      <View style={s.billingBadge}>
+                        <Text style={s.billingBadgeText}>{unbilledBreakfasts.length}</Text>
                       </View>
                     </TouchableOpacity>
                   )}
                   <PMSStatusIndicator syncState={pmsSync} isSyncing={isSyncing} onSync={syncPms} />
-                  <TouchableOpacity style={styles.csvTemplateBtn} onPress={handleDownloadTemplate}>
-                    <Download size={12} color={FT.textSec} />
-                    <Text style={styles.csvTemplateBtnText}>{'CSV modèle'}</Text>
+                  <TouchableOpacity style={s.csvBtn} onPress={handleDownloadTemplate}>
+                    <Download size={12} color="rgba(255,255,255,0.6)" />
+                    <Text style={s.csvBtnText}>CSV</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.importClientBtn}
+                    style={s.importBtn}
                     onPress={handleImportPress}
                     testID="import-clients-btn"
                   >
-                    <Text style={styles.importClientBtnText}>{'Import clients'}</Text>
+                    <Upload size={12} color="#FFF" />
+                    <Text style={s.importBtnText}>Import</Text>
                   </TouchableOpacity>
                   <UserMenuButton />
                 </View>
@@ -842,205 +903,213 @@ export default function ReceptionDashboard() {
         }}
       />
 
-      <View style={styles.kpiBar}>
-        {showKpi && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.kpiRow} contentContainerStyle={styles.kpiRowContent}>
-            {KPI_CARDS_CONFIG.map((cfg) => (
-              <View key={cfg.key} style={[styles.kpiChip, { borderLeftColor: cfg.borderColor }]}>
-                <Text style={[styles.kpiChipValue, { color: cfg.color }]}>{kpiData[cfg.key]}</Text>
-                <Text style={styles.kpiChipLabel}>{cfg.label}</Text>
-              </View>
-            ))}
+      {showKpi && (
+        <View style={s.kpiSection}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.kpiScroll}>
+            {KPI_CARDS_CONFIG.map((cfg) => {
+              const IconComp = cfg.icon;
+              return (
+                <View key={cfg.key} style={[s.kpiCard, DS.shadow]}>
+                  <View style={[s.kpiIconWrap, { backgroundColor: cfg.bg }]}>
+                    <IconComp size={16} color={cfg.color} />
+                  </View>
+                  <View style={s.kpiTextBlock}>
+                    <Text style={[s.kpiValue, { color: cfg.color }]}>{kpiData[cfg.key]}</Text>
+                    <Text style={s.kpiLabel}>{cfg.label}</Text>
+                  </View>
+                </View>
+              );
+            })}
           </ScrollView>
-        )}
-        <TouchableOpacity
-          style={styles.kpiToggleBtn}
-          onPress={() => {
-            setShowKpi(!showKpi);
-            if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          }}
-          activeOpacity={0.7}
-          testID="toggle-kpi-btn"
-        >
-          <Eye size={12} color={showKpi ? FT.brand : FT.textMuted} />
-          <Text style={[styles.kpiToggleText, showKpi && styles.kpiToggleTextActive]}>
-            {showKpi ? 'Masquer KPI' : 'Afficher KPI'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+        </View>
+      )}
 
-      <View style={styles.searchFilterRow}>
-        <View style={styles.filterRow2}>
-          <View style={styles.searchBox}>
-            <Search size={14} color={FT.textMuted} />
+      <View style={s.toolbar}>
+        <View style={s.toolbarTop}>
+          <View style={s.searchWrap}>
+            <Search size={15} color={DS.textMuted} />
             <TextInput
-              style={styles.searchInput}
+              style={s.searchInput}
               placeholder="Chambre, client..."
-              placeholderTextColor={FT.textMuted}
+              placeholderTextColor={DS.textMuted}
               value={searchText}
               onChangeText={setSearchText}
               testID="search-rooms"
             />
             {searchText.length > 0 && (
               <TouchableOpacity onPress={() => setSearchText('')}>
-                <X size={14} color={FT.textMuted} />
+                <X size={14} color={DS.textMuted} />
               </TouchableOpacity>
             )}
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterPillsContent} style={styles.filterScrollFlex}>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pillsScroll} style={s.pillsWrap}>
             <TouchableOpacity
-              style={[styles.filterPill, floorFilter !== 'all' && styles.filterPillActive]}
+              style={[s.pill, floorFilter !== 'all' && s.pillActive]}
               onPress={() => { closeAllDropdowns(); setShowFloorDrop(!showFloorDrop); }}
             >
-              <Text style={[styles.filterPillText, floorFilter !== 'all' && styles.filterPillTextActive]}>
-                {floorFilter === 'all' ? 'Tous étages' : `Étage ${floorFilter}`}
+              <Text style={[s.pillText, floorFilter !== 'all' && s.pillTextActive]}>
+                {floorFilter === 'all' ? 'Étage' : `Ét. ${floorFilter}`}
               </Text>
-              <ChevronDown size={10} color={floorFilter !== 'all' ? FT.brand : FT.textMuted} />
+              <ChevronDown size={10} color={floorFilter !== 'all' ? DS.accent : DS.textMuted} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.filterPill, statusFilter !== 'all' && styles.filterPillActive]}
+              style={[s.pill, statusFilter !== 'all' && s.pillActive]}
               onPress={() => { closeAllDropdowns(); setShowStatusDrop(!showStatusDrop); }}
             >
-              <Text style={[styles.filterPillText, statusFilter !== 'all' && styles.filterPillTextActive]}>
-                {statusFilter === 'all' ? 'Tous statuts' : ROOM_STATUS_CONFIG[statusFilter].label}
+              <Text style={[s.pillText, statusFilter !== 'all' && s.pillTextActive]}>
+                {statusFilter === 'all' ? 'Statut' : ROOM_STATUS_CONFIG[statusFilter].label}
               </Text>
-              <ChevronDown size={10} color={statusFilter !== 'all' ? FT.brand : FT.textMuted} />
+              <ChevronDown size={10} color={statusFilter !== 'all' ? DS.accent : DS.textMuted} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.filterPill, badgeFilter !== 'all' && styles.filterPillActive]}
+              style={[s.pill, badgeFilter !== 'all' && s.pillActive]}
               onPress={() => { closeAllDropdowns(); setShowBadgeDrop(!showBadgeDrop); }}
             >
-              <Text style={[styles.filterPillText, badgeFilter !== 'all' && styles.filterPillTextActive]}>
-                {badgeFilter === 'all' ? 'Toutes catégories' : badgeFilter === 'vip' ? 'VIP' : 'Prioritaire'}
+              <Text style={[s.pillText, badgeFilter !== 'all' && s.pillTextActive]}>
+                {badgeFilter === 'all' ? 'Badge' : badgeFilter === 'vip' ? 'VIP' : 'Prioritaire'}
               </Text>
-              <ChevronDown size={10} color={badgeFilter !== 'all' ? FT.brand : FT.textMuted} />
+              <ChevronDown size={10} color={badgeFilter !== 'all' ? DS.accent : DS.textMuted} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.filterPill, assigneeFilter !== 'all' && styles.filterPillActive]}
+              style={[s.pill, assigneeFilter !== 'all' && s.pillActive]}
               onPress={() => { closeAllDropdowns(); setShowAssigneeDrop(!showAssigneeDrop); }}
             >
-              <Text style={[styles.filterPillText, assigneeFilter !== 'all' && styles.filterPillTextActive]}>
-                {assigneeFilter === 'all' ? 'Toutes assignées' : assigneeFilter === 'none' ? 'Non assignées' : assigneeFilter}
+              <Text style={[s.pillText, assigneeFilter !== 'all' && s.pillTextActive]}>
+                {assigneeFilter === 'all' ? 'Assignée' : assigneeFilter === 'none' ? 'Non assignées' : assigneeFilter}
               </Text>
-              <ChevronDown size={10} color={assigneeFilter !== 'all' ? FT.brand : FT.textMuted} />
+              <ChevronDown size={10} color={assigneeFilter !== 'all' ? DS.accent : DS.textMuted} />
             </TouchableOpacity>
           </ScrollView>
-          <View style={styles.filterRightBlock}>
+
+          <View style={s.toolbarRight}>
+            <View style={s.viewSwitch}>
+              <TouchableOpacity
+                style={[s.viewBtn, viewMode === 'plan' && s.viewBtnActive]}
+                onPress={() => setViewMode('plan')}
+              >
+                <LayoutGrid size={14} color={viewMode === 'plan' ? '#FFF' : DS.textMuted} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.viewBtn, viewMode === 'table' && s.viewBtnActive]}
+                onPress={() => setViewMode('table')}
+              >
+                <List size={14} color={viewMode === 'table' ? '#FFF' : DS.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <Text style={s.counterText}>{filtered.length}/{total}</Text>
             <TouchableOpacity
-              style={[styles.viewToggle, viewMode === 'plan' && styles.viewToggleActive]}
-              onPress={() => setViewMode('plan')}
+              style={s.kpiToggle}
+              onPress={() => {
+                setShowKpi(!showKpi);
+                if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              testID="toggle-kpi-btn"
             >
-              <LayoutGrid size={14} color={viewMode === 'plan' ? '#FFF' : FT.textSec} />
+              <SlidersHorizontal size={14} color={showKpi ? DS.accent : DS.textMuted} />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.viewToggle, viewMode === 'table' && styles.viewToggleActive]}
-              onPress={() => setViewMode('table')}
-            >
-              <List size={14} color={viewMode === 'table' ? '#FFF' : FT.textSec} />
-            </TouchableOpacity>
-            <Text style={styles.roomCounterText}>{filtered.length} / {total} {t.rooms.rooms}</Text>
           </View>
         </View>
       </View>
 
       {showFloorDrop && (
-        <View style={styles.dropdown}>
-          <TouchableOpacity style={[styles.dropItem, floorFilter === 'all' && styles.dropItemActive]} onPress={() => { setFloorFilter('all'); setShowFloorDrop(false); }}>
-            <Text style={styles.dropItemText}>{'Tous étages'}</Text>
+        <View style={s.dropdown}>
+          <TouchableOpacity style={[s.dropItem, floorFilter === 'all' && s.dropItemActive]} onPress={() => { setFloorFilter('all'); setShowFloorDrop(false); }}>
+            <Text style={[s.dropText, floorFilter === 'all' && s.dropTextActive]}>Tous étages</Text>
           </TouchableOpacity>
           {floors.map((f) => (
-            <TouchableOpacity key={f} style={[styles.dropItem, floorFilter === f && styles.dropItemActive]} onPress={() => { setFloorFilter(f); setShowFloorDrop(false); }}>
-              <Text style={styles.dropItemText}>{`Étage ${f}`}</Text>
+            <TouchableOpacity key={f} style={[s.dropItem, floorFilter === f && s.dropItemActive]} onPress={() => { setFloorFilter(f); setShowFloorDrop(false); }}>
+              <Text style={[s.dropText, floorFilter === f && s.dropTextActive]}>{`Étage ${f}`}</Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
       {showStatusDrop && (
-        <View style={styles.dropdown}>
-          <TouchableOpacity style={[styles.dropItem, statusFilter === 'all' && styles.dropItemActive]} onPress={() => { setStatusFilter('all'); setShowStatusDrop(false); }}>
-            <Text style={styles.dropItemText}>{'Tous statuts'}</Text>
+        <View style={s.dropdown}>
+          <TouchableOpacity style={[s.dropItem, statusFilter === 'all' && s.dropItemActive]} onPress={() => { setStatusFilter('all'); setShowStatusDrop(false); }}>
+            <Text style={[s.dropText, statusFilter === 'all' && s.dropTextActive]}>Tous statuts</Text>
           </TouchableOpacity>
           {(['libre', 'occupe', 'depart', 'recouche', 'hors_service'] as const).map((st) => (
-            <TouchableOpacity key={st} style={[styles.dropItem, statusFilter === st && styles.dropItemActive]} onPress={() => { setStatusFilter(st); setShowStatusDrop(false); }}>
-              <View style={[styles.dropDot, { backgroundColor: ROOM_STATUS_CONFIG[st].color }]} />
-              <Text style={styles.dropItemText}>{ROOM_STATUS_CONFIG[st].label}</Text>
+            <TouchableOpacity key={st} style={[s.dropItem, statusFilter === st && s.dropItemActive]} onPress={() => { setStatusFilter(st); setShowStatusDrop(false); }}>
+              <View style={[s.dropDot, { backgroundColor: ROOM_STATUS_CONFIG[st].color }]} />
+              <Text style={[s.dropText, statusFilter === st && s.dropTextActive]}>{ROOM_STATUS_CONFIG[st].label}</Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
       {showBadgeDrop && (
-        <View style={styles.dropdown}>
-          <TouchableOpacity style={[styles.dropItem, badgeFilter === 'all' && styles.dropItemActive]} onPress={() => { setBadgeFilter('all'); setShowBadgeDrop(false); }}>
-            <Text style={styles.dropItemText}>{'Toutes catégories'}</Text>
+        <View style={s.dropdown}>
+          <TouchableOpacity style={[s.dropItem, badgeFilter === 'all' && s.dropItemActive]} onPress={() => { setBadgeFilter('all'); setShowBadgeDrop(false); }}>
+            <Text style={[s.dropText, badgeFilter === 'all' && s.dropTextActive]}>Tous</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.dropItem, badgeFilter === 'vip' && styles.dropItemActive]} onPress={() => { setBadgeFilter('vip'); setShowBadgeDrop(false); }}>
-            <Text style={styles.dropItemText}>{'VIP'}</Text>
+          <TouchableOpacity style={[s.dropItem, badgeFilter === 'vip' && s.dropItemActive]} onPress={() => { setBadgeFilter('vip'); setShowBadgeDrop(false); }}>
+            <Text style={[s.dropText, badgeFilter === 'vip' && s.dropTextActive]}>VIP</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.dropItem, badgeFilter === 'prioritaire' && styles.dropItemActive]} onPress={() => { setBadgeFilter('prioritaire'); setShowBadgeDrop(false); }}>
-            <Text style={styles.dropItemText}>{'Prioritaire'}</Text>
+          <TouchableOpacity style={[s.dropItem, badgeFilter === 'prioritaire' && s.dropItemActive]} onPress={() => { setBadgeFilter('prioritaire'); setShowBadgeDrop(false); }}>
+            <Text style={[s.dropText, badgeFilter === 'prioritaire' && s.dropTextActive]}>Prioritaire</Text>
           </TouchableOpacity>
         </View>
       )}
       {showAssigneeDrop && (
-        <View style={styles.dropdown}>
-          <TouchableOpacity style={[styles.dropItem, assigneeFilter === 'all' && styles.dropItemActive]} onPress={() => { setAssigneeFilter('all'); setShowAssigneeDrop(false); }}>
-            <Text style={styles.dropItemText}>{'Toutes assignées'}</Text>
+        <View style={s.dropdown}>
+          <TouchableOpacity style={[s.dropItem, assigneeFilter === 'all' && s.dropItemActive]} onPress={() => { setAssigneeFilter('all'); setShowAssigneeDrop(false); }}>
+            <Text style={[s.dropText, assigneeFilter === 'all' && s.dropTextActive]}>Toutes</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.dropItem, assigneeFilter === 'none' && styles.dropItemActive]} onPress={() => { setAssigneeFilter('none'); setShowAssigneeDrop(false); }}>
-            <Text style={styles.dropItemText}>{'Non assignées'}</Text>
+          <TouchableOpacity style={[s.dropItem, assigneeFilter === 'none' && s.dropItemActive]} onPress={() => { setAssigneeFilter('none'); setShowAssigneeDrop(false); }}>
+            <Text style={[s.dropText, assigneeFilter === 'none' && s.dropTextActive]}>Non assignées</Text>
           </TouchableOpacity>
           {assigneeList.map((a) => (
-            <TouchableOpacity key={a} style={[styles.dropItem, assigneeFilter === a && styles.dropItemActive]} onPress={() => { setAssigneeFilter(a); setShowAssigneeDrop(false); }}>
-              <Text style={styles.dropItemText}>{a}</Text>
+            <TouchableOpacity key={a} style={[s.dropItem, assigneeFilter === a && s.dropItemActive]} onPress={() => { setAssigneeFilter(a); setShowAssigneeDrop(false); }}>
+              <Text style={[s.dropText, assigneeFilter === a && s.dropTextActive]}>{a}</Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
 
       {showMoreMenu && (
-        <View style={styles.moreMenu}>
-          <TouchableOpacity style={styles.moreMenuItem} onPress={() => { router.push('/history'); setShowMoreMenu(false); }}>
-            <Text style={styles.moreMenuIcon}>{'📋'}</Text>
-            <Text style={styles.moreMenuText}>{t.direction.historyLabel}</Text>
+        <View style={s.moreMenu}>
+          <TouchableOpacity style={s.moreItem} onPress={() => { router.push('/history'); setShowMoreMenu(false); }}>
+            <Text style={s.moreIcon}>📋</Text>
+            <Text style={s.moreText}>{t.direction.historyLabel}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.moreMenuItem} onPress={() => { router.push('/breakfast-stats'); setShowMoreMenu(false); }}>
-            <Text style={styles.moreMenuIcon}>{'☕'}</Text>
-            <Text style={styles.moreMenuText}>{t.breakfast.title}</Text>
+          <TouchableOpacity style={s.moreItem} onPress={() => { router.push('/breakfast-stats'); setShowMoreMenu(false); }}>
+            <Text style={s.moreIcon}>☕</Text>
+            <Text style={s.moreText}>{t.breakfast.title}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.moreMenuItem} onPress={() => { router.push('/economat'); setShowMoreMenu(false); }}>
-            <Text style={styles.moreMenuIcon}>{'📦'}</Text>
-            <Text style={styles.moreMenuText}>{t.economat.title}</Text>
+          <TouchableOpacity style={s.moreItem} onPress={() => { router.push('/economat'); setShowMoreMenu(false); }}>
+            <Text style={s.moreIcon}>📦</Text>
+            <Text style={s.moreText}>{t.economat.title}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.moreMenuItem} onPress={() => { router.push('/settings'); setShowMoreMenu(false); }}>
-            <Text style={styles.moreMenuIcon}>{'⚙️'}</Text>
-            <Text style={styles.moreMenuText}>{t.menu.settings}</Text>
+          <TouchableOpacity style={s.moreItem} onPress={() => { router.push('/settings'); setShowMoreMenu(false); }}>
+            <Text style={s.moreIcon}>⚙️</Text>
+            <Text style={s.moreText}>{t.menu.settings}</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {selectionCount > 0 && (
-        <View style={styles.selBar}>
-          <View style={styles.selInfo}>
-            <View style={styles.selBadge}>
-              <Text style={styles.selBadgeText}>{selectionCount}</Text>
+        <View style={s.selBar}>
+          <View style={s.selLeft}>
+            <View style={s.selBadge}>
+              <Text style={s.selBadgeText}>{selectionCount}</Text>
             </View>
-            <Text style={styles.selCount}>{t.common.selected}</Text>
-            <TouchableOpacity onPress={clearSelection} style={styles.selClear}>
-              <X size={14} color={FT.textMuted} />
+            <Text style={s.selLabel}>{t.common.selected}</Text>
+            <TouchableOpacity onPress={clearSelection} style={s.selClear}>
+              <X size={14} color={DS.textMuted} />
             </TouchableOpacity>
           </View>
-          <View style={styles.selActions}>
-            <TouchableOpacity style={styles.selAssignBtn} onPress={handleAssign}>
+          <View style={s.selActions}>
+            <TouchableOpacity style={s.selAssignBtn} onPress={handleAssign}>
               <UserPlus size={14} color="#FFF" />
-              <Text style={styles.selActText}>{t.rooms.assign}</Text>
+              <Text style={s.selActText}>{t.rooms.assign}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.selDepartBtn, selectedOccupied === 0 && styles.selBtnDisabled]}
+              style={[s.selDepartBtn, selectedOccupied === 0 && s.selBtnOff]}
               onPress={handleDeparture}
               disabled={selectedOccupied === 0}
             >
               <DoorOpen size={14} color="#FFF" />
-              <Text style={styles.selActText}>{t.rooms.departure}</Text>
+              <Text style={s.selActText}>{t.rooms.departure}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1051,70 +1120,38 @@ export default function ReceptionDashboard() {
           data={groupedByFloor}
           keyExtractor={(item) => `floor-${item.floor}`}
           renderItem={renderFloorSection}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={s.planContent}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={<StaffForecastCard />}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>{'🏨'}</Text>
-              <Text style={styles.emptyTitle}>{t.rooms.noRoomFound}</Text>
+            <View style={s.emptyWrap}>
+              <Text style={s.emptyIcon}>🏨</Text>
+              <Text style={s.emptyTitle}>{t.rooms.noRoomFound}</Text>
             </View>
           }
         />
       ) : (
-        <View style={styles.tableWrapper}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScrollH}>
-            <View style={styles.tableInner}>
-              <View style={tableStyles.stickyHeader}>
-                <View style={tableStyles.headerRow}>
-                  <View style={tableStyles.checkCell}>
-                    <Text style={tableStyles.headerText}>{'✓'}</Text>
-                  </View>
-                  <View style={tableStyles.chambreCell}>
-                    <Text style={tableStyles.headerText}>{'CHAMBRE'}</Text>
-                  </View>
-                  <View style={tableStyles.cleanlinessCell}>
-                    <Text style={tableStyles.headerText}>{'STATUT'}</Text>
-                  </View>
-                  <View style={tableStyles.clientCell}>
-                    <Text style={tableStyles.headerText}>{'CLIENT'}</Text>
-                  </View>
-                  <View style={tableStyles.paxCell}>
-                    <Text style={tableStyles.headerText}>{'PAX'}</Text>
-                  </View>
-                  <View style={tableStyles.arriveeCell}>
-                    <Text style={tableStyles.headerText}>{'ARRIVÉE'}</Text>
-                  </View>
-                  <View style={tableStyles.departCell}>
-                    <Text style={tableStyles.headerText}>{'DÉPART'}</Text>
-                  </View>
-                  <View style={tableStyles.etaArrivalCell}>
-                    <Text style={tableStyles.headerText}>{'ETA CLIENT'}</Text>
-                  </View>
-                  <View style={tableStyles.sourceCell}>
-                    <Text style={tableStyles.headerText}>{'SOURCE'}</Text>
-                  </View>
-                  <View style={tableStyles.hkCell}>
-                    <Text style={tableStyles.headerText}>{'HOUSEKEEPING'}</Text>
-                  </View>
-                  <View style={tableStyles.gouvCell}>
-                    <Text style={tableStyles.headerText}>{'GOUVERNANTE'}</Text>
-                  </View>
-                  <View style={tableStyles.assignCell}>
-                    <Text style={tableStyles.headerText}>{'ASSIGNÉE'}</Text>
-                  </View>
-                  <View style={tableStyles.vueSdbCell}>
-                    <Text style={tableStyles.headerText}>{'VUE / SDB'}</Text>
-                  </View>
-                  <View style={tableStyles.pdjCell}>
-                    <Text style={tableStyles.headerText}>{'PDJ'}</Text>
-                  </View>
-                  <View style={tableStyles.etaCell}>
-                    <Text style={tableStyles.headerText}>{'ETA'}</Text>
-                  </View>
-                  <View style={tableStyles.actionsCell}>
-                    <Text style={tableStyles.headerText}>{'ACTIONS'}</Text>
-                  </View>
+        <View style={s.tableWrap}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={true} style={s.tableScrollH}>
+            <View style={s.tableInner}>
+              <View style={tbl.headerWrap}>
+                <View style={tbl.headerRow}>
+                  <View style={tbl.checkCell}><Text style={tbl.hText}>✓</Text></View>
+                  <View style={tbl.chambreCell}><Text style={tbl.hText}>CHAMBRE</Text></View>
+                  <View style={tbl.cleanlinessCell}><Text style={tbl.hText}>STATUT</Text></View>
+                  <View style={tbl.clientCell}><Text style={tbl.hText}>CLIENT</Text></View>
+                  <View style={tbl.paxCell}><Text style={tbl.hText}>PAX</Text></View>
+                  <View style={tbl.dateCell}><Text style={tbl.hText}>ARRIVÉE</Text></View>
+                  <View style={tbl.dateCell}><Text style={tbl.hText}>DÉPART</Text></View>
+                  <View style={tbl.etaArrivalCell}><Text style={tbl.hText}>ETA</Text></View>
+                  <View style={tbl.sourceCell}><Text style={tbl.hText}>SOURCE</Text></View>
+                  <View style={tbl.hkCell}><Text style={tbl.hText}>HOUSEKEEPING</Text></View>
+                  <View style={tbl.gouvCell}><Text style={tbl.hText}>GOUVERNANTE</Text></View>
+                  <View style={tbl.assignCell}><Text style={tbl.hText}>ASSIGNÉE</Text></View>
+                  <View style={tbl.viewSdbCell}><Text style={tbl.hText}>VUE / SDB</Text></View>
+                  <View style={tbl.pdjCell}><Text style={tbl.hText}>PDJ</Text></View>
+                  <View style={tbl.etaCell}><Text style={tbl.hText}>TEMPS</Text></View>
+                  <View style={tbl.actionsCell}><Text style={tbl.hText}>ACTIONS</Text></View>
                 </View>
               </View>
               <FlatList
@@ -1124,9 +1161,9 @@ export default function ReceptionDashboard() {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: 100 }}
                 ListEmptyComponent={
-                  <View style={styles.emptyState}>
-                    <Text style={styles.emptyIcon}>{'🏨'}</Text>
-                    <Text style={styles.emptyTitle}>{t.rooms.noRoomFound}</Text>
+                  <View style={s.emptyWrap}>
+                    <Text style={s.emptyIcon}>🏨</Text>
+                    <Text style={s.emptyTitle}>{t.rooms.noRoomFound}</Text>
                   </View>
                 }
               />
@@ -1135,69 +1172,56 @@ export default function ReceptionDashboard() {
         </View>
       )}
 
-      <Modal
-        visible={editModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setEditModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={modalStyles.overlay}
-          activeOpacity={1}
-          onPress={() => setEditModalVisible(false)}
-        >
-          <TouchableOpacity style={modalStyles.card} activeOpacity={1} onPress={() => {}}>
-            <View style={modalStyles.headerRow}>
+      <Modal visible={editModalVisible} transparent animationType="fade" onRequestClose={() => setEditModalVisible(false)}>
+        <TouchableOpacity style={mod.overlay} activeOpacity={1} onPress={() => setEditModalVisible(false)}>
+          <TouchableOpacity style={mod.card} activeOpacity={1} onPress={() => {}}>
+            <View style={mod.topBar}>
               <View>
-                <Text style={modalStyles.title}>{'Modifier le client'}</Text>
-                <Text style={modalStyles.subtitle}>{'Chambre'} {editingRoom?.roomNumber}</Text>
+                <Text style={mod.title}>Modifier le client</Text>
+                <Text style={mod.subtitle}>Chambre {editingRoom?.roomNumber}</Text>
               </View>
-              <TouchableOpacity onPress={() => setEditModalVisible(false)} style={modalStyles.closeBtn}>
-                <X size={18} color={FT.textMuted} />
+              <TouchableOpacity onPress={() => setEditModalVisible(false)} style={mod.closeBtn}>
+                <X size={18} color={DS.textMuted} />
               </TouchableOpacity>
             </View>
 
-            <Text style={modalStyles.label}>{'Nom du client'}</Text>
+            <Text style={mod.label}>Nom du client</Text>
             <TextInput
-              style={modalStyles.input}
+              style={mod.input}
               value={editGuestName}
               onChangeText={setEditGuestName}
               placeholder="Nom du client"
-              placeholderTextColor={FT.textMuted}
+              placeholderTextColor={DS.textMuted}
               testID="edit-guest-name"
             />
 
-            <View style={modalStyles.dateRow}>
-              <View style={modalStyles.dateField}>
-                <Text style={modalStyles.label}>{'Arrivée'}</Text>
+            <View style={mod.dateRow}>
+              <View style={mod.dateField}>
+                <Text style={mod.label}>Arrivée</Text>
                 <TouchableOpacity
-                  style={[modalStyles.input, modalStyles.dateBtn, calendarField === 'checkIn' && modalStyles.dateBtnActive]}
+                  style={[mod.input, mod.dateBtn, calendarField === 'checkIn' && mod.dateBtnActive]}
                   onPress={() => {
                     setCalendarField(calendarField === 'checkIn' ? null : 'checkIn');
-                    if (editCheckIn) {
-                      try { setCalendarMonth(new Date(editCheckIn)); } catch { /* ignore */ }
-                    }
+                    if (editCheckIn) { try { setCalendarMonth(new Date(editCheckIn)); } catch { /* */ } }
                   }}
                   testID="edit-check-in"
                 >
-                  <Text style={[modalStyles.dateBtnText, !editCheckIn && { color: FT.textMuted }]}>
+                  <Text style={[mod.dateBtnText, !editCheckIn && { color: DS.textMuted }]}>
                     {editCheckIn ? formatShortDate(editCheckIn) : 'Sélectionner'}
                   </Text>
                 </TouchableOpacity>
               </View>
-              <View style={modalStyles.dateField}>
-                <Text style={modalStyles.label}>{'Départ'}</Text>
+              <View style={mod.dateField}>
+                <Text style={mod.label}>Départ</Text>
                 <TouchableOpacity
-                  style={[modalStyles.input, modalStyles.dateBtn, calendarField === 'checkOut' && modalStyles.dateBtnActive]}
+                  style={[mod.input, mod.dateBtn, calendarField === 'checkOut' && mod.dateBtnActive]}
                   onPress={() => {
                     setCalendarField(calendarField === 'checkOut' ? null : 'checkOut');
-                    if (editCheckOut) {
-                      try { setCalendarMonth(new Date(editCheckOut)); } catch { /* ignore */ }
-                    }
+                    if (editCheckOut) { try { setCalendarMonth(new Date(editCheckOut)); } catch { /* */ } }
                   }}
                   testID="edit-check-out"
                 >
-                  <Text style={[modalStyles.dateBtnText, !editCheckOut && { color: FT.textMuted }]}>
+                  <Text style={[mod.dateBtnText, !editCheckOut && { color: DS.textMuted }]}>
                     {editCheckOut ? formatShortDate(editCheckOut) : 'Sélectionner'}
                   </Text>
                 </TouchableOpacity>
@@ -1205,7 +1229,7 @@ export default function ReceptionDashboard() {
             </View>
 
             {calendarField && (
-              <View style={modalStyles.calendarWrap}>
+              <View style={mod.calWrap}>
                 <MiniCalendar
                   month={calendarMonth}
                   selectedDate={calendarField === 'checkIn' ? editCheckIn : editCheckOut}
@@ -1219,63 +1243,51 @@ export default function ReceptionDashboard() {
               </View>
             )}
 
-            <TouchableOpacity
-              style={modalStyles.moveToggle}
-              onPress={() => setShowMoveRoomPicker(!showMoveRoomPicker)}
-            >
-              <Text style={modalStyles.moveToggleText}>{'Déplacer vers une autre chambre'}</Text>
-              <ChevronDown size={14} color={FT.brand} />
+            <TouchableOpacity style={mod.moveToggle} onPress={() => setShowMoveRoomPicker(!showMoveRoomPicker)}>
+              <Text style={mod.moveText}>Déplacer vers une autre chambre</Text>
+              <ChevronDown size={14} color={DS.accent} />
             </TouchableOpacity>
 
             {showMoveRoomPicker && (
-              <ScrollView style={modalStyles.roomPickerScroll} nestedScrollEnabled>
+              <ScrollView style={mod.roomScroll} nestedScrollEnabled>
                 {freeRooms.length > 0 ? freeRooms.map((r) => (
                   <TouchableOpacity
                     key={r.id}
-                    style={[modalStyles.roomOption, moveToRoomId === r.id && modalStyles.roomOptionActive]}
+                    style={[mod.roomOpt, moveToRoomId === r.id && mod.roomOptActive]}
                     onPress={() => setMoveToRoomId(moveToRoomId === r.id ? null : r.id)}
                   >
-                    <Text style={[modalStyles.roomOptionText, moveToRoomId === r.id && modalStyles.roomOptionTextActive]}>
+                    <Text style={[mod.roomOptText, moveToRoomId === r.id && mod.roomOptTextActive]}>
                       {r.roomNumber} — {r.roomType}
                     </Text>
                   </TouchableOpacity>
                 )) : (
-                  <Text style={modalStyles.noRoomsText}>{'Aucune chambre libre disponible'}</Text>
+                  <Text style={mod.noRooms}>Aucune chambre libre</Text>
                 )}
               </ScrollView>
             )}
 
-            <View style={modalStyles.actionRow}>
-              <TouchableOpacity style={modalStyles.saveBtn} onPress={handleSaveClient}>
-                <Text style={modalStyles.saveBtnText}>{'Enregistrer'}</Text>
+            <View style={mod.actionRow}>
+              <TouchableOpacity style={mod.saveBtn} onPress={handleSaveClient}>
+                <Text style={mod.saveBtnText}>Enregistrer</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={modalStyles.cancelBtn} onPress={() => setEditModalVisible(false)}>
-                <Text style={modalStyles.cancelBtnText}>{'Annuler'}</Text>
+              <TouchableOpacity style={mod.cancelBtn} onPress={() => setEditModalVisible(false)}>
+                <Text style={mod.cancelBtnText}>Annuler</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
 
-      <Modal
-        visible={sourceDropdownRoomId !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSourceDropdownRoomId(null)}
-      >
-        <TouchableOpacity
-          style={sourceModalStyles.overlay}
-          activeOpacity={1}
-          onPress={() => setSourceDropdownRoomId(null)}
-        >
-          <TouchableOpacity style={sourceModalStyles.card} activeOpacity={1} onPress={() => {}}>
-            <View style={sourceModalStyles.header}>
-              <Text style={sourceModalStyles.headerTitle}>{'Sélectionner la source'}</Text>
-              <TouchableOpacity onPress={() => setSourceDropdownRoomId(null)} style={sourceModalStyles.closeBtn}>
-                <X size={18} color={FT.textMuted} />
+      <Modal visible={sourceDropdownRoomId !== null} transparent animationType="fade" onRequestClose={() => setSourceDropdownRoomId(null)}>
+        <TouchableOpacity style={srcMod.overlay} activeOpacity={1} onPress={() => setSourceDropdownRoomId(null)}>
+          <TouchableOpacity style={srcMod.card} activeOpacity={1} onPress={() => {}}>
+            <View style={srcMod.header}>
+              <Text style={srcMod.headerTitle}>Sélectionner la source</Text>
+              <TouchableOpacity onPress={() => setSourceDropdownRoomId(null)} style={srcMod.closeBtn}>
+                <X size={18} color={DS.textMuted} />
               </TouchableOpacity>
             </View>
-            <ScrollView style={sourceModalStyles.list} nestedScrollEnabled>
+            <ScrollView style={srcMod.list} nestedScrollEnabled>
               {ALL_BOOKING_SOURCES.map((src) => {
                 const sc = BOOKING_SOURCE_CONFIG[src];
                 const cc = CHANNEL_TYPE_CONFIG[sc.channelType];
@@ -1284,7 +1296,7 @@ export default function ReceptionDashboard() {
                 return (
                   <TouchableOpacity
                     key={src}
-                    style={[sourceModalStyles.item, isActive && sourceModalStyles.itemActive]}
+                    style={[srcMod.item, isActive && srcMod.itemActive]}
                     onPress={() => {
                       if (sourceDropdownRoomId) {
                         updateRoom({ roomId: sourceDropdownRoomId, updates: { bookingSource: src } });
@@ -1293,14 +1305,14 @@ export default function ReceptionDashboard() {
                       if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     }}
                   >
-                    <View style={[sourceModalStyles.logo, { backgroundColor: sc.color }]}>
-                      <Text style={sourceModalStyles.logoText}>{sc.icon}</Text>
+                    <View style={[srcMod.logo, { backgroundColor: sc.color }]}>
+                      <Text style={srcMod.logoText}>{sc.icon}</Text>
                     </View>
-                    <Text style={[sourceModalStyles.label, isActive && sourceModalStyles.labelActive]} numberOfLines={1}>{sc.label}</Text>
-                    <View style={[sourceModalStyles.tag, { backgroundColor: cc.bgColor }]}>
-                      <Text style={[sourceModalStyles.tagText, { color: cc.color }]}>{sc.hasCommission ? 'OTA' : cc.label}</Text>
+                    <Text style={[srcMod.label, isActive && srcMod.labelActive]} numberOfLines={1}>{sc.label}</Text>
+                    <View style={[srcMod.tag, { backgroundColor: cc.bgColor }]}>
+                      <Text style={[srcMod.tagText, { color: cc.color }]}>{sc.hasCommission ? 'OTA' : cc.label}</Text>
                     </View>
-                    {isActive && <Text style={sourceModalStyles.checkMark}>{'✓'}</Text>}
+                    {isActive && <Check size={14} color={DS.accent} />}
                   </TouchableOpacity>
                 );
               })}
@@ -1309,92 +1321,60 @@ export default function ReceptionDashboard() {
         </TouchableOpacity>
       </Modal>
 
-      <Modal
-        visible={showImportModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowImportModal(false)}
-      >
-        <TouchableOpacity
-          style={importModalStyles.overlay}
-          activeOpacity={1}
-          onPress={() => setShowImportModal(false)}
-        >
-          <TouchableOpacity style={importModalStyles.card} activeOpacity={1} onPress={() => {}}>
-            <View style={importModalStyles.headerGradient}>
-              <View style={importModalStyles.headerContent}>
+      <Modal visible={showImportModal} transparent animationType="fade" onRequestClose={() => setShowImportModal(false)}>
+        <TouchableOpacity style={impMod.overlay} activeOpacity={1} onPress={() => setShowImportModal(false)}>
+          <TouchableOpacity style={impMod.card} activeOpacity={1} onPress={() => {}}>
+            <View style={impMod.headerBg}>
+              <View style={impMod.headerRow}>
                 <View>
-                  <Text style={importModalStyles.headerLabel}>{'IMPORT CLIENTS'}</Text>
-                  <Text style={importModalStyles.headerTitle}>{'Import intelligent par IA'}</Text>
+                  <Text style={impMod.headerTag}>IMPORT CLIENTS</Text>
+                  <Text style={impMod.headerTitle}>Import intelligent par IA</Text>
                 </View>
-                <TouchableOpacity
-                  onPress={() => setShowImportModal(false)}
-                  style={importModalStyles.closeBtn}
-                >
-                  <X size={20} color={FT.textMuted} />
+                <TouchableOpacity onPress={() => setShowImportModal(false)} style={impMod.closeBtnImp}>
+                  <X size={20} color="rgba(255,255,255,0.6)" />
                 </TouchableOpacity>
               </View>
             </View>
 
-            <View style={importModalStyles.body}>
-              <Text style={importModalStyles.desc}>
+            <View style={impMod.body}>
+              <Text style={impMod.desc}>
                 {"Importez vos données clients depuis "}
-                <Text style={importModalStyles.descBold}>{"n'importe quel format"}</Text>
+                <Text style={impMod.descBold}>{"n'importe quel format"}</Text>
                 {". L'IA extrait et normalise automatiquement les données."}
               </Text>
 
-              <View style={importModalStyles.modeRow}>
+              <View style={impMod.modeRow}>
                 {([
-                  { key: 'csv' as const, label: 'CSV / TXT', color: FT.brand, icon: 'csv' },
-                  { key: 'excel' as const, label: 'Excel', color: '#43A047', icon: 'excel' },
-                  { key: 'pdf' as const, label: 'PDF', color: '#E53935', icon: 'pdf' },
-                  { key: 'image' as const, label: 'Image (photo / scan)', color: '#FB8C00', icon: 'image' },
+                  { key: 'csv' as const, label: 'CSV / TXT', color: DS.accent },
+                  { key: 'excel' as const, label: 'Excel', color: '#10B981' },
+                  { key: 'pdf' as const, label: 'PDF', color: '#EF4444' },
+                  { key: 'image' as const, label: 'Image', color: '#F59E0B' },
                 ] as const).map((opt) => (
                   <TouchableOpacity
                     key={opt.key}
-                    style={[
-                      importModalStyles.modeChip,
-                      importMode === opt.key && { borderColor: opt.color, backgroundColor: opt.color + '10' },
-                    ]}
+                    style={[impMod.modeChip, importMode === opt.key && { borderColor: opt.color, backgroundColor: opt.color + '08' }]}
                     onPress={() => setImportMode(opt.key)}
                     activeOpacity={0.7}
                   >
-                    {opt.icon === 'csv' && <FileText size={14} color={importMode === opt.key ? opt.color : FT.textSec} />}
-                    {opt.icon === 'excel' && <FileText size={14} color={importMode === opt.key ? opt.color : FT.textSec} />}
-                    {opt.icon === 'pdf' && <FileText size={14} color={importMode === opt.key ? opt.color : FT.textSec} />}
-                    {opt.icon === 'image' && <Image size={14} color={importMode === opt.key ? opt.color : FT.textSec} />}
-                    <Text style={[
-                      importModalStyles.modeChipText,
-                      importMode === opt.key && { color: opt.color, fontWeight: '700' as const },
-                    ]}>
+                    <FileText size={14} color={importMode === opt.key ? opt.color : DS.textMuted} />
+                    <Text style={[impMod.modeText, importMode === opt.key && { color: opt.color, fontWeight: '700' as const }]}>
                       {opt.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <TouchableOpacity
-                style={importModalStyles.dropzone}
-                onPress={handleImportFile}
-                activeOpacity={0.7}
-                testID="import-dropzone"
-              >
-                <View style={importModalStyles.dropzoneIcon}>
-                  <Upload size={28} color={FT.textMuted} />
+              <TouchableOpacity style={impMod.dropzone} onPress={handleImportFile} activeOpacity={0.7} testID="import-dropzone">
+                <View style={impMod.dropzoneIcon}>
+                  <Upload size={24} color={DS.textMuted} />
                 </View>
-                <Text style={importModalStyles.dropzoneTitle}>{'Glissez votre fichier ici'}</Text>
-                <Text style={importModalStyles.dropzoneDesc}>
-                  {'CSV · Excel · PDF · Image — ou cliquez pour parcourir'}
-                </Text>
+                <Text style={impMod.dropzoneTitle}>Glissez votre fichier ici</Text>
+                <Text style={impMod.dropzoneDesc}>CSV · Excel · PDF · Image — ou cliquez</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={importModalStyles.templateBtn}
-                onPress={handleDownloadTemplate}
-                activeOpacity={0.7}
-              >
-                <Download size={14} color={FT.textSec} />
-                <Text style={importModalStyles.templateBtnText}>{'Modèle CSV'}</Text>
+              <TouchableOpacity style={impMod.templateBtn} onPress={handleDownloadTemplate} activeOpacity={0.7}>
+                <Download size={14} color={DS.textSec} />
+                <Text style={impMod.templateText}>Modèle CSV</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -1405,414 +1385,228 @@ export default function ReceptionDashboard() {
 }
 
 const ftStyles = StyleSheet.create({
-  roomChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: FT.chipRadius, flexDirection: 'row', alignItems: 'center', gap: 3, minWidth: 56 },
-  roomChipSelected: { borderWidth: 2, borderColor: '#FFF' },
-  roomCheck: { width: 14, height: 14, borderRadius: 7, backgroundColor: 'rgba(255,255,255,0.4)', justifyContent: 'center', alignItems: 'center' },
-  roomCheckText: { fontSize: 8, color: '#FFF', fontWeight: '700' as const },
-  roomNum: { fontSize: 14, fontWeight: '700' as const, color: '#FFF' },
-  roomBadge: { fontSize: 9 },
-  roomCleanIcon: { fontSize: 9 },
-  roomAvatar: { width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.3)', justifyContent: 'center', alignItems: 'center', marginLeft: 2 },
+  roomChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 60 },
+  roomChipSelected: { borderWidth: 2, borderColor: 'rgba(255,255,255,0.8)' },
+  roomCheck: { width: 16, height: 16, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.35)', justifyContent: 'center', alignItems: 'center' },
+  roomCheckText: { fontSize: 9, color: '#FFF', fontWeight: '700' as const },
+  roomNum: { fontSize: 15, fontWeight: '700' as const, color: '#FFF' },
+  roomBadge: { fontSize: 10 },
+  roomCleanIcon: { fontSize: 10 },
+  roomAvatar: { width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.25)', justifyContent: 'center', alignItems: 'center', marginLeft: 2 },
   roomAvatarText: { fontSize: 8, fontWeight: '700' as const, color: '#FFF' },
 });
 
-const TABLE_MIN_WIDTH = 1700;
+const TABLE_W = 1700;
 
-const tableStyles = StyleSheet.create({
-  stickyHeader: {
-    backgroundColor: '#1E293B',
-    borderBottomWidth: 0,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 0,
-    minWidth: TABLE_MIN_WIDTH,
-  },
-  headerText: {
-    fontSize: 10,
-    fontWeight: '700' as const,
-    color: 'rgba(255,255,255,0.7)',
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.8,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 11,
-    paddingHorizontal: 0,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    minHeight: 56,
-    minWidth: TABLE_MIN_WIDTH,
-  },
-  rowEven: {
-    backgroundColor: '#F8FAFC',
-  },
-  rowSelected: {
-    backgroundColor: '#EEF2FF',
-    borderBottomColor: '#C7D2FE',
-  },
-  checkCell: { width: 44, alignItems: 'center' as const, justifyContent: 'center' as const, paddingLeft: 12 },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-    backgroundColor: '#FFF',
-  },
-  checkboxActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
-  checkMark: { fontSize: 10, color: '#FFF', fontWeight: '700' as const },
-  chambreCell: {
-    width: 150,
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 10,
-    paddingHorizontal: 8,
-  },
-  roomBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 2,
-  },
+const tbl = StyleSheet.create({
+  headerWrap: { backgroundColor: '#0F172A', borderTopLeftRadius: 12, borderTopRightRadius: 12 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, minWidth: TABLE_W },
+  hText: { fontSize: 10, fontWeight: '600' as const, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.8, textTransform: 'uppercase' as const },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, minHeight: 62, minWidth: TABLE_W, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  rowEven: { backgroundColor: '#FFFFFF' },
+  rowOdd: { backgroundColor: '#FAFBFD' },
+  rowSelected: { backgroundColor: 'rgba(79,107,237,0.06)', borderBottomColor: 'rgba(79,107,237,0.12)' },
+  checkCell: { width: 48, alignItems: 'center' as const, justifyContent: 'center' as const, paddingLeft: 14 },
+  checkbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: '#D1D5DB', justifyContent: 'center' as const, alignItems: 'center' as const, backgroundColor: '#FFF' },
+  checkboxActive: { backgroundColor: DS.accent, borderColor: DS.accent },
+  chambreCell: { width: 160, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12, paddingHorizontal: 10 },
+  roomBadge: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center' as const, alignItems: 'center' as const },
   roomBadgeText: { fontSize: 14, fontWeight: '800' as const, color: '#FFF' },
-  roomInfo: { flexShrink: 1 },
-  roomTypeText: { fontSize: 12, fontWeight: '600' as const, color: '#1E293B' },
-  roomCatText: { fontSize: 10, color: '#94A3B8', marginTop: 1 },
-  clientCell: { width: 180, paddingHorizontal: 8, justifyContent: 'center' as const },
-  clientNameRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4 },
-  clientName: { fontSize: 13, fontWeight: '600' as const, color: '#1E293B', flexShrink: 1 },
-  arriveeCell: { width: 90, paddingHorizontal: 8, justifyContent: 'center' as const },
-  departCell: { width: 90, paddingHorizontal: 8, justifyContent: 'center' as const },
-  dateText: { fontSize: 12, fontWeight: '600' as const, color: '#1E88E5' },
-  dateTextDepart: { fontSize: 12, fontWeight: '600' as const, color: '#E53935' },
-  clientEmptyRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6 },
-  clientEmptyDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#CBD5E1' },
-  clientEmpty: { fontSize: 12, color: '#94A3B8', fontWeight: '500' as const },
-  clientAddLink: { color: '#4F46E5', fontWeight: '600' as const, fontSize: 11 },
-  vipBadgeInline: { backgroundColor: '#F59E0B', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  vipBadgeInlineText: { fontSize: 8, fontWeight: '800' as const, color: '#FFF' },
-  priorityStar: { fontSize: 12, color: '#F59E0B' },
-  hkCell: { width: 130, paddingHorizontal: 8, justifyContent: 'center' as const },
-  hkBadge: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    alignSelf: 'flex-start' as const,
-  },
-  hkDotInner: { width: 7, height: 7, borderRadius: 4 },
-  hkLabel: { fontSize: 11, fontWeight: '600' as const },
-  gouvCell: { width: 110, paddingHorizontal: 8, justifyContent: 'center' as const },
-  gouvBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    alignSelf: 'flex-start' as const,
-  },
-  gouvText: { fontSize: 10, fontWeight: '600' as const },
-  assignCell: { width: 140, paddingHorizontal: 8, justifyContent: 'center' as const },
-  assignRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
-  assignAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#4F46E5',
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  assignAvatarText: { fontSize: 10, fontWeight: '700' as const, color: '#FFF' },
-  assignName: { fontSize: 12, color: '#475569', flexShrink: 1, fontWeight: '500' as const },
-  vueSdbCell: { width: 100, paddingHorizontal: 8, justifyContent: 'center' as const },
-  vueSdbText: { fontSize: 11, fontWeight: '600' as const, color: '#334155' },
-  vueSdbSubtext: { fontSize: 10, color: '#94A3B8', marginTop: 1 },
-  pdjCell: { width: 70, alignItems: 'center' as const, justifyContent: 'center' as const },
-  etaCell: { width: 60, alignItems: 'center' as const, justifyContent: 'center' as const },
-  etaBadge: {
-    backgroundColor: '#EEF2FF',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  etaText: { fontSize: 11, fontWeight: '700' as const, color: '#4F46E5' },
-  actionsCell: { width: 116, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 6, paddingRight: 12 },
-  actionIconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  actionIconDeparture: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
-  },
-  actionIconPriority: {
-    backgroundColor: '#FFFBEB',
-    borderColor: '#FDE68A',
-  },
-  emptyDash: { fontSize: 12, color: '#CBD5E1' },
-  cleanlinessCell: { width: 110, paddingHorizontal: 8, justifyContent: 'center' as const },
-  cleanlinessBadge: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 16,
-    alignSelf: 'flex-start' as const,
-  },
-  cleanlinessIcon: { fontSize: 10 },
-  cleanlinessLabel: { fontSize: 10, fontWeight: '600' as const },
-  paxCell: { width: 80, paddingHorizontal: 8, justifyContent: 'center' as const },
-  paxText: { fontSize: 12, fontWeight: '500' as const, color: '#475569' },
+  roomMeta: { flexShrink: 1 },
+  roomTypeLabel: { fontSize: 13, fontWeight: '600' as const, color: DS.text },
+  roomSubLabel: { fontSize: 10, color: DS.textMuted, marginTop: 2 },
+  cleanlinessCell: { width: 115, paddingHorizontal: 8, justifyContent: 'center' as const },
+  softBadge: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, alignSelf: 'flex-start' as const },
+  softBadgeIcon: { fontSize: 10 },
+  softBadgeLabel: { fontSize: 11, fontWeight: '600' as const },
+  hkDot: { width: 6, height: 6, borderRadius: 3 },
+  clientCell: { width: 190, paddingHorizontal: 10, justifyContent: 'center' as const },
+  clientContent: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const },
+  clientRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 5, flexShrink: 1 },
+  clientName: { fontSize: 13, fontWeight: '600' as const, color: DS.text, flexShrink: 1 },
+  vipTag: { backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  vipTagText: { fontSize: 8, fontWeight: '800' as const, color: '#D97706' },
+  clientEmptyWrap: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6 },
+  clientEmptyDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: DS.textLight },
+  clientEmptyText: { fontSize: 12, color: DS.textMuted },
+  clientAddBtn: { color: DS.accent, fontWeight: '600' as const, fontSize: 11 },
+  paxCell: { width: 70, paddingHorizontal: 8, justifyContent: 'center' as const },
+  paxText: { fontSize: 12, fontWeight: '500' as const, color: DS.textSec },
+  dateCell: { width: 90, paddingHorizontal: 8, justifyContent: 'center' as const },
+  dateIn: { fontSize: 12, fontWeight: '600' as const, color: '#3B82F6' },
+  dateOut: { fontSize: 12, fontWeight: '600' as const, color: '#EF4444' },
+  dash: { fontSize: 12, color: DS.textLight },
   etaArrivalCell: { width: 90, paddingHorizontal: 8, justifyContent: 'center' as const },
-  etaArrivalText: { fontSize: 12, fontWeight: '500' as const, color: '#64748B' },
-  sourceCell: { width: 120, paddingHorizontal: 6, justifyContent: 'center' as const, overflow: 'visible' as const, zIndex: 50 },
-  sourceWrapper: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6, position: 'relative' as const },
-  sourceLogo: {
-    width: 26,
-    height: 26,
-    borderRadius: 6,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  sourceLogoText: { fontSize: 11, fontWeight: '800' as const, color: '#FFF' },
+  etaArrivalPill: { backgroundColor: DS.accentSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: 'flex-start' as const },
+  etaArrivalText: { fontSize: 11, fontWeight: '600' as const, color: DS.accent },
+  sourceCell: { width: 125, paddingHorizontal: 8, justifyContent: 'center' as const, overflow: 'visible' as const, zIndex: 50 },
+  sourceWrap: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 7 },
+  sourceDot: { width: 26, height: 26, borderRadius: 8, justifyContent: 'center' as const, alignItems: 'center' as const },
+  sourceDotText: { fontSize: 11, fontWeight: '800' as const, color: '#FFF' },
   sourceInfo: { flexShrink: 1, gap: 2 },
   sourceLabel: { fontSize: 11, fontWeight: '700' as const },
-  channelTag: {
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 4,
-    alignSelf: 'flex-start' as const,
-  },
-  channelTagText: { fontSize: 8, fontWeight: '700' as const, letterSpacing: 0.3 },
-  sourceEmptyBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderStyle: 'dashed' as const,
-    borderColor: '#CBD5E1',
-    alignSelf: 'flex-start' as const,
-    position: 'relative' as const,
-  },
-  sourceEmptyText: { fontSize: 11, fontWeight: '600' as const, color: '#94A3B8' },
-  sourceDropdown: {
-    position: 'absolute' as const,
-    top: 0,
-    left: 0,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 20,
-    zIndex: 999,
-    width: 200,
-    paddingVertical: 4,
-  },
-  sourceDropItem: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  sourceDropItemActive: { backgroundColor: '#F0F9FF' },
-  sourceDropLogo: {
-    width: 22,
-    height: 22,
-    borderRadius: 5,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  sourceDropLogoText: { fontSize: 9, fontWeight: '800' as const, color: '#FFF' },
-  sourceDropLabel: { flex: 1, fontSize: 12, fontWeight: '500' as const, color: '#334155' },
-  sourceDropTag: {
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  sourceDropTagText: { fontSize: 8, fontWeight: '700' as const },
+  channelPill: { paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, alignSelf: 'flex-start' as const },
+  channelPillText: { fontSize: 8, fontWeight: '700' as const, letterSpacing: 0.3 },
+  sourceEmpty: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderStyle: 'dashed' as const, borderColor: DS.textLight, alignSelf: 'flex-start' as const },
+  sourceEmptyText: { fontSize: 11, fontWeight: '500' as const, color: DS.textMuted },
+  hkCell: { width: 130, paddingHorizontal: 8, justifyContent: 'center' as const },
+  gouvCell: { width: 110, paddingHorizontal: 8, justifyContent: 'center' as const },
+  assignCell: { width: 145, paddingHorizontal: 8, justifyContent: 'center' as const },
+  assignWrap: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
+  assignAvatar: { width: 28, height: 28, borderRadius: 10, backgroundColor: DS.accent, justifyContent: 'center' as const, alignItems: 'center' as const },
+  assignAvatarText: { fontSize: 10, fontWeight: '700' as const, color: '#FFF' },
+  assignName: { fontSize: 12, color: DS.textSec, flexShrink: 1, fontWeight: '500' as const },
+  viewSdbCell: { width: 100, paddingHorizontal: 8, justifyContent: 'center' as const },
+  viewText: { fontSize: 12, fontWeight: '600' as const, color: DS.text },
+  sdbText: { fontSize: 10, color: DS.textMuted, marginTop: 2 },
+  pdjCell: { width: 74, alignItems: 'center' as const, justifyContent: 'center' as const },
+  etaCell: { width: 64, alignItems: 'center' as const, justifyContent: 'center' as const },
+  etaPill: { backgroundColor: DS.infoSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  etaPillText: { fontSize: 11, fontWeight: '700' as const, color: DS.info },
+  actionsCell: { width: 120, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 6, paddingRight: 14 },
+  actionBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: DS.surfaceWarm, borderWidth: 1, borderColor: DS.border, justifyContent: 'center' as const, alignItems: 'center' as const },
+  actionBtnDanger: { backgroundColor: 'rgba(239,68,68,0.04)', borderColor: 'rgba(239,68,68,0.15)' },
+  actionBtnStar: { backgroundColor: 'rgba(245,158,11,0.06)', borderColor: 'rgba(245,158,11,0.2)' },
 });
 
-const modalStyles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  card: { backgroundColor: FT.surface, borderRadius: 16, padding: 24, width: '100%', maxWidth: 420, ...FT.shadowMedium },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  title: { fontSize: 18, fontWeight: '700' as const, color: FT.text },
-  subtitle: { fontSize: 13, color: FT.textSec, marginTop: 2 },
-  closeBtn: { padding: 4 },
-  label: { fontSize: 12, fontWeight: '600' as const, color: FT.textSec, marginBottom: 6, marginTop: 12 },
-  input: { backgroundColor: FT.surfaceAlt, borderWidth: 1, borderColor: FT.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: FT.text },
-  dateRow: { flexDirection: 'row', gap: 12 },
+const mod = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  card: { backgroundColor: DS.surface, borderRadius: 20, padding: 28, width: '100%', maxWidth: 440, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 16, elevation: 5 },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
+  title: { fontSize: 20, fontWeight: '700' as const, color: DS.text },
+  subtitle: { fontSize: 13, color: DS.textMuted, marginTop: 3 },
+  closeBtn: { padding: 6 },
+  label: { fontSize: 12, fontWeight: '600' as const, color: DS.textSec, marginBottom: 6, marginTop: 14 },
+  input: { backgroundColor: DS.surfaceWarm, borderWidth: 1, borderColor: DS.border, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 14, color: DS.text },
+  dateRow: { flexDirection: 'row', gap: 14 },
   dateField: { flex: 1 },
-  moveToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: FT.brandSoft, borderRadius: 10, borderWidth: 1, borderColor: FT.brand + '20' },
-  moveToggleText: { fontSize: 13, fontWeight: '600' as const, color: FT.brand },
-  roomPickerScroll: { maxHeight: 150, marginTop: 8, borderWidth: 1, borderColor: FT.border, borderRadius: 10, backgroundColor: FT.surfaceAlt },
-  roomOption: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: FT.borderLight },
-  roomOptionActive: { backgroundColor: FT.brandSoft },
-  roomOptionText: { fontSize: 13, color: FT.text },
-  roomOptionTextActive: { color: FT.brand, fontWeight: '600' as const },
-  noRoomsText: { fontSize: 12, color: FT.textMuted, padding: 14, textAlign: 'center' as const },
-  actionRow: { flexDirection: 'row', gap: 10, marginTop: 24 },
-  saveBtn: { flex: 1, backgroundColor: FT.brand, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  saveBtnText: { fontSize: 15, fontWeight: '700' as const, color: '#FFF' },
-  cancelBtn: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: FT.border },
-  cancelBtnText: { fontSize: 14, fontWeight: '600' as const, color: FT.textSec },
   dateBtn: { justifyContent: 'center' as const },
-  dateBtnActive: { borderColor: FT.brand, backgroundColor: FT.brandSoft },
-  dateBtnText: { fontSize: 14, color: FT.text },
-  calendarWrap: { marginTop: 4 },
+  dateBtnActive: { borderColor: DS.accent, backgroundColor: DS.accentSoft },
+  dateBtnText: { fontSize: 14, color: DS.text },
+  calWrap: { marginTop: 4 },
+  moveToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, paddingVertical: 12, paddingHorizontal: 16, backgroundColor: DS.accentSoft, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(79,107,237,0.12)' },
+  moveText: { fontSize: 13, fontWeight: '600' as const, color: DS.accent },
+  roomScroll: { maxHeight: 150, marginTop: 8, borderWidth: 1, borderColor: DS.border, borderRadius: 12, backgroundColor: DS.surfaceWarm },
+  roomOpt: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: DS.borderLight },
+  roomOptActive: { backgroundColor: DS.accentSoft },
+  roomOptText: { fontSize: 13, color: DS.text },
+  roomOptTextActive: { color: DS.accent, fontWeight: '600' as const },
+  noRooms: { fontSize: 12, color: DS.textMuted, padding: 16, textAlign: 'center' as const },
+  actionRow: { flexDirection: 'row', gap: 12, marginTop: 28 },
+  saveBtn: { flex: 1, backgroundColor: DS.accent, paddingVertical: 15, borderRadius: 14, alignItems: 'center' },
+  saveBtnText: { fontSize: 15, fontWeight: '700' as const, color: '#FFF' },
+  cancelBtn: { paddingVertical: 15, paddingHorizontal: 24, borderRadius: 14, alignItems: 'center', borderWidth: 1, borderColor: DS.border },
+  cancelBtnText: { fontSize: 14, fontWeight: '600' as const, color: DS.textSec },
 });
 
-const sourceModalStyles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  card: { backgroundColor: '#FFF', borderRadius: 16, width: '100%', maxWidth: 340, overflow: 'hidden' as const, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 20 },
-  header: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  headerTitle: { fontSize: 16, fontWeight: '700' as const, color: '#1E293B' },
+const srcMod = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  card: { backgroundColor: '#FFF', borderRadius: 20, width: '100%', maxWidth: 360, overflow: 'hidden' as const, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 16, elevation: 5 },
+  header: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, paddingHorizontal: 22, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: DS.borderLight },
+  headerTitle: { fontSize: 17, fontWeight: '700' as const, color: DS.text },
   closeBtn: { padding: 4 },
-  list: { maxHeight: 400 },
-  item: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, paddingHorizontal: 20, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
-  itemActive: { backgroundColor: '#F0F9FF' },
-  logo: { width: 28, height: 28, borderRadius: 7, justifyContent: 'center' as const, alignItems: 'center' as const },
-  logoText: { fontSize: 11, fontWeight: '800' as const, color: '#FFF' },
-  label: { flex: 1, fontSize: 14, fontWeight: '500' as const, color: '#334155' },
-  labelActive: { fontWeight: '700' as const, color: '#1E293B' },
-  tag: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  list: { maxHeight: 420 },
+  item: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12, paddingHorizontal: 22, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: DS.borderLight },
+  itemActive: { backgroundColor: DS.accentSoft },
+  logo: { width: 30, height: 30, borderRadius: 8, justifyContent: 'center' as const, alignItems: 'center' as const },
+  logoText: { fontSize: 12, fontWeight: '800' as const, color: '#FFF' },
+  label: { flex: 1, fontSize: 14, fontWeight: '500' as const, color: DS.textSec },
+  labelActive: { fontWeight: '700' as const, color: DS.text },
+  tag: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5 },
   tagText: { fontSize: 9, fontWeight: '700' as const },
-  checkMark: { fontSize: 14, color: '#4F46E5', fontWeight: '700' as const, marginLeft: 4 },
 });
 
-const importModalStyles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  card: { backgroundColor: FT.surface, borderRadius: 20, width: '100%', maxWidth: 500, overflow: 'hidden' as const, ...FT.shadowMedium },
-  headerGradient: { backgroundColor: FT.headerBg, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 16 },
-  headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  headerLabel: { fontSize: 10, fontWeight: '700' as const, color: FT.brandLight, letterSpacing: 1, textTransform: 'uppercase' as const },
-  headerTitle: { fontSize: 20, fontWeight: '800' as const, color: '#FFF', marginTop: 4 },
-  closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center' },
-  body: { padding: 24, gap: 16 },
-  desc: { fontSize: 14, color: FT.textSec, lineHeight: 20 },
-  descBold: { fontWeight: '700' as const, color: FT.text },
+const impMod = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  card: { backgroundColor: DS.surface, borderRadius: 24, width: '100%', maxWidth: 500, overflow: 'hidden' as const, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 16, elevation: 5 },
+  headerBg: { backgroundColor: DS.headerBg, paddingHorizontal: 28, paddingTop: 24, paddingBottom: 20 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  headerTag: { fontSize: 10, fontWeight: '700' as const, color: 'rgba(255,255,255,0.5)', letterSpacing: 1.5, textTransform: 'uppercase' as const },
+  headerTitle: { fontSize: 22, fontWeight: '800' as const, color: '#FFF', marginTop: 6 },
+  closeBtnImp: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.08)', justifyContent: 'center', alignItems: 'center' },
+  body: { padding: 28, gap: 20 },
+  desc: { fontSize: 14, color: DS.textSec, lineHeight: 22 },
+  descBold: { fontWeight: '700' as const, color: DS.text },
   modeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  modeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1.5, borderColor: FT.border, backgroundColor: FT.surfaceAlt },
-  modeChipText: { fontSize: 12, fontWeight: '500' as const, color: FT.textSec },
-  dropzone: { borderWidth: 2, borderColor: FT.borderLight, borderStyle: 'dashed' as const, borderRadius: 16, paddingVertical: 32, alignItems: 'center', gap: 8, backgroundColor: FT.surfaceAlt },
-  dropzoneIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: FT.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: FT.borderLight },
-  dropzoneTitle: { fontSize: 15, fontWeight: '700' as const, color: FT.text },
-  dropzoneDesc: { fontSize: 12, color: FT.textMuted },
-  templateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: FT.border, backgroundColor: FT.surface },
-  templateBtnText: { fontSize: 13, fontWeight: '600' as const, color: FT.textSec },
+  modeChip: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: DS.border, backgroundColor: DS.surfaceWarm },
+  modeText: { fontSize: 13, fontWeight: '500' as const, color: DS.textSec },
+  dropzone: { borderWidth: 2, borderColor: DS.border, borderStyle: 'dashed' as const, borderRadius: 18, paddingVertical: 36, alignItems: 'center', gap: 10, backgroundColor: DS.surfaceWarm },
+  dropzoneIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: DS.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: DS.border },
+  dropzoneTitle: { fontSize: 16, fontWeight: '700' as const, color: DS.text },
+  dropzoneDesc: { fontSize: 12, color: DS.textMuted },
+  templateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: DS.border, backgroundColor: DS.surface },
+  templateText: { fontSize: 13, fontWeight: '600' as const, color: DS.textSec },
 });
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: FT.bg },
-  loadingContainer: { flex: 1, backgroundColor: FT.bg, justifyContent: 'center', alignItems: 'center', gap: 12 },
-  loadingText: { color: FT.textSec, fontSize: 14 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: DS.bg },
+  loadingWrap: { flex: 1, backgroundColor: DS.bg, justifyContent: 'center', alignItems: 'center', gap: 16 },
+  loadingText: { color: DS.textSec, fontSize: 14 },
+
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   billingBtn: { position: 'relative', padding: 4 },
-  billingBadge: { position: 'absolute', top: -2, right: -4, backgroundColor: FT.warning, width: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  billingBadge: { position: 'absolute', top: -3, right: -5, backgroundColor: '#F59E0B', width: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   billingBadgeText: { fontSize: 9, fontWeight: '700' as const, color: '#FFF' },
+  csvBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)' },
+  csvBtnText: { fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: '500' as const },
+  importBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: DS.accent, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
+  importBtnText: { fontSize: 12, fontWeight: '700' as const, color: '#FFF' },
 
-  csvTemplateBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.1)' },
-  csvTemplateBtnText: { fontSize: 10, color: '#CCC', fontWeight: '500' as const },
-  importClientBtn: { backgroundColor: FT.brand, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 },
-  importClientBtnText: { fontSize: 12, fontWeight: '700' as const, color: '#FFF' },
+  kpiSection: { backgroundColor: DS.surface, borderBottomWidth: 1, borderBottomColor: DS.borderLight, paddingVertical: 12 },
+  kpiScroll: { paddingHorizontal: 16, gap: 10 },
+  kpiCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: DS.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: DS.borderLight, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2 },
+  kpiIconWrap: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  kpiTextBlock: {},
+  kpiValue: { fontSize: 20, fontWeight: '800' as const },
+  kpiLabel: { fontSize: 10, fontWeight: '500' as const, color: DS.textMuted, marginTop: 1 },
 
-  kpiBar: { backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.borderLight },
-  kpiRow: {},
-  kpiRowContent: { paddingHorizontal: 10, paddingVertical: 6, gap: 6, alignItems: 'center' as const },
-  kpiChip: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 5,
-    backgroundColor: FT.surfaceAlt,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderLeftWidth: 3,
-    borderWidth: 1,
-    borderColor: FT.borderLight,
-  },
-  kpiChipValue: { fontSize: 15, fontWeight: '800' as const },
-  kpiChipLabel: { fontSize: 9, fontWeight: '600' as const, color: FT.textMuted, textTransform: 'uppercase' as const, letterSpacing: 0.3 },
-  kpiToggleBtn: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 4, paddingVertical: 4, paddingHorizontal: 12, alignSelf: 'flex-end' as const, marginRight: 10, marginBottom: 2 },
-  kpiToggleText: { fontSize: 10, fontWeight: '600' as const, color: FT.textMuted },
-  kpiToggleTextActive: { color: FT.brand },
+  toolbar: { backgroundColor: DS.surface, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: DS.borderLight },
+  toolbarTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  searchWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: DS.surfaceWarm, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, gap: 8, borderWidth: 1, borderColor: DS.border, width: 190 },
+  searchInput: { flex: 1, fontSize: 13, color: DS.text, padding: 0 },
+  pillsWrap: { flex: 1 },
+  pillsScroll: { gap: 6, paddingRight: 8 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: DS.surfaceWarm, borderWidth: 1, borderColor: DS.border },
+  pillActive: { borderColor: DS.accent, backgroundColor: DS.accentSoft },
+  pillText: { fontSize: 12, fontWeight: '500' as const, color: DS.textSec },
+  pillTextActive: { color: DS.accent, fontWeight: '600' as const },
+  toolbarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  viewSwitch: { flexDirection: 'row', backgroundColor: DS.surfaceWarm, borderRadius: 10, padding: 3, borderWidth: 1, borderColor: DS.border },
+  viewBtn: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  viewBtnActive: { backgroundColor: DS.accent },
+  counterText: { fontSize: 12, color: DS.textMuted, fontWeight: '600' as const },
+  kpiToggle: { width: 34, height: 34, borderRadius: 10, backgroundColor: DS.surfaceWarm, borderWidth: 1, borderColor: DS.border, justifyContent: 'center', alignItems: 'center' },
 
-  searchFilterRow: { backgroundColor: FT.surface, paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: FT.borderLight },
-  searchBox: { flexDirection: 'row' as const, alignItems: 'center' as const, backgroundColor: FT.surfaceAlt, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, gap: 6, borderWidth: 1, borderColor: FT.borderLight, width: 180, minWidth: 140 },
-  searchInput: { flex: 1, fontSize: 12, color: FT.text, padding: 0 },
-  filterRow2: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
-  filterScrollFlex: { flex: 1 },
-  filterPillsContent: { gap: 6, paddingRight: 8 },
-  filterPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: FT.surfaceAlt, borderWidth: 1, borderColor: FT.borderLight },
-  filterPillActive: { borderColor: FT.brand, backgroundColor: FT.brandSoft },
-  filterPillText: { fontSize: 12, fontWeight: '500' as const, color: FT.textSec },
-  filterPillTextActive: { color: FT.brand, fontWeight: '600' as const },
-  filterRightBlock: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  roomCounterText: { fontSize: 11, color: FT.textMuted, fontWeight: '600' as const },
-  viewToggle: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center', backgroundColor: FT.surfaceAlt, borderWidth: 1, borderColor: FT.border },
-  viewToggleActive: { backgroundColor: FT.brand, borderColor: FT.brand },
-
-  moreMenu: { backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.border, paddingVertical: 4, position: 'absolute' as const, top: 52, right: 14, zIndex: 200, borderRadius: 12, shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 20 },
-  moreMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12 },
-  moreMenuIcon: { fontSize: 16 },
-  moreMenuText: { fontSize: 14, color: FT.text, fontWeight: '500' as const },
-
-  dropdown: { position: 'absolute', top: 200, left: 14, right: 14, backgroundColor: FT.surface, borderRadius: 12, borderWidth: 1, borderColor: FT.border, zIndex: 100, elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12 },
-  dropItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: FT.border, gap: 8 },
-  dropItemActive: { backgroundColor: FT.brandSoft },
-  dropItemText: { fontSize: 14, color: FT.text },
+  dropdown: { position: 'absolute', top: 200, left: 16, right: 16, backgroundColor: DS.surface, borderRadius: 14, borderWidth: 1, borderColor: DS.border, zIndex: 100, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 16, elevation: 10 },
+  dropItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: DS.borderLight, gap: 10 },
+  dropItemActive: { backgroundColor: DS.accentSoft },
+  dropText: { fontSize: 14, color: DS.text, fontWeight: '500' as const },
+  dropTextActive: { color: DS.accent, fontWeight: '600' as const },
   dropDot: { width: 8, height: 8, borderRadius: 4 },
 
-  selBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, backgroundColor: FT.brandSoft, borderBottomWidth: 1, borderBottomColor: FT.brand + '25' },
-  selInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  selBadge: { backgroundColor: FT.brand, width: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
-  selBadgeText: { color: '#FFF', fontSize: 11, fontWeight: '700' as const },
-  selCount: { fontSize: 12, fontWeight: '600' as const, color: FT.brand },
+  moreMenu: { backgroundColor: DS.surface, position: 'absolute', top: 54, right: 16, zIndex: 200, borderRadius: 14, borderWidth: 1, borderColor: DS.border, paddingVertical: 6, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 16, elevation: 10 },
+  moreItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 14 },
+  moreIcon: { fontSize: 16 },
+  moreText: { fontSize: 14, color: DS.text, fontWeight: '500' as const },
+
+  selBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: DS.accentSoft, borderBottomWidth: 1, borderBottomColor: 'rgba(79,107,237,0.1)' },
+  selLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  selBadge: { backgroundColor: DS.accent, width: 24, height: 24, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  selBadgeText: { color: '#FFF', fontSize: 12, fontWeight: '700' as const },
+  selLabel: { fontSize: 13, fontWeight: '600' as const, color: DS.accent },
   selClear: { padding: 4, marginLeft: 4 },
-  selActions: { flexDirection: 'row', gap: 6 },
-  selAssignBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, gap: 5, backgroundColor: FT.brand },
-  selDepartBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, gap: 5, backgroundColor: FT.danger },
-  selBtnDisabled: { opacity: 0.4 },
-  selActText: { color: '#FFF', fontSize: 11, fontWeight: '600' as const },
+  selActions: { flexDirection: 'row', gap: 8 },
+  selAssignBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10, gap: 6, backgroundColor: DS.accent },
+  selDepartBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10, gap: 6, backgroundColor: '#EF4444' },
+  selBtnOff: { opacity: 0.35 },
+  selActText: { color: '#FFF', fontSize: 12, fontWeight: '600' as const },
 
-  listContent: { padding: 14, paddingBottom: 100, gap: 10 },
-  tableWrapper: { flex: 1 },
+  planContent: { padding: 16, paddingBottom: 100, gap: 12 },
+  tableWrap: { flex: 1 },
   tableScrollH: { flex: 1 },
-  tableInner: { flex: 1, minWidth: TABLE_MIN_WIDTH },
+  tableInner: { flex: 1, minWidth: TABLE_W },
 
-  emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 8 },
+  emptyWrap: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
   emptyIcon: { fontSize: 48 },
-  emptyTitle: { fontSize: 16, fontWeight: '600' as const, color: FT.text },
+  emptyTitle: { fontSize: 16, fontWeight: '600' as const, color: DS.textSec },
 });
