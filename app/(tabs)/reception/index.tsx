@@ -491,7 +491,7 @@ export default function ReceptionDashboard() {
     return `${elapsed}m`;
   }, []);
 
-  const renderTableRow = useCallback(({ item: room }: { item: Room }) => {
+  const renderTableRow = useCallback(({ item: room, index }: { item: Room; index: number }) => {
     const isSelected = selectedRoomIds.has(room.id);
     const hkDisplay = getHousekeepingDisplay(room);
     const gouvDisplay = getGouvernanteDisplay(room);
@@ -502,9 +502,10 @@ export default function ReceptionDashboard() {
     const assigneeInitials = assignee
       ? assignee.split(' ').map((n) => n.charAt(0)).join('').toUpperCase()
       : null;
+    const isEven = index % 2 === 0;
 
     return (
-      <View style={[tableStyles.row, isSelected && tableStyles.rowSelected]}>
+      <View style={[tableStyles.row, isEven && tableStyles.rowEven, isSelected && tableStyles.rowSelected]}>
         <TouchableOpacity
           style={tableStyles.checkCell}
           onPress={() => {
@@ -521,7 +522,7 @@ export default function ReceptionDashboard() {
           <View style={[tableStyles.roomBadge, { backgroundColor: ROOM_STATUS_CONFIG[room.status].color }]}>
             <Text style={tableStyles.roomBadgeText}>{room.roomNumber}</Text>
           </View>
-          <View>
+          <View style={tableStyles.roomInfo}>
             <Text style={tableStyles.roomTypeText}>{room.roomType}</Text>
             <Text style={tableStyles.roomCatText} numberOfLines={1}>
               {room.roomCategory ?? 'Classique'} {'·'} {room.roomSize ?? 16}{'m²'}
@@ -542,27 +543,29 @@ export default function ReceptionDashboard() {
                 <Text style={tableStyles.clientName} numberOfLines={1}>
                   {room.currentReservation?.guestName}
                 </Text>
-                <Pencil size={10} color={FT.textMuted} style={{ marginLeft: 3 }} />
+                <Pencil size={10} color={FT.textMuted} style={{ marginLeft: 4 }} />
               </View>
               <Text style={tableStyles.clientDates} numberOfLines={1}>
-                {formatShortDate(room.currentReservation?.checkInDate ?? '')} {'–'} {formatShortDate(room.currentReservation?.checkOutDate ?? '')}
+                {formatShortDate(room.currentReservation?.checkInDate ?? '')} {'→'} {formatShortDate(room.currentReservation?.checkOutDate ?? '')}
               </Text>
             </>
           ) : (
-            <Text style={tableStyles.clientEmpty}>
-              {'Libre'} {'·'} <Text style={tableStyles.clientAddLink}>{'Ajouter'}</Text>
-            </Text>
+            <View style={tableStyles.clientEmptyRow}>
+              <View style={tableStyles.clientEmptyDot} />
+              <Text style={tableStyles.clientEmpty}>{'Libre'}</Text>
+              <Text style={tableStyles.clientAddLink}>{'+ Ajouter'}</Text>
+            </View>
           )}
         </TouchableOpacity>
 
         <View style={tableStyles.hkCell}>
-          <View style={tableStyles.hkDot}>
-            <View style={[tableStyles.dot, { backgroundColor: hkDisplay.color }]} />
-          </View>
           {hkDisplay.label ? (
-            <Text style={[tableStyles.hkLabel, { color: hkDisplay.color }]} numberOfLines={1}>
-              {hkDisplay.icon ? `${hkDisplay.icon} ` : ''}{hkDisplay.label}
-            </Text>
+            <View style={[tableStyles.hkBadge, { backgroundColor: hkDisplay.color + '14' }]}>
+              <View style={[tableStyles.hkDotInner, { backgroundColor: hkDisplay.color }]} />
+              <Text style={[tableStyles.hkLabel, { color: hkDisplay.color }]} numberOfLines={1}>
+                {hkDisplay.label}
+              </Text>
+            </View>
           ) : (
             <Text style={tableStyles.emptyDash}>{'—'}</Text>
           )}
@@ -592,10 +595,9 @@ export default function ReceptionDashboard() {
         </View>
 
         <View style={tableStyles.vueSdbCell}>
-          <Text style={tableStyles.vueSdbIcon}>{'↗'}</Text>
           <View>
             <Text style={tableStyles.vueSdbText}>{room.viewType ?? 'Rue'}</Text>
-            <Text style={tableStyles.vueSdbSubtext}>{'↳'} {room.bathroomType ?? 'Douche'}</Text>
+            <Text style={tableStyles.vueSdbSubtext}>{room.bathroomType ?? 'Douche'}</Text>
           </View>
         </View>
 
@@ -608,7 +610,9 @@ export default function ReceptionDashboard() {
 
         <View style={tableStyles.etaCell}>
           {eta ? (
-            <Text style={tableStyles.etaText}>{eta}</Text>
+            <View style={tableStyles.etaBadge}>
+              <Text style={tableStyles.etaText}>{eta}</Text>
+            </View>
           ) : (
             <Text style={tableStyles.emptyDash}>{'—'}</Text>
           )}
@@ -620,22 +624,22 @@ export default function ReceptionDashboard() {
             style={tableStyles.actionIconBtn}
             testID={`action-detail-${room.roomNumber}`}
           >
-            <Eye size={14} color={FT.brand} />
+            <Eye size={13} color={FT.brand} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleSetDeparture(room)}
             style={[tableStyles.actionIconBtn, tableStyles.actionIconDeparture]}
             testID={`action-depart-${room.roomNumber}`}
           >
-            <DoorOpen size={13} color={FT.orange} />
+            <DoorOpen size={13} color={'#E53935'} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleTogglePriority(room)}
-            style={tableStyles.actionIconBtn}
+            style={[tableStyles.actionIconBtn, room.clientBadge === 'prioritaire' && tableStyles.actionIconPriority]}
             testID={`action-priority-${room.roomNumber}`}
           >
             <Star
-              size={14}
+              size={13}
               color={room.clientBadge === 'prioritaire' ? '#F59E0B' : FT.textMuted}
               fill={room.clientBadge === 'prioritaire' ? '#F59E0B' : 'transparent'}
             />
@@ -978,57 +982,59 @@ export default function ReceptionDashboard() {
           }
         />
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScrollH}>
-          <View style={styles.tableInner}>
-            <View style={tableStyles.stickyHeader}>
-              <View style={tableStyles.headerRow}>
-                <View style={tableStyles.checkCell}>
-                  <Text style={tableStyles.headerText}>{'✓'}</Text>
-                </View>
-                <View style={tableStyles.chambreCell}>
-                  <Text style={tableStyles.headerText}>{'CHAMBRE'}</Text>
-                </View>
-                <View style={tableStyles.clientCell}>
-                  <Text style={tableStyles.headerText}>{'CLIENT'}</Text>
-                </View>
-                <View style={tableStyles.hkCell}>
-                  <Text style={tableStyles.headerText}>{'HOUSEKEEPING'}</Text>
-                </View>
-                <View style={tableStyles.gouvCell}>
-                  <Text style={tableStyles.headerText}>{'GOUVERNANTE'}</Text>
-                </View>
-                <View style={tableStyles.assignCell}>
-                  <Text style={tableStyles.headerText}>{'ASSIGNÉE'}</Text>
-                </View>
-                <View style={tableStyles.vueSdbCell}>
-                  <Text style={tableStyles.headerText}>{'VUE / SDB'}</Text>
-                </View>
-                <View style={tableStyles.pdjCell}>
-                  <Text style={tableStyles.headerText}>{'PDJ'}</Text>
-                </View>
-                <View style={tableStyles.etaCell}>
-                  <Text style={tableStyles.headerText}>{'ETA'}</Text>
-                </View>
-                <View style={tableStyles.actionsCell}>
-                  <Text style={tableStyles.headerText}>{'ACTIONS'}</Text>
+        <View style={styles.tableWrapper}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScrollH}>
+            <View style={styles.tableInner}>
+              <View style={tableStyles.stickyHeader}>
+                <View style={tableStyles.headerRow}>
+                  <View style={tableStyles.checkCell}>
+                    <Text style={tableStyles.headerText}>{'✓'}</Text>
+                  </View>
+                  <View style={tableStyles.chambreCell}>
+                    <Text style={tableStyles.headerText}>{'CHAMBRE'}</Text>
+                  </View>
+                  <View style={tableStyles.clientCell}>
+                    <Text style={tableStyles.headerText}>{'CLIENT'}</Text>
+                  </View>
+                  <View style={tableStyles.hkCell}>
+                    <Text style={tableStyles.headerText}>{'HOUSEKEEPING'}</Text>
+                  </View>
+                  <View style={tableStyles.gouvCell}>
+                    <Text style={tableStyles.headerText}>{'GOUVERNANTE'}</Text>
+                  </View>
+                  <View style={tableStyles.assignCell}>
+                    <Text style={tableStyles.headerText}>{'ASSIGNÉE'}</Text>
+                  </View>
+                  <View style={tableStyles.vueSdbCell}>
+                    <Text style={tableStyles.headerText}>{'VUE / SDB'}</Text>
+                  </View>
+                  <View style={tableStyles.pdjCell}>
+                    <Text style={tableStyles.headerText}>{'PDJ'}</Text>
+                  </View>
+                  <View style={tableStyles.etaCell}>
+                    <Text style={tableStyles.headerText}>{'ETA'}</Text>
+                  </View>
+                  <View style={tableStyles.actionsCell}>
+                    <Text style={tableStyles.headerText}>{'ACTIONS'}</Text>
+                  </View>
                 </View>
               </View>
+              <FlatList
+                data={filtered}
+                keyExtractor={(item) => item.id}
+                renderItem={renderTableRow}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 100 }}
+                ListEmptyComponent={
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyIcon}>{'🏨'}</Text>
+                    <Text style={styles.emptyTitle}>{t.rooms.noRoomFound}</Text>
+                  </View>
+                }
+              />
             </View>
-            <FlatList
-              data={filtered}
-              keyExtractor={(item) => item.id}
-              renderItem={renderTableRow}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 100 }}
-              ListEmptyComponent={
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyIcon}>{'🏨'}</Text>
-                  <Text style={styles.emptyTitle}>{t.rooms.noRoomFound}</Text>
-                </View>
-              }
-            />
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </View>
       )}
 
       <Modal
@@ -1260,53 +1266,156 @@ const ftStyles = StyleSheet.create({
   roomAvatarText: { fontSize: 8, fontWeight: '700' as const, color: '#FFF' },
 });
 
+const TABLE_MIN_WIDTH = 1120;
+
 const tableStyles = StyleSheet.create({
-  stickyHeader: { backgroundColor: FT.headerBg, borderBottomWidth: 2, borderBottomColor: FT.brand },
-  headerRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 8 },
-  headerText: { fontSize: 10, fontWeight: '700' as const, color: '#FFF', textTransform: 'uppercase' as const, letterSpacing: 0.5 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 8, backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.borderLight, minHeight: 60 },
-  rowSelected: { backgroundColor: FT.brandSoft },
-  checkCell: { width: 32, alignItems: 'center', justifyContent: 'center' },
-  checkbox: { width: 18, height: 18, borderRadius: 4, borderWidth: 1.5, borderColor: FT.border, justifyContent: 'center', alignItems: 'center' },
-  checkboxActive: { backgroundColor: FT.brand, borderColor: FT.brand },
+  stickyHeader: {
+    backgroundColor: '#1E293B',
+    borderBottomWidth: 0,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    minWidth: TABLE_MIN_WIDTH,
+  },
+  headerText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: 'rgba(255,255,255,0.7)',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.8,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+    paddingHorizontal: 0,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    minHeight: 56,
+    minWidth: TABLE_MIN_WIDTH,
+  },
+  rowEven: {
+    backgroundColor: '#F8FAFC',
+  },
+  rowSelected: {
+    backgroundColor: '#EEF2FF',
+    borderBottomColor: '#C7D2FE',
+  },
+  checkCell: { width: 44, alignItems: 'center' as const, justifyContent: 'center' as const, paddingLeft: 12 },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    backgroundColor: '#FFF',
+  },
+  checkboxActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
   checkMark: { fontSize: 10, color: '#FFF', fontWeight: '700' as const },
-  chambreCell: { width: 140, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
-  roomBadge: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  roomBadgeText: { fontSize: 13, fontWeight: '800' as const, color: '#FFF' },
-  roomTypeText: { fontSize: 12, fontWeight: '600' as const, color: FT.text },
-  roomCatText: { fontSize: 9, color: FT.textMuted },
-  clientCell: { width: 190, paddingHorizontal: 6, justifyContent: 'center' },
-  clientNameRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  clientName: { fontSize: 12, fontWeight: '600' as const, color: FT.text, flexShrink: 1 },
-  clientDates: { fontSize: 10, color: FT.textSec, marginTop: 2 },
-  clientEmpty: { fontSize: 11, color: FT.textMuted },
-  clientAddLink: { color: FT.brand, fontWeight: '600' as const },
-  vipBadgeInline: { backgroundColor: '#F59E0B', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 },
+  chambreCell: {
+    width: 150,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+    paddingHorizontal: 8,
+  },
+  roomBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  roomBadgeText: { fontSize: 14, fontWeight: '800' as const, color: '#FFF' },
+  roomInfo: { flexShrink: 1 },
+  roomTypeText: { fontSize: 12, fontWeight: '600' as const, color: '#1E293B' },
+  roomCatText: { fontSize: 10, color: '#94A3B8', marginTop: 1 },
+  clientCell: { width: 200, paddingHorizontal: 8, justifyContent: 'center' as const },
+  clientNameRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4 },
+  clientName: { fontSize: 13, fontWeight: '600' as const, color: '#1E293B', flexShrink: 1 },
+  clientDates: { fontSize: 10, color: '#64748B', marginTop: 3, fontWeight: '500' as const },
+  clientEmptyRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6 },
+  clientEmptyDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#CBD5E1' },
+  clientEmpty: { fontSize: 12, color: '#94A3B8', fontWeight: '500' as const },
+  clientAddLink: { color: '#4F46E5', fontWeight: '600' as const, fontSize: 11 },
+  vipBadgeInline: { backgroundColor: '#F59E0B', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   vipBadgeInlineText: { fontSize: 8, fontWeight: '800' as const, color: '#FFF' },
   priorityStar: { fontSize: 12, color: '#F59E0B' },
-  hkCell: { width: 130, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
-  hkDot: { width: 14, alignItems: 'center' },
-  dot: { width: 8, height: 8, borderRadius: 4 },
+  hkCell: { width: 130, paddingHorizontal: 8, justifyContent: 'center' as const },
+  hkBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    alignSelf: 'flex-start' as const,
+  },
+  hkDotInner: { width: 7, height: 7, borderRadius: 4 },
   hkLabel: { fontSize: 11, fontWeight: '600' as const },
-  gouvCell: { width: 110, paddingHorizontal: 4, justifyContent: 'center' },
-  gouvBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start' as const },
+  gouvCell: { width: 110, paddingHorizontal: 8, justifyContent: 'center' as const },
+  gouvBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    alignSelf: 'flex-start' as const,
+  },
   gouvText: { fontSize: 10, fontWeight: '600' as const },
-  assignCell: { width: 130, paddingHorizontal: 4, justifyContent: 'center' },
-  assignRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  assignAvatar: { width: 26, height: 26, borderRadius: 13, backgroundColor: FT.brand, justifyContent: 'center', alignItems: 'center' },
-  assignAvatarText: { fontSize: 9, fontWeight: '700' as const, color: '#FFF' },
-  assignName: { fontSize: 11, color: FT.textSec, flexShrink: 1 },
-  vueSdbCell: { width: 120, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  vueSdbIcon: { fontSize: 10, color: FT.textMuted },
-  vueSdbText: { fontSize: 11, fontWeight: '500' as const, color: FT.text },
-  vueSdbSubtext: { fontSize: 9, color: FT.textMuted },
-  pdjCell: { width: 70, alignItems: 'center', justifyContent: 'center' },
-  etaCell: { width: 55, alignItems: 'center', justifyContent: 'center' },
-  etaText: { fontSize: 12, fontWeight: '700' as const, color: FT.brand },
-  actionsCell: { width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  actionIconBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: FT.surfaceAlt, borderWidth: 1, borderColor: FT.border, justifyContent: 'center', alignItems: 'center' },
-  actionIconDeparture: { backgroundColor: 'rgba(249,115,22,0.08)', borderColor: 'rgba(249,115,22,0.2)' },
-  emptyDash: { fontSize: 12, color: FT.textMuted },
+  assignCell: { width: 140, paddingHorizontal: 8, justifyContent: 'center' as const },
+  assignRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
+  assignAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#4F46E5',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  assignAvatarText: { fontSize: 10, fontWeight: '700' as const, color: '#FFF' },
+  assignName: { fontSize: 12, color: '#475569', flexShrink: 1, fontWeight: '500' as const },
+  vueSdbCell: { width: 100, paddingHorizontal: 8, justifyContent: 'center' as const },
+  vueSdbText: { fontSize: 11, fontWeight: '600' as const, color: '#334155' },
+  vueSdbSubtext: { fontSize: 10, color: '#94A3B8', marginTop: 1 },
+  pdjCell: { width: 70, alignItems: 'center' as const, justifyContent: 'center' as const },
+  etaCell: { width: 60, alignItems: 'center' as const, justifyContent: 'center' as const },
+  etaBadge: {
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  etaText: { fontSize: 11, fontWeight: '700' as const, color: '#4F46E5' },
+  actionsCell: { width: 116, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 6, paddingRight: 12 },
+  actionIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  actionIconDeparture: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  actionIconPriority: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A',
+  },
+  emptyDash: { fontSize: 12, color: '#CBD5E1' },
 });
 
 const modalStyles = StyleSheet.create({
@@ -1435,6 +1544,7 @@ const styles = StyleSheet.create({
   selActText: { color: '#FFF', fontSize: 11, fontWeight: '600' as const },
 
   listContent: { padding: 14, paddingBottom: 100, gap: 10 },
+  tableWrapper: { flex: 1 },
   tableScrollH: { flex: 1 },
   tableInner: { flex: 1 },
 
