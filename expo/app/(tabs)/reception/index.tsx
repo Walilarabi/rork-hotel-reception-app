@@ -13,7 +13,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { DoorOpen, UserPlus, X, ChevronDown, Coffee, List, LayoutGrid, Eye, Star, Pencil, Upload, Check, Search, FileText, Download, SlidersHorizontal, BedDouble, LogOut, RefreshCw, CheckCircle, AlertTriangle, Clock, Moon, Sun, MapPin, Zap } from 'lucide-react-native';
+import { DoorOpen, UserPlus, X, ChevronDown, Coffee, List, LayoutGrid, Eye, Star, Pencil, Upload, Check, Search, FileText, Download, SlidersHorizontal, BedDouble, LogOut, RefreshCw, CheckCircle, AlertTriangle, Clock, Moon, Sun, MapPin, Zap, Package } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
 import DeskFloorSection from '@/components/DeskFloorSection';
@@ -311,7 +311,19 @@ export default function ReceptionDashboard() {
     toggleFloorSelection,
     clearSelection,
     updateRoom,
+    maintenanceTasks,
+    lostFoundItems,
   } = useHotel();
+
+  const pendingSignalements = useMemo(
+    () => maintenanceTasks.filter((t) => !t.isPeriodic && t.status !== 'resolu').length,
+    [maintenanceTasks]
+  );
+
+  const pendingObjets = useMemo(
+    () => lostFoundItems.filter((i) => i.status === 'en_attente').length,
+    [lostFoundItems]
+  );
 
   const unbilledBreakfasts = useMemo(
     () => breakfastOrders.filter((o) => !o.included && o.status === 'servi' && !o.billingNotificationSent),
@@ -1010,8 +1022,10 @@ export default function ReceptionDashboard() {
       <View style={[s.navStripSection, { backgroundColor: d.surface, borderBottomColor: d.borderLight }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.navStripScroll}>
           {[
-            { label: 'Plan Chambres', icon: MapPin, color: d.info, route: '/hotel-plan' as const },
-            { label: 'Répartition', icon: Zap, color: d.success, route: '/housekeeping-assignments' as const },
+            { label: 'Plan Chambres', icon: MapPin, color: d.info, route: '/hotel-plan' as const, badge: 0 },
+            { label: 'Répartition', icon: Zap, color: d.success, route: '/housekeeping-assignments' as const, badge: 0 },
+            { label: 'Signalement', icon: AlertTriangle, color: d.danger, route: '/reception-signalements' as const, badge: pendingSignalements },
+            { label: 'Objets trouvés', icon: Package, color: d.warning, route: '/reception-objets-trouves' as const, badge: pendingObjets },
           ].map((item) => {
             const IconComp = item.icon;
             return (
@@ -1025,6 +1039,11 @@ export default function ReceptionDashboard() {
                   <IconComp size={16} color={item.color} />
                 </View>
                 <Text style={[s.navStripLabel, { color: d.text }]} numberOfLines={1}>{item.label}</Text>
+                {item.badge > 0 && (
+                  <View style={s.navBadge}>
+                    <Text style={s.navBadgeText}>{item.badge}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
             );
           })}
@@ -1916,6 +1935,8 @@ const s = StyleSheet.create({
   navStripItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: DS.border, backgroundColor: DS.surfaceWarm },
   navStripIcon: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   navStripLabel: { fontSize: 13, fontWeight: '600' as const, color: DS.text },
+  navBadge: { position: 'absolute' as const, top: -4, right: -4, backgroundColor: '#EF4444', minWidth: 18, height: 18, borderRadius: 9, justifyContent: 'center' as const, alignItems: 'center' as const, paddingHorizontal: 4, borderWidth: 2, borderColor: '#FFF' },
+  navBadgeText: { color: '#FFF', fontSize: 9, fontWeight: '800' as const },
 
   kpiSection: { backgroundColor: DS.surface, borderBottomWidth: 1, borderBottomColor: DS.borderLight, paddingVertical: 12 },
   kpiScroll: { paddingHorizontal: 16, gap: 10 },

@@ -118,6 +118,8 @@ function RootLayoutNav() {
       <Stack.Screen name="hotel-plan" options={{ title: 'Plan de l\'hôtel' }} />
       <Stack.Screen name="housekeeping-assignments" options={{ title: 'Répartition chambres' }} />
       <Stack.Screen name="control-center" options={{ title: 'Centre de contrôle' }} />
+      <Stack.Screen name="reception-signalements" options={{ title: 'Signalements' }} />
+      <Stack.Screen name="reception-objets-trouves" options={{ title: 'Objets trouvés' }} />
     </Stack>
   );
 }
