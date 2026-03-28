@@ -571,14 +571,14 @@ export default function TaskDetailScreen() {
                 <Text style={styles.quickActionLabel}>Signaler</Text>
               </TouchableOpacity>
 
-              {!isNpd && (
+              {isInProgress && (
                 <TouchableOpacity
-                  style={[styles.quickActionBtn, styles.quickActionNpd]}
-                  onPress={handleNpd}
+                  style={[styles.quickActionBtn, styles.quickActionDone]}
+                  onPress={handleComplete}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.quickActionIcon}>{'🔒'}</Text>
-                  <Text style={styles.quickActionLabel}>NPD</Text>
+                  <Text style={styles.quickActionIcon}>{'✅'}</Text>
+                  <Text style={styles.quickActionLabel}>Terminé</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -1122,6 +1122,10 @@ const styles = StyleSheet.create({
   quickActionNpd: {
     backgroundColor: '#ECEFF1',
     borderColor: '#CFD8DC',
+  },
+  quickActionDone: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#43A047',
   },
   quickActionIcon: { fontSize: 20 },
   quickActionLabel: { fontSize: 11, fontWeight: '700' as const, color: '#37474F' },
