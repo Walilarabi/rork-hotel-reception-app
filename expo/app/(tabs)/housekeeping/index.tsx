@@ -18,6 +18,7 @@ import {
 import { useRouter, Stack } from 'expo-router';
 import { Camera, Search, ChevronRight, X, ScanLine, Play, CheckCircle, Flame } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import UserMenuButton from '@/components/UserMenuButton';
 import { useHotel } from '@/providers/HotelProvider';
 import { useTheme } from '@/providers/ThemeProvider';
@@ -423,10 +424,20 @@ export default function HousekeepingScreen() {
 
   const [scanModalVisible, setScanModalVisible] = useState(false);
   const [scanInput, setScanInput] = useState('');
+  const [cameraActive, setCameraActive] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+  const scanProcessedRef = useRef(false);
 
   const handleScanQR = useCallback(() => {
     setScanInput('');
-    setScanModalVisible(true);
+    scanProcessedRef.current = false;
+    if (Platform.OS === 'web') {
+      setScanModalVisible(true);
+      setCameraActive(false);
+    } else {
+      setCameraActive(true);
+      setScanModalVisible(true);
+    }
   }, []);
 
   const handleScanRoom = useCallback((roomNumber: string) => {
@@ -464,6 +475,36 @@ export default function HousekeepingScreen() {
       router.push({ pathname: '/task-detail', params: { roomId: room.id } });
     }
   }, [rooms, startCleaning, completeCleaning, router]);
+
+  const handleBarCodeScanned = useCallback((result: BarcodeScanningResult) => {
+    if (scanProcessedRef.current) return;
+    scanProcessedRef.current = true;
+    console.log('[Scanner] Barcode scanned:', result.data);
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    let roomNumber = '';
+    const url = result.data;
+    const roomIdMatch = url.match(/room_id=([^&]+)/);
+    if (roomIdMatch) {
+      const matchedId = roomIdMatch[1];
+      const foundRoom = rooms.find((r) => r.id === matchedId || r.roomNumber === matchedId);
+      if (foundRoom) {
+        roomNumber = foundRoom.roomNumber;
+      } else {
+        roomNumber = matchedId;
+      }
+    } else {
+      roomNumber = url.replace(/[^a-zA-Z0-9]/g, '');
+    }
+
+    setCameraActive(false);
+    if (roomNumber) {
+      handleScanRoom(roomNumber);
+    } else {
+      Alert.alert('QR Code invalide', 'Le QR code scanné ne correspond à aucune chambre.');
+      scanProcessedRef.current = false;
+    }
+  }, [rooms, handleScanRoom]);
 
   const scanFilteredRooms = useMemo(() => {
     if (!scanInput.trim()) return assignedRooms;
@@ -631,9 +672,89 @@ export default function HousekeepingScreen() {
       <Modal
         visible={scanModalVisible}
         animationType="slide"
-        transparent
-        onRequestClose={() => setScanModalVisible(false)}
+        transparent={!cameraActive}
+        onRequestClose={() => {
+          setCameraActive(false);
+          setScanModalVisible(false);
+        }}
       >
+        {cameraActive && Platform.OS !== 'web' ? (
+          <View style={styles.cameraFullScreen}>
+            {!permission?.granted ? (
+              <View style={styles.cameraPermission}>
+                <View style={styles.cameraPermissionCard}>
+                  <Camera size={48} color={theme.primary} />
+                  <Text style={styles.cameraPermTitle}>Accès caméra requis</Text>
+                  <Text style={styles.cameraPermDesc}>
+                    Pour scanner les QR codes des chambres, autorisez l'accès à la caméra.
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.cameraPermBtn, { backgroundColor: theme.primary }]}
+                    onPress={async () => {
+                      const result = await requestPermission();
+                      if (!result.granted) {
+                        Alert.alert('Permission refusée', 'Vous pouvez activer la caméra dans les paramètres.');
+                        setCameraActive(false);
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.cameraPermBtnText}>Autoriser la caméra</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.cameraPermSkip}
+                    onPress={() => setCameraActive(false)}
+                  >
+                    <Text style={styles.cameraPermSkipText}>Saisir manuellement</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.cameraContainer}>
+                <CameraView
+                  style={styles.cameraPreview}
+                  facing="back"
+                  barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                  onBarcodeScanned={handleBarCodeScanned}
+                />
+                <View style={styles.cameraOverlay}>
+                  <View style={styles.cameraTopBar}>
+                    <TouchableOpacity
+                      style={styles.cameraCloseBtn}
+                      onPress={() => {
+                        setCameraActive(false);
+                        setScanModalVisible(false);
+                      }}
+                    >
+                      <X size={24} color="#FFF" />
+                    </TouchableOpacity>
+                    <Text style={styles.cameraTitle}>Scanner QR Code</Text>
+                    <View style={{ width: 40 }} />
+                  </View>
+
+                  <View style={styles.cameraCrosshair}>
+                    <View style={styles.crosshairCornerTL} />
+                    <View style={styles.crosshairCornerTR} />
+                    <View style={styles.crosshairCornerBL} />
+                    <View style={styles.crosshairCornerBR} />
+                  </View>
+
+                  <View style={styles.cameraBottomBar}>
+                    <Text style={styles.cameraHint}>Placez le QR code de la chambre dans le cadre</Text>
+                    <TouchableOpacity
+                      style={[styles.cameraManualBtn, { borderColor: '#FFF' }]}
+                      onPress={() => setCameraActive(false)}
+                      activeOpacity={0.7}
+                    >
+                      <Search size={18} color="#FFF" />
+                      <Text style={styles.cameraManualText}>Saisir le numéro</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+        ) : (
         <KeyboardAvoidingView
           style={styles.scanModalOverlay}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -646,11 +767,28 @@ export default function HousekeepingScreen() {
               </View>
               <TouchableOpacity
                 style={styles.scanModalClose}
-                onPress={() => setScanModalVisible(false)}
+                onPress={() => {
+                  setCameraActive(false);
+                  setScanModalVisible(false);
+                }}
               >
                 <X size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
+
+            {Platform.OS !== 'web' && permission?.granted && (
+              <TouchableOpacity
+                style={[styles.openCameraBtn, { backgroundColor: theme.primary + '12', borderColor: theme.primary + '30' }]}
+                onPress={() => {
+                  scanProcessedRef.current = false;
+                  setCameraActive(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <Camera size={20} color={theme.primary} />
+                <Text style={[styles.openCameraBtnText, { color: theme.primary }]}>Ouvrir la caméra</Text>
+              </TouchableOpacity>
+            )}
 
             <View style={styles.scanInputRow}>
               <View style={[styles.scanInputContainer, { borderColor: theme.primary + '40' }]}>
@@ -737,6 +875,7 @@ export default function HousekeepingScreen() {
             />
           </View>
         </KeyboardAvoidingView>
+        )}
       </Modal>
 
       <SectionList
@@ -1090,5 +1229,185 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#94A3B8',
     fontWeight: '500' as const,
+  },
+
+  cameraFullScreen: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  cameraContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  cameraPreview: {
+    flex: 1,
+  },
+  cameraOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'space-between',
+  },
+  cameraTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingHorizontal: 16,
+  },
+  cameraCloseBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: '#FFF',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  cameraCrosshair: {
+    width: 240,
+    height: 240,
+    alignSelf: 'center',
+    position: 'relative',
+  },
+  crosshairCornerTL: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 40,
+    height: 40,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
+    borderColor: '#FFF',
+    borderTopLeftRadius: 12,
+  },
+  crosshairCornerTR: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 40,
+    height: 40,
+    borderTopWidth: 4,
+    borderRightWidth: 4,
+    borderColor: '#FFF',
+    borderTopRightRadius: 12,
+  },
+  crosshairCornerBL: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: 40,
+    height: 40,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
+    borderColor: '#FFF',
+    borderBottomLeftRadius: 12,
+  },
+  crosshairCornerBR: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 40,
+    height: 40,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+    borderColor: '#FFF',
+    borderBottomRightRadius: 12,
+  },
+  cameraBottomBar: {
+    alignItems: 'center',
+    paddingBottom: Platform.OS === 'ios' ? 50 : 30,
+    gap: 16,
+  },
+  cameraHint: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: '#FFF',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  cameraManualBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  cameraManualText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#FFF',
+  },
+  cameraPermission: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+    padding: 24,
+  },
+  cameraPermissionCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    gap: 12,
+    maxWidth: 320,
+    width: '100%',
+  },
+  cameraPermTitle: {
+    fontSize: 18,
+    fontWeight: '800' as const,
+    color: '#1E293B',
+    marginTop: 8,
+  },
+  cameraPermDesc: {
+    fontSize: 14,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  cameraPermBtn: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  cameraPermBtnText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#FFF',
+  },
+  cameraPermSkip: {
+    paddingVertical: 8,
+  },
+  cameraPermSkipText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#64748B',
+  },
+  openCameraBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginBottom: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  openCameraBtnText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
   },
 });
