@@ -812,7 +812,7 @@ const sectionStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 14,
   },
   headerText: { fontSize: 14, fontWeight: '700' as const, letterSpacing: 0.3 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -825,7 +825,7 @@ const sectionStyles = StyleSheet.create({
     alignItems: 'center',
   },
   badgeText: { fontSize: 10, fontWeight: '800' as const, color: '#FFF' },
-  chevron: { fontSize: 80, color: '#90A4AE' },
+  chevron: { fontSize: 28, color: '#90A4AE' },
   content: { paddingBottom: 12 },
 });
 
