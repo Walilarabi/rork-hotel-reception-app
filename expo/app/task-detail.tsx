@@ -94,7 +94,7 @@ export default function TaskDetailScreen() {
 
   const isInProgress = room?.cleaningStatus === 'en_cours';
   const isNotStarted = room?.cleaningStatus === 'none' || room?.cleaningStatus === 'refusee';
-  const isDone = room?.cleaningStatus === 'nettoyee' || room?.cleaningStatus === 'validee';
+  const _isDone = room?.cleaningStatus === 'nettoyee' || room?.cleaningStatus === 'validee';
   const isNpd = room?.status === 'hors_service' && room?.vipInstructions === 'NPD';
 
   useEffect(() => {
@@ -524,6 +524,26 @@ export default function TaskDetailScreen() {
           </SectionBlock>
 
           <View style={styles.mainActionsArea}>
+            <View style={styles.quickActionsRow}>
+              <TouchableOpacity
+                style={styles.quickActionBtn}
+                onPress={() => setShowLostObject(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.quickActionIcon}>{'📦'}</Text>
+                <Text style={styles.quickActionLabel}>Objet trouvé</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.quickActionBtn, styles.quickActionWarning]}
+                onPress={() => setShowReport(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.quickActionIcon}>{'⚠️'}</Text>
+                <Text style={styles.quickActionLabel}>Signaler</Text>
+              </TouchableOpacity>
+            </View>
+
             {isNotStarted && !isNpd && (
               <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: '#00897B' }]} onPress={handleStart} activeOpacity={0.8} testID="start-cleaning">
                 <Text style={styles.mainActionIcon}>{'▶️'}</Text>
@@ -544,44 +564,6 @@ export default function TaskDetailScreen() {
                 </View>
               </TouchableOpacity>
             )}
-
-            {isDone && (
-              <View style={styles.doneNotice}>
-                <Text style={styles.doneIcon}>{'🎉'}</Text>
-                <Text style={[styles.doneText, { color: colors.textSecondary }]}>Terminé, en Attente de Validation</Text>
-              </View>
-            )}
-
-            <View style={styles.quickActionsRow}>
-              <TouchableOpacity
-                style={styles.quickActionBtn}
-                onPress={() => setShowLostObject(true)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.quickActionIcon}>{'📦'}</Text>
-                <Text style={styles.quickActionLabel}>Objet trouvé</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.quickActionBtn, styles.quickActionWarning]}
-                onPress={() => setShowReport(true)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.quickActionIcon}>{'⚠️'}</Text>
-                <Text style={styles.quickActionLabel}>Signaler</Text>
-              </TouchableOpacity>
-
-              {isInProgress && (
-                <TouchableOpacity
-                  style={[styles.quickActionBtn, styles.quickActionDone]}
-                  onPress={handleComplete}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.quickActionIcon}>{'✅'}</Text>
-                  <Text style={styles.quickActionLabel}>Terminé</Text>
-                </TouchableOpacity>
-              )}
-            </View>
           </View>
 
         </ScrollView>
