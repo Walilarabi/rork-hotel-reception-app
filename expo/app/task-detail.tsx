@@ -588,7 +588,10 @@ export default function TaskDetailScreen() {
       </KeyboardAvoidingView>
 
       <Modal visible={showReport} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{'⚠️ Signaler un problème'}</Text>
@@ -597,34 +600,20 @@ export default function TaskDetailScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-              <View style={styles.reportGrid}>
-                {REPORT_ITEMS.map((item) => {
-                  const isSelected = selectedReportItem?.id === item.id;
-                  return (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={[
-                        styles.reportGridItem,
-                        isSelected && { borderColor: '#FB8C00', backgroundColor: '#FFF8E1' },
-                      ]}
-                      onPress={() => {
-                        setSelectedReportItem(item);
-                        if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.reportGridIcon}>{item.icon}</Text>
-                      <Text style={[styles.reportGridLabel, isSelected && { color: '#E65100', fontWeight: '700' as const }]}>
-                        {item.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
+            <ScrollView
+              style={styles.modalScroll}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               {selectedReportItem && (
                 <View style={styles.reportDetailSection}>
+                  <View style={styles.selectedReportBadge}>
+                    <Text style={styles.selectedReportIcon}>{selectedReportItem.icon}</Text>
+                    <Text style={styles.selectedReportLabel}>{selectedReportItem.label}</Text>
+                    <TouchableOpacity onPress={() => setSelectedReportItem(null)}>
+                      <Text style={styles.selectedReportChange}>Changer</Text>
+                    </TouchableOpacity>
+                  </View>
                   <Text style={styles.fieldLabel}>Description (optionnel)</Text>
                   <TextInput
                     style={styles.textArea}
@@ -653,6 +642,27 @@ export default function TaskDetailScreen() {
                   )}
                 </View>
               )}
+
+              {!selectedReportItem && (
+                <View style={styles.reportGrid}>
+                  {REPORT_ITEMS.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.reportGridItem}
+                      onPress={() => {
+                        setSelectedReportItem(item);
+                        if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.reportGridIcon}>{item.icon}</Text>
+                      <Text style={styles.reportGridLabel}>
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </ScrollView>
 
             <TouchableOpacity
@@ -663,7 +673,7 @@ export default function TaskDetailScreen() {
               <Text style={styles.modalSubmitText}>{'⚠️ Envoyer le signalement'}</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={showLostObject} animationType="slide" transparent>
@@ -1252,7 +1262,22 @@ const styles = StyleSheet.create({
   reportGridIcon: { fontSize: 32 },
   reportGridLabel: { fontSize: 12, fontWeight: '500' as const, color: Colors.text, textAlign: 'center' as const },
 
-  reportDetailSection: { marginTop: 16 },
+  reportDetailSection: { marginTop: 8, marginBottom: 12 },
+  selectedReportBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8E1',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 14,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#FFE082',
+  },
+  selectedReportIcon: { fontSize: 24 },
+  selectedReportLabel: { flex: 1, fontSize: 15, fontWeight: '700' as const, color: '#E65100' },
+  selectedReportChange: { fontSize: 13, fontWeight: '600' as const, color: '#FB8C00' },
   fieldLabel: {
     fontSize: 13,
     fontWeight: '600' as const,
