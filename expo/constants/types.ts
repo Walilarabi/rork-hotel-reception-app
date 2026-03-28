@@ -215,6 +215,7 @@ export interface LostFoundItem {
   status: LostFoundStatus;
   returnedTo: string;
   returnedDate: string;
+  returnedIdPhotoUri: string;
   consignedDate: string;
   consignedLocation: string;
   consignedObservations: string;

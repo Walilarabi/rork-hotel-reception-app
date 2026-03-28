@@ -9,6 +9,7 @@ import {
   Platform,
   TextInput,
   Alert,
+  Image,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import {
@@ -23,8 +24,13 @@ import {
   Search,
   MapPin,
   RotateCcw,
+  Camera,
+  ImageIcon,
+  Trash2,
+  CreditCard,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { useHotel } from '@/providers/HotelProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { LostFoundItem, LostFoundStatus } from '@/constants/types';
@@ -115,6 +121,7 @@ export default function ReceptionObjetsTrouvesScreen() {
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnName, setReturnName] = useState('');
   const [returnDate, setReturnDate] = useState(todayStr());
+  const [returnIdPhoto, setReturnIdPhoto] = useState<string>('');
 
   const [showConsignModal, setShowConsignModal] = useState(false);
   const [consignLocation, setConsignLocation] = useState('');
@@ -191,10 +198,48 @@ export default function ReceptionObjetsTrouvesScreen() {
     if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
+  const pickIdPhoto = useCallback(async (source: 'camera' | 'gallery') => {
+    try {
+      let result: ImagePicker.ImagePickerResult;
+      if (source === 'camera') {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert('Permission requise', 'Veuillez autoriser l\'accès à la caméra.');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          quality: 0.7,
+          allowsEditing: true,
+        });
+      } else {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert('Permission requise', 'Veuillez autoriser l\'accès à la galerie.');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          quality: 0.7,
+          allowsEditing: true,
+        });
+      }
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        console.log('[ObjetsT] ID photo picked:', result.assets[0].uri.slice(0, 60));
+        setReturnIdPhoto(result.assets[0].uri);
+        if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (err) {
+      console.log('[ObjetsT] Error picking ID photo:', err);
+      Alert.alert('Erreur', 'Impossible de récupérer la photo.');
+    }
+  }, []);
+
   const openReturnModal = useCallback((item: LostFoundItem) => {
     setSelectedItem(item);
     setReturnName('');
     setReturnDate(todayStr());
+    setReturnIdPhoto('');
     setShowReturnModal(true);
     if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, []);
@@ -212,12 +257,14 @@ export default function ReceptionObjetsTrouvesScreen() {
         status: 'restitue',
         returnedTo: returnName.trim(),
         returnedDate: returnDate,
+        returnedIdPhotoUri: returnIdPhoto,
       },
     });
     setShowReturnModal(false);
     setSelectedItem(null);
+    setReturnIdPhoto('');
     if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [selectedItem, returnName, returnDate, updateLostFoundItem]);
+  }, [selectedItem, returnName, returnDate, returnIdPhoto, updateLostFoundItem]);
 
   const openConsignModal = useCallback((item: LostFoundItem) => {
     const elapsed = daysBetween(item.foundDate);
@@ -257,6 +304,7 @@ export default function ReceptionObjetsTrouvesScreen() {
     setSelectedItem(item);
     setReturnName('');
     setReturnDate(todayStr());
+    setReturnIdPhoto('');
     setShowReturnModal(true);
     if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, []);
@@ -370,6 +418,9 @@ export default function ReceptionObjetsTrouvesScreen() {
             <Text style={[s.returnedBannerText, { color: '#10B981' }]}>
               Restitué à {item.returnedTo} {item.returnedDate ? `le ${formatDateFr(item.returnedDate)}` : ''}
             </Text>
+            {item.returnedIdPhotoUri ? (
+              <CreditCard size={13} color="#10B981" />
+            ) : null}
           </View>
         ) : null}
       </TouchableOpacity>
@@ -571,6 +622,15 @@ export default function ReceptionObjetsTrouvesScreen() {
                             <Text style={[s.modalInfoValue, { color: text }]}>{formatDateFr(selectedItem.returnedDate)}</Text>
                           </View>
                         ) : null}
+                        {selectedItem.returnedIdPhotoUri ? (
+                          <View style={s.modalIdPhotoBlock}>
+                            <View style={s.modalIdPhotoHeader}>
+                              <CreditCard size={14} color={accent} />
+                              <Text style={[s.modalIdPhotoLabel, { color: text }]}>Pièce d'identité archivée</Text>
+                            </View>
+                            <Image source={{ uri: selectedItem.returnedIdPhotoUri }} style={s.modalIdPhotoImage} resizeMode="cover" />
+                          </View>
+                        ) : null}
                       </>
                     ) : null}
 
@@ -705,6 +765,46 @@ export default function ReceptionObjetsTrouvesScreen() {
                 value={returnDate}
                 onChangeText={setReturnDate}
               />
+
+              <Text style={[s.formLabel, { color: text }]}>Scan pièce d'identité</Text>
+              {returnIdPhoto ? (
+                <View style={s.idPhotoContainer}>
+                  <Image source={{ uri: returnIdPhoto }} style={s.idPhotoPreview} resizeMode="cover" />
+                  <View style={s.idPhotoOverlay}>
+                    <View style={[s.idPhotoBadge, { backgroundColor: '#10B981' }]}>
+                      <CheckCircle size={12} color="#FFF" />
+                      <Text style={s.idPhotoBadgeText}>Photo capturée</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[s.idPhotoRemoveBtn, { backgroundColor: 'rgba(239,68,68,0.9)' }]}
+                      onPress={() => setReturnIdPhoto('')}
+                      activeOpacity={0.7}
+                    >
+                      <Trash2 size={16} color="#FFF" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <View style={s.idPhotoActions}>
+                  <TouchableOpacity
+                    style={[s.idPhotoBtn, { backgroundColor: accent + '10', borderColor: accent + '30' }]}
+                    onPress={() => pickIdPhoto('camera')}
+                    activeOpacity={0.7}
+                  >
+                    <Camera size={22} color={accent} />
+                    <Text style={[s.idPhotoBtnText, { color: accent }]}>Prendre en photo</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[s.idPhotoBtn, { backgroundColor: inputBg, borderColor: border }]}
+                    onPress={() => pickIdPhoto('gallery')}
+                    activeOpacity={0.7}
+                  >
+                    <ImageIcon size={22} color={textSec} />
+                    <Text style={[s.idPhotoBtnText, { color: textSec }]}>Galerie</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              <Text style={[s.idPhotoHint, { color: textMuted }]}>La pièce d'identité sera archivée comme preuve de restitution</Text>
 
               <TouchableOpacity
                 style={[s.formSubmitBtn, { backgroundColor: '#10B981' }]}
@@ -943,6 +1043,20 @@ const s = StyleSheet.create({
   formTextarea: { minHeight: 80, textAlignVertical: 'top' as const, paddingTop: 12 },
   formSubmitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, marginTop: 20, marginBottom: 20 },
   formSubmitBtnText: { color: '#FFF', fontSize: 14, fontWeight: '700' as const },
+  idPhotoContainer: { borderRadius: 12, overflow: 'hidden', position: 'relative' as const },
+  idPhotoPreview: { width: '100%' as unknown as number, height: 180, borderRadius: 12 },
+  idPhotoOverlay: { position: 'absolute' as const, bottom: 0, left: 0, right: 0, flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, padding: 10, backgroundColor: 'rgba(0,0,0,0.35)' },
+  idPhotoBadge: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  idPhotoBadgeText: { color: '#FFF', fontSize: 11, fontWeight: '700' as const },
+  idPhotoRemoveBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center' as const, alignItems: 'center' as const },
+  idPhotoActions: { flexDirection: 'row' as const, gap: 10 },
+  idPhotoBtn: { flex: 1, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 8, paddingVertical: 22, borderRadius: 12, borderWidth: 1.5, borderStyle: 'dashed' as const },
+  idPhotoBtnText: { fontSize: 12, fontWeight: '600' as const },
+  idPhotoHint: { fontSize: 11, marginTop: 6, fontStyle: 'italic' as const },
+  modalIdPhotoBlock: { marginTop: 16, gap: 10 },
+  modalIdPhotoHeader: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
+  modalIdPhotoLabel: { fontSize: 13, fontWeight: '600' as const },
+  modalIdPhotoImage: { width: '100%' as unknown as number, height: 200, borderRadius: 12 },
   delayInfoBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 14, borderRadius: 12, borderWidth: 1, marginBottom: 8 },
   delayInfoText: { fontSize: 12, fontWeight: '600' as const },
   delayInfoSub: { fontSize: 11, marginTop: 2 },
