@@ -824,7 +824,7 @@ const sectionStyles = StyleSheet.create({
     alignItems: 'center',
   },
   badgeText: { fontSize: 10, fontWeight: '800' as const, color: '#FFF' },
-  chevron: { fontSize: 16, color: '#90A4AE' },
+  chevron: { fontSize: 80, color: '#90A4AE' },
   content: { paddingHorizontal: 16, paddingBottom: 12 },
 });
 
