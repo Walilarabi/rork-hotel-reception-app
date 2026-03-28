@@ -9,7 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { ChevronRight, AlertTriangle, Clock, CheckCircle, Wrench, User, Calendar, ChevronDown, X } from 'lucide-react-native';
+import { ChevronRight, Clock, CheckCircle, Wrench, User, Calendar, ChevronDown, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useHotel } from '@/providers/HotelProvider';
 import { useTheme } from '@/providers/ThemeProvider';
@@ -25,9 +25,9 @@ const PRIORITY_CONFIG = {
 };
 
 const STATUS_CONFIG = {
-  en_attente: { label: 'En attente', color: '#F59E0B', bg: 'rgba(245,158,11,0.08)' },
-  en_cours: { label: 'En cours', color: '#3B82F6', bg: 'rgba(59,130,246,0.08)' },
-  resolu: { label: 'Résolu', color: '#10B981', bg: 'rgba(16,185,129,0.08)' },
+  en_attente: { label: "En attente d'intervention", color: '#F59E0B', bg: 'rgba(245,158,11,0.08)', icon: '⏳' },
+  en_cours: { label: 'En cours de traitement', color: '#3B82F6', bg: 'rgba(59,130,246,0.08)', icon: '🔧' },
+  resolu: { label: 'Résolu', color: '#10B981', bg: 'rgba(16,185,129,0.08)', icon: '✅' },
 };
 
 const pad = (n: number) => n.toString().padStart(2, '0');
@@ -110,10 +110,6 @@ export default function ReceptionSignalementsScreen() {
       }));
   }, [nonPeriodicTasks]);
 
-  const pendingTotal = useMemo(
-    () => nonPeriodicTasks.filter((t) => t.status !== 'resolu').length,
-    [nonPeriodicTasks]
-  );
 
   const toggleDay = useCallback((dateKey: string) => {
     setExpandedDay((prev) => (prev === dateKey ? null : dateKey));
@@ -141,11 +137,11 @@ export default function ReceptionSignalementsScreen() {
 
       <View style={[s.summaryBar, { backgroundColor: surface, borderBottomColor: border }]}>
         <View style={s.summaryRow}>
-          <View style={[s.summaryCard, { backgroundColor: 'rgba(239,68,68,0.08)' }]}>
-            <AlertTriangle size={18} color="#EF4444" />
+          <View style={[s.summaryCard, { backgroundColor: 'rgba(245,158,11,0.08)' }]}>
+            <Clock size={18} color="#F59E0B" />
             <View>
-              <Text style={[s.summaryValue, { color: '#EF4444' }]}>{pendingTotal}</Text>
-              <Text style={[s.summaryLabel, { color: textMuted }]}>Non traités</Text>
+              <Text style={[s.summaryValue, { color: '#F59E0B' }]}>{nonPeriodicTasks.filter((t) => t.status === 'en_attente').length}</Text>
+              <Text style={[s.summaryLabel, { color: textMuted }]}>En attente</Text>
             </View>
           </View>
           <View style={[s.summaryCard, { backgroundColor: 'rgba(59,130,246,0.08)' }]}>
@@ -254,7 +250,7 @@ export default function ReceptionSignalementsScreen() {
                             <Text style={[s.taskMetaText, { color: textMuted }]}>{formatTime(task.reportedAt)}</Text>
                           </View>
                           <View style={[s.statusPill, { backgroundColor: statusCfg.bg }]}>
-                            <Text style={[s.statusText, { color: statusCfg.color }]}>{statusCfg.label}</Text>
+                            <Text style={[s.statusText, { color: statusCfg.color }]}>{statusCfg.icon} {statusCfg.label}</Text>
                           </View>
                         </View>
                       </TouchableOpacity>
@@ -281,7 +277,7 @@ export default function ReceptionSignalementsScreen() {
                         <Text style={s.modalRoomText}>Ch. {selectedTask.roomNumber}</Text>
                       </View>
                       <View style={[s.modalStatusPill, { backgroundColor: statusCfg.bg }]}>
-                        <Text style={[s.modalStatusText, { color: statusCfg.color }]}>{statusCfg.label}</Text>
+                        <Text style={[s.modalStatusText, { color: statusCfg.color }]}>{statusCfg.icon} {statusCfg.label}</Text>
                       </View>
                     </View>
                     <TouchableOpacity onPress={() => setSelectedTask(null)} style={[s.modalCloseBtn, { backgroundColor: surfaceWarm }]}>
