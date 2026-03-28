@@ -1,10 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import {
@@ -25,6 +27,8 @@ import {
   LayoutDashboard,
   BarChart3,
   FileText,
+  Package,
+  Settings,
 } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
@@ -47,7 +51,13 @@ export default function DirectionDashboard() {
     breakfastOrders,
     pendingInspections,
     todayConsumptionTotal,
+    lostFoundItems,
+    conservationDelayDays,
+    updateConservationDelay,
   } = useHotel();
+
+  const [editingDelay, setEditingDelay] = useState(false);
+  const [delayInput, setDelayInput] = useState('');
 
   const roomStats = useMemo(() => {
     const total = rooms.length;
@@ -332,6 +342,77 @@ export default function DirectionDashboard() {
           )}
         </View>
 
+        <View style={styles.widgetCard}>
+          <View style={styles.widgetHeader}>
+            <Text style={styles.widgetTitle}>Objets trouvés</Text>
+            <TouchableOpacity onPress={() => router.push('/reception-objets-trouves')} style={styles.seeAllBtn}>
+              <Text style={styles.seeAllText}>{t.common.seeAll}</Text>
+              <ArrowRight size={12} color={FT.brand} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.lostFoundRow}>
+            <View style={[styles.lostFoundChip, { backgroundColor: 'rgba(245,158,11,0.08)' }]}>
+              <Package size={14} color="#F59E0B" />
+              <Text style={[styles.lostFoundChipCount, { color: '#F59E0B' }]}>{lostFoundItems.filter(i => i.status === 'en_attente').length}</Text>
+              <Text style={styles.lostFoundChipLabel}>En attente</Text>
+            </View>
+            <View style={[styles.lostFoundChip, { backgroundColor: 'rgba(249,115,22,0.08)' }]}>
+              <Package size={14} color="#F97316" />
+              <Text style={[styles.lostFoundChipCount, { color: '#F97316' }]}>{lostFoundItems.filter(i => i.status === 'consigne').length}</Text>
+              <Text style={styles.lostFoundChipLabel}>Consignés</Text>
+            </View>
+            <View style={[styles.lostFoundChip, { backgroundColor: 'rgba(16,185,129,0.08)' }]}>
+              <Package size={14} color="#10B981" />
+              <Text style={[styles.lostFoundChipCount, { color: '#10B981' }]}>{lostFoundItems.filter(i => i.status === 'restitue').length}</Text>
+              <Text style={styles.lostFoundChipLabel}>Restitués</Text>
+            </View>
+          </View>
+
+          <View style={styles.delaySettingRow}>
+            <View style={styles.delaySettingLeft}>
+              <Settings size={14} color={FT.textMuted} />
+              <Text style={styles.delaySettingLabel}>Délai de conservation</Text>
+            </View>
+            {editingDelay ? (
+              <View style={styles.delayEditRow}>
+                <TextInput
+                  style={styles.delayInput}
+                  keyboardType="numeric"
+                  value={delayInput}
+                  onChangeText={setDelayInput}
+                  autoFocus
+                  selectTextOnFocus
+                />
+                <Text style={styles.delayUnit}>jours</Text>
+                <TouchableOpacity
+                  style={styles.delaySaveBtn}
+                  onPress={() => {
+                    const val = parseInt(delayInput, 10);
+                    if (isNaN(val) || val < 1) {
+                      Alert.alert('Valeur invalide', 'Veuillez saisir un nombre de jours valide (minimum 1).');
+                      return;
+                    }
+                    updateConservationDelay(val);
+                    setEditingDelay(false);
+                  }}
+                >
+                  <CheckCircle size={16} color={FT.success} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.delayValueBtn}
+                onPress={() => {
+                  setDelayInput(String(conservationDelayDays));
+                  setEditingDelay(true);
+                }}
+              >
+                <Text style={styles.delayValue}>{conservationDelayDays} jours</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
         <StaffForecastCard />
 
         <View style={{ height: 30 }} />
@@ -440,4 +521,19 @@ const styles = StyleSheet.create({
     color: FT.textSec,
     textAlign: 'center' as const,
   },
+
+  lostFoundRow: { flexDirection: 'row', gap: 8 },
+  lostFoundChip: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10 },
+  lostFoundChipCount: { fontSize: 16, fontWeight: '700' as const },
+  lostFoundChipLabel: { fontSize: 10, color: FT.textMuted },
+
+  delaySettingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTopWidth: 1, borderTopColor: FT.border },
+  delaySettingLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  delaySettingLabel: { fontSize: 12, color: FT.textSec, fontWeight: '500' as const },
+  delayEditRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  delayInput: { width: 50, fontSize: 14, fontWeight: '600' as const, color: FT.text, textAlign: 'center' as const, backgroundColor: FT.bg, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 6, borderWidth: 1, borderColor: FT.border },
+  delayUnit: { fontSize: 12, color: FT.textMuted },
+  delaySaveBtn: { padding: 4 },
+  delayValueBtn: { paddingHorizontal: 10, paddingVertical: 4, backgroundColor: FT.brandSoft, borderRadius: 8 },
+  delayValue: { fontSize: 13, fontWeight: '600' as const, color: FT.brand },
 });

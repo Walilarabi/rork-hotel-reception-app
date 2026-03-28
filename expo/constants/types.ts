@@ -202,7 +202,7 @@ export interface InventoryItem {
   lastUpdated: string;
 }
 
-export type LostFoundStatus = 'en_attente' | 'rendu' | 'donne';
+export type LostFoundStatus = 'en_attente' | 'restitue' | 'consigne';
 
 export interface LostFoundItem {
   id: string;
@@ -214,6 +214,10 @@ export interface LostFoundItem {
   foundDate: string;
   status: LostFoundStatus;
   returnedTo: string;
+  returnedDate: string;
+  consignedDate: string;
+  consignedLocation: string;
+  consignedObservations: string;
 }
 
 export const ROOM_STATUS_CONFIG: Record<RoomStatus, { label: string; color: string; emoji: string }> = {

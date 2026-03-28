@@ -58,6 +58,7 @@ const BFAST_STAFF_KEY = 'hotel_breakfast_staff';
 const BFAST_SERVICES_KEY = 'hotel_breakfast_services';
 const BFAST_CONFIG_KEY = 'hotel_breakfast_config';
 const BFAST_PRODUCTS_KEY = 'hotel_breakfast_products';
+const CONSERVATION_DELAY_KEY = 'hotel_conservation_delay';
 
 export const [HotelProvider, useHotel] = createContextHook(() => {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -77,6 +78,7 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
   const [breakfastServices, setBreakfastServices] = useState<BreakfastService[]>([]);
   const [breakfastConfig, setBreakfastConfig] = useState<BreakfastConfig>(INITIAL_BREAKFAST_CONFIG);
   const [breakfastProducts, setBreakfastProducts] = useState<BreakfastProduct[]>([]);
+  const [conservationDelayDays, setConservationDelayDays] = useState<number>(30);
   const [pmsSync, setPmsSync] = useState<PMSSyncState>({
     status: 'idle',
     lastSyncTime: null,
@@ -286,6 +288,18 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
   useEffect(() => { if (inspectionsQuery.data) setInspections(inspectionsQuery.data); }, [inspectionsQuery.data]);
   useEffect(() => { if (inventoryQuery.data) setInventoryItems(inventoryQuery.data); }, [inventoryQuery.data]);
   useEffect(() => { if (lostFoundQuery.data) setLostFoundItems(lostFoundQuery.data); }, [lostFoundQuery.data]);
+
+  const conservationDelayQuery = useQuery({
+    queryKey: ['conservationDelay'],
+    queryFn: async () => {
+      try {
+        const stored = await AsyncStorage.getItem(CONSERVATION_DELAY_KEY);
+        if (stored) return JSON.parse(stored) as number;
+      } catch (e) { console.log('[HotelProvider] Error reading conservation delay:', e); }
+      return 30;
+    },
+  });
+  useEffect(() => { if (conservationDelayQuery.data !== undefined) setConservationDelayDays(conservationDelayQuery.data); }, [conservationDelayQuery.data]);
   useEffect(() => { if (consumableProductsQuery.data) setConsumableProducts(consumableProductsQuery.data); }, [consumableProductsQuery.data]);
   useEffect(() => { if (consumptionLogsQuery.data) setConsumptionLogs(consumptionLogsQuery.data); }, [consumptionLogsQuery.data]);
   useEffect(() => { if (stockMovementsQuery.data) setStockMovements(stockMovementsQuery.data); }, [stockMovementsQuery.data]);
@@ -399,6 +413,11 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
     await AsyncStorage.setItem(INVENTORY_KEY, JSON.stringify(updated));
   }, []);
 
+  const persistLostFound = useCallback(async (updated: LostFoundItem[]) => {
+    setLostFoundItems(updated);
+    await AsyncStorage.setItem(LOST_FOUND_KEY, JSON.stringify(updated));
+  }, []);
+
   const persistConsumableProducts = useCallback(async (updated: ConsumableProduct[]) => {
     setConsumableProducts(updated);
     await AsyncStorage.setItem(CONSUMABLE_PRODUCTS_KEY, JSON.stringify(updated));
@@ -439,6 +458,25 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
     await AsyncStorage.setItem(BFAST_PRODUCTS_KEY, JSON.stringify(updated));
   }, []);
 
+  const updateLostFoundItemMutation = useMutation({
+    mutationFn: async (params: { itemId: string; updates: Partial<LostFoundItem> }) => {
+      console.log('[HotelProvider] Updating lost found item', params.itemId, params.updates);
+      const updated = lostFoundItems.map((item) =>
+        item.id === params.itemId ? { ...item, ...params.updates } : item
+      );
+      await persistLostFound(updated);
+      return updated;
+    },
+  });
+
+  const updateConservationDelayMutation = useMutation({
+    mutationFn: async (days: number) => {
+      console.log('[HotelProvider] Updating conservation delay to', days, 'days');
+      setConservationDelayDays(days);
+      await AsyncStorage.setItem(CONSERVATION_DELAY_KEY, JSON.stringify(days));
+      return days;
+    },
+  });
 
   const updateRoomMutation = useMutation({
     mutationFn: async (params: { roomId: string; updates: Partial<Room> }) => {
@@ -1065,6 +1103,9 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
     inspections,
     inventoryItems,
     lostFoundItems,
+    conservationDelayDays,
+    updateLostFoundItem: updateLostFoundItemMutation.mutate,
+    updateConservationDelay: updateConservationDelayMutation.mutate,
     housekeepingRooms,
     pendingInspections,
     lowStockItems,
@@ -1117,7 +1158,7 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
     clearSelection,
   }), [
     rooms, staff, selectedRoomIds, pmsSync, isLoading,
-    maintenanceTasks, breakfastOrders, inspections, inventoryItems, lostFoundItems,
+    maintenanceTasks, breakfastOrders, inspections, inventoryItems, lostFoundItems, conservationDelayDays,
     housekeepingRooms, pendingInspections, lowStockItems,
     consumableProducts, consumptionLogs, stockMovements, lowStockConsumables, todayConsumptionTotal,
     updateRoomMutation.mutate, addRoomMutation.mutate, bulkImportRoomsMutation.mutateAsync, bulkImportRoomsMutation.isPending, bulkImportReservationsMutation.mutateAsync, bulkImportReservationsMutation.isPending, bulkDepartureMutation.mutate, bulkAssignMutation.mutate,
@@ -1134,6 +1175,7 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
     addBreakfastStaffMutation.mutate, updateBreakfastStaffMutation.mutate,
     addBreakfastServiceMutation.mutate, updateBreakfastConfigMutation.mutate,
     addBreakfastProductMutation.mutate, updateBreakfastProductMutation.mutate,
+    updateLostFoundItemMutation.mutate, updateConservationDelayMutation.mutate,
     toggleRoomSelection, toggleFloorSelection, clearSelection,
   ]);
 });
