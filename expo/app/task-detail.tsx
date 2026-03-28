@@ -805,12 +805,12 @@ const sectionStyles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 1,
+    paddingHorizontal: 16,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
     paddingVertical: 14,
   },
   headerText: { fontSize: 14, fontWeight: '700' as const, letterSpacing: 0.3 },
@@ -825,7 +825,7 @@ const sectionStyles = StyleSheet.create({
   },
   badgeText: { fontSize: 10, fontWeight: '800' as const, color: '#FFF' },
   chevron: { fontSize: 80, color: '#90A4AE' },
-  content: { paddingHorizontal: 16, paddingBottom: 12 },
+  content: { paddingBottom: 12 },
 });
 
 interface ProductRowProps {
