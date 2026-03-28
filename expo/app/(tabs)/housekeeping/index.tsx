@@ -16,7 +16,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { Camera, Search, ChevronRight, X, ScanLine, Play, CheckCircle } from 'lucide-react-native';
+import { Camera, Search, ChevronRight, X, ScanLine, Play, CheckCircle, Flame } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import UserMenuButton from '@/components/UserMenuButton';
 import { useHotel } from '@/providers/HotelProvider';
@@ -27,11 +27,14 @@ import { Room } from '@/constants/types';
 
 const SWIPE_THRESHOLD = 80;
 
+type RoomFilter = 'all' | 'depart' | 'recouche';
+
 interface SwipeableCardProps {
   room: Room;
   onPress: () => void;
   onSwipeRight: () => void;
   onSwipeLeft: () => void;
+  onManualStart: () => void;
   elapsed: string | null;
   themeColor: string;
 }
@@ -41,6 +44,7 @@ const SwipeableRoomCard = React.memo(function SwipeableRoomCard({
   onPress,
   onSwipeRight,
   onSwipeLeft,
+  onManualStart,
   elapsed,
   themeColor,
 }: SwipeableCardProps) {
@@ -71,15 +75,17 @@ const SwipeableRoomCard = React.memo(function SwipeableRoomCard({
   const isDone = room.cleaningStatus === 'nettoyee' || room.cleaningStatus === 'validee';
   const isDepart = room.status === 'depart';
   const isRecouche = room.status === 'recouche';
-  const isBlocked = room.status === 'hors_service';
+  const isNpd = room.status === 'hors_service' && room.vipInstructions === 'NPD';
+  const isPriority = room.clientBadge === 'prioritaire' || room.clientBadge === 'vip';
+  const isNotStarted = room.cleaningStatus === 'none' || room.cleaningStatus === 'refusee';
 
   const getBadgeConfig = () => {
+    if (isNpd) return { label: 'NPD', color: '#78909C', bg: '#ECEFF1' };
     if (isRefused) return { label: 'A refaire', color: '#E53935', bg: '#FFEBEE' };
     if (isDone) return { label: 'Terminé', color: '#2E7D32', bg: '#E8F5E9' };
     if (isInProgress) return null;
     if (isDepart) return { label: 'Départ', color: '#C62828', bg: '#FFCDD2' };
-    if (isRecouche) return { label: 'Recouche', color: '#E65100', bg: '#FFE0B2' };
-    if (isBlocked) return { label: 'Bloquée', color: '#546E7A', bg: '#ECEFF1' };
+    if (isRecouche) return { label: 'Recouche', color: '#1565C0', bg: '#BBDEFB' };
     return null;
   };
 
@@ -87,7 +93,7 @@ const SwipeableRoomCard = React.memo(function SwipeableRoomCard({
   const leftAction = isInProgress ? '✅' : '▶️';
   const leftLabel = isInProgress ? 'Terminer' : 'Commencer';
 
-  const statusBarColor = isRefused ? '#E53935' : isInProgress ? themeColor : isDone ? '#43A047' : isDepart ? '#E53935' : isRecouche ? '#FB8C00' : '#CFD8DC';
+  const statusBarColor = isNpd ? '#78909C' : isRefused ? '#E53935' : isInProgress ? themeColor : isDone ? '#43A047' : isDepart ? '#E53935' : isRecouche ? '#1565C0' : '#CFD8DC';
 
   return (
     <View style={cardStyles.wrapper}>
@@ -96,8 +102,8 @@ const SwipeableRoomCard = React.memo(function SwipeableRoomCard({
         <Text style={cardStyles.actionLabel}>{leftLabel}</Text>
       </View>
       <View style={[cardStyles.actionBg, cardStyles.actionBgRight]}>
-        <Text style={cardStyles.actionEmoji}>{'⚠️'}</Text>
-        <Text style={cardStyles.actionLabel}>Signaler</Text>
+        <Text style={cardStyles.actionEmoji}>{'🔒'}</Text>
+        <Text style={cardStyles.actionLabel}>NPD</Text>
       </View>
 
       <Animated.View
@@ -113,7 +119,12 @@ const SwipeableRoomCard = React.memo(function SwipeableRoomCard({
           <View style={[cardStyles.statusBar, { backgroundColor: statusBarColor }]} />
 
           <View style={cardStyles.leftSection}>
-            <Text style={cardStyles.roomNum}>{room.roomNumber}</Text>
+            <View style={cardStyles.roomNumRow}>
+              {isPriority && (
+                <Flame size={14} color="#E53935" fill="#E53935" style={{ marginRight: 2 }} />
+              )}
+              <Text style={cardStyles.roomNum}>{room.roomNumber}</Text>
+            </View>
             <Text style={cardStyles.roomType} numberOfLines={1}>{room.roomType}</Text>
           </View>
 
@@ -136,11 +147,25 @@ const SwipeableRoomCard = React.memo(function SwipeableRoomCard({
               )}
             </View>
             {room.currentReservation ? (
-              <Text style={cardStyles.guestName} numberOfLines={1}>
-                {room.currentReservation.guestName}
-              </Text>
+              <View style={cardStyles.guestRow}>
+                <Text style={cardStyles.guestName} numberOfLines={1}>
+                  {room.currentReservation.guestName}
+                </Text>
+                {isNotStarted && !isNpd && (
+                  <TouchableOpacity
+                    style={cardStyles.miniPlayBtn}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      onManualStart();
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Play size={12} color="#FFF" fill="#FFF" />
+                  </TouchableOpacity>
+                )}
+              </View>
             ) : null}
-            {room.vipInstructions ? (
+            {room.vipInstructions && room.vipInstructions !== 'NPD' ? (
               <Text style={cardStyles.instructions} numberOfLines={1}>
                 {room.vipInstructions}
               </Text>
@@ -188,7 +213,7 @@ const cardStyles = StyleSheet.create({
   },
   actionBgRight: {
     right: 0,
-    backgroundColor: '#FFF3E0',
+    backgroundColor: '#ECEFF1',
     borderTopRightRadius: 14,
     borderBottomRightRadius: 14,
   },
@@ -217,13 +242,23 @@ const cardStyles = StyleSheet.create({
     marginRight: 10,
   },
   leftSection: { minWidth: 54, marginRight: 10 },
+  roomNumRow: { flexDirection: 'row', alignItems: 'center' },
   roomNum: { fontSize: 26, fontWeight: '900' as const, color: '#1A2B33', letterSpacing: -0.5 },
   roomType: { fontSize: 10, color: '#8A9AA8', marginTop: 1 },
   centerSection: { flex: 1, gap: 3 },
   badgeRow: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
   smallBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
   smallBadgeText: { fontSize: 10, fontWeight: '700' as const },
-  guestName: { fontSize: 12, color: '#5A6B78', fontWeight: '500' as const },
+  guestRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  guestName: { fontSize: 12, color: '#5A6B78', fontWeight: '500' as const, flex: 1 },
+  miniPlayBtn: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#00897B',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   instructions: { fontSize: 10, color: '#8A9AA8', fontStyle: 'italic' as const },
   rightSection: { marginLeft: 8, alignItems: 'flex-end' },
   timerPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
@@ -238,12 +273,13 @@ interface SectionData {
 
 export default function HousekeepingScreen() {
   const router = useRouter();
-  const { rooms, startCleaning, completeCleaning } = useHotel();
+  const { rooms, startCleaning, completeCleaning, updateRoom } = useHotel();
   const { theme, t } = useTheme();
   const colors = useColors();
   const [refreshing, setRefreshing] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<RoomFilter>('all');
   const progressAnim = useRef(new Animated.Value(0)).current;
 
   const assignedRooms = useMemo(() => {
@@ -264,14 +300,20 @@ export default function HousekeepingScreen() {
   }, [rooms]);
 
   const filteredRooms = useMemo(() => {
-    if (!searchText.trim()) return assignedRooms;
+    let result = assignedRooms;
+    if (activeFilter === 'depart') {
+      result = result.filter((r) => r.status === 'depart');
+    } else if (activeFilter === 'recouche') {
+      result = result.filter((r) => r.status === 'recouche');
+    }
+    if (!searchText.trim()) return result;
     const q = searchText.toLowerCase();
-    return assignedRooms.filter((r) =>
+    return result.filter((r) =>
       r.roomNumber.toLowerCase().includes(q) ||
       r.roomType.toLowerCase().includes(q) ||
       r.currentReservation?.guestName?.toLowerCase().includes(q)
     );
-  }, [assignedRooms, searchText]);
+  }, [assignedRooms, searchText, activeFilter]);
 
   const sections: SectionData[] = useMemo(() => {
     const floorMap = new Map<number, Room[]>();
@@ -333,16 +375,31 @@ export default function HousekeepingScreen() {
       } else if (room.cleaningStatus === 'none' || room.cleaningStatus === 'refusee') {
         startCleaning(room.id);
         if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        router.push({ pathname: '/task-detail', params: { roomId: room.id } });
       }
     },
-    [startCleaning, completeCleaning]
+    [startCleaning, completeCleaning, router]
   );
 
   const handleSwipeLeft = useCallback(
     (room: Room) => {
-      router.push({ pathname: '/task-detail', params: { roomId: room.id, openReport: '1' } });
+      if (room.status === 'hors_service' && room.vipInstructions === 'NPD') {
+        updateRoom({ roomId: room.id, updates: { status: 'occupe', vipInstructions: '' } });
+      } else {
+        updateRoom({ roomId: room.id, updates: { status: 'hors_service', vipInstructions: 'NPD' } });
+      }
+      if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-    [router]
+    [updateRoom]
+  );
+
+  const handleManualStart = useCallback(
+    (room: Room) => {
+      startCleaning(room.id);
+      if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      router.push({ pathname: '/task-detail', params: { roomId: room.id } });
+    },
+    [startCleaning, router]
   );
 
   const handlePress = useCallback(
@@ -381,7 +438,7 @@ export default function HousekeepingScreen() {
     if (room.cleaningStatus === 'en_cours') {
       Alert.alert(
         'Terminer le nettoyage',
-        `Chambre ${room.roomNumber} — Confirmer la fin du nettoyage ?`,
+        `Chambre ${room.roomNumber} — Confirmer la fin du nettoyage ?\nStatut: Terminé, en Attente de Validation`,
         [
           { text: 'Annuler', style: 'cancel' },
           {
@@ -396,22 +453,11 @@ export default function HousekeepingScreen() {
         ]
       );
     } else if (room.cleaningStatus === 'none' || room.cleaningStatus === 'refusee') {
-      Alert.alert(
-        'Démarrer le nettoyage',
-        `Chambre ${room.roomNumber} — Démarrer le chrono de nettoyage ?`,
-        [
-          { text: 'Annuler', style: 'cancel' },
-          {
-            text: 'Démarrer',
-            onPress: () => {
-              startCleaning(room.id);
-              if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              setScanModalVisible(false);
-              setScanInput('');
-            },
-          },
-        ]
-      );
+      startCleaning(room.id);
+      if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setScanModalVisible(false);
+      setScanInput('');
+      router.push({ pathname: '/task-detail', params: { roomId: room.id } });
     } else {
       setScanModalVisible(false);
       setScanInput('');
@@ -433,10 +479,11 @@ export default function HousekeepingScreen() {
         onPress={() => handlePress(item)}
         onSwipeRight={() => handleSwipeRight(item)}
         onSwipeLeft={() => handleSwipeLeft(item)}
+        onManualStart={() => handleManualStart(item)}
         themeColor={theme.primary}
       />
     ),
-    [getElapsedTime, handlePress, handleSwipeRight, handleSwipeLeft, theme]
+    [getElapsedTime, handlePress, handleSwipeRight, handleSwipeLeft, handleManualStart, theme]
   );
 
   const renderSectionHeader = useCallback(
@@ -540,10 +587,46 @@ export default function HousekeepingScreen() {
         </View>
         <View style={styles.scannerTextCol}>
           <Text style={[styles.scannerTitle, { color: colors.text }]}>Scanner une chambre</Text>
-          <Text style={styles.scannerSub}>Entrez le numéro ou sélectionnez</Text>
+          <Text style={styles.scannerSub}>Scannez le QR code ou entrez le numéro</Text>
         </View>
         <ChevronRight size={18} color={Colors.textMuted} />
       </TouchableOpacity>
+
+      <View style={styles.filterRow}>
+        <TouchableOpacity
+          style={[styles.filterTab, activeFilter === 'all' && styles.filterTabActiveAll]}
+          onPress={() => setActiveFilter('all')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.filterTabText, activeFilter === 'all' && styles.filterTabTextActiveAll]}>
+            Toutes ({assignedRooms.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterTab, styles.filterTabDepart, activeFilter === 'depart' && styles.filterTabActiveDepart]}
+          onPress={() => setActiveFilter('depart')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.filterTabText, styles.filterTabTextDepart, activeFilter === 'depart' && styles.filterTabTextActiveDepart]}>
+            Départs ({stats.departs})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterTab, styles.filterTabRecouche, activeFilter === 'recouche' && styles.filterTabActiveRecouche]}
+          onPress={() => setActiveFilter('recouche')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.filterTabText, styles.filterTabTextRecouche, activeFilter === 'recouche' && styles.filterTabTextActiveRecouche]}>
+            Recouches ({stats.recouches})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.swipeHintBar}>
+        <Text style={styles.swipeHintText}>
+          {'→ Glisser droite: Commencer/Terminer • ← Glisser gauche: NPD'}
+        </Text>
+      </View>
 
       <Modal
         visible={scanModalVisible}
@@ -623,7 +706,12 @@ export default function HousekeepingScreen() {
                     activeOpacity={0.7}
                   >
                     <View style={styles.scanRoomLeft}>
-                      <Text style={styles.scanRoomNumber}>{item.roomNumber}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        {(item.clientBadge === 'prioritaire' || item.clientBadge === 'vip') && (
+                          <Flame size={14} color="#E53935" fill="#E53935" />
+                        )}
+                        <Text style={styles.scanRoomNumber}>{item.roomNumber}</Text>
+                      </View>
                       <Text style={styles.scanRoomType}>{item.roomType}</Text>
                       {statusLabel ? <Text style={styles.scanRoomStatus}>{statusLabel}</Text> : null}
                     </View>
@@ -650,12 +738,6 @@ export default function HousekeepingScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-
-      <View style={styles.swipeHintBar}>
-        <Text style={styles.swipeHintText}>
-          {t.housekeeping.swipeHint}
-        </Text>
-      </View>
 
       <SectionList
         sections={sections}
@@ -792,12 +874,61 @@ const styles = StyleSheet.create({
   scannerTitle: { fontSize: 15, fontWeight: '700' as const },
   scannerSub: { fontSize: 11, color: '#8A9AA8', marginTop: 1 },
 
-  swipeHintBar: {
-    paddingVertical: 8,
+  filterRow: {
+    flexDirection: 'row',
     paddingHorizontal: 16,
-    marginTop: 6,
+    paddingTop: 12,
+    paddingBottom: 4,
+    gap: 8,
   },
-  swipeHintText: { fontSize: 11, textAlign: 'center', fontWeight: '500' as const, color: '#90A4AE' },
+  filterTab: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignItems: 'center',
+    backgroundColor: '#E8ECF0',
+  },
+  filterTabActiveAll: {
+    backgroundColor: '#1A4D5C',
+  },
+  filterTabDepart: {
+    backgroundColor: '#FFEBEE',
+  },
+  filterTabActiveDepart: {
+    backgroundColor: '#E53935',
+  },
+  filterTabRecouche: {
+    backgroundColor: '#E3F2FD',
+  },
+  filterTabActiveRecouche: {
+    backgroundColor: '#1565C0',
+  },
+  filterTabText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#546E7A',
+  },
+  filterTabTextActiveAll: {
+    color: '#FFF',
+  },
+  filterTabTextDepart: {
+    color: '#C62828',
+  },
+  filterTabTextActiveDepart: {
+    color: '#FFF',
+  },
+  filterTabTextRecouche: {
+    color: '#1565C0',
+  },
+  filterTabTextActiveRecouche: {
+    color: '#FFF',
+  },
+
+  swipeHintBar: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+  },
+  swipeHintText: { fontSize: 10, textAlign: 'center', fontWeight: '500' as const, color: '#90A4AE' },
 
   sectionHeader: {
     flexDirection: 'row',
