@@ -677,7 +677,10 @@ export default function TaskDetailScreen() {
       </Modal>
 
       <Modal visible={showLostObject} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{'📦 Objet trouvé'}</Text>
@@ -686,7 +689,7 @@ export default function TaskDetailScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <View style={styles.reportGrid}>
                 {LOST_OBJECT_TYPES.map((item) => {
                   const isSelected = selectedLostObject?.id === item.id;
@@ -752,7 +755,7 @@ export default function TaskDetailScreen() {
               <Text style={styles.modalSubmitText}>{'📦 Signaler l\'objet trouvé'}</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
