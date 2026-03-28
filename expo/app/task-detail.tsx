@@ -690,33 +690,15 @@ export default function TaskDetailScreen() {
             </View>
 
             <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <View style={styles.reportGrid}>
-                {LOST_OBJECT_TYPES.map((item) => {
-                  const isSelected = selectedLostObject?.id === item.id;
-                  return (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={[
-                        styles.reportGridItem,
-                        isSelected && { borderColor: '#1565C0', backgroundColor: '#E3F2FD' },
-                      ]}
-                      onPress={() => {
-                        setSelectedLostObject(item);
-                        if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.reportGridIcon}>{item.icon}</Text>
-                      <Text style={[styles.reportGridLabel, isSelected && { color: '#1565C0', fontWeight: '700' as const }]}>
-                        {item.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
               {selectedLostObject && (
                 <View style={styles.reportDetailSection}>
+                  <View style={[styles.selectedReportBadge, { backgroundColor: '#E3F2FD', borderColor: '#90CAF9' }]}>
+                    <Text style={styles.selectedReportIcon}>{selectedLostObject.icon}</Text>
+                    <Text style={[styles.selectedReportLabel, { color: '#1565C0' }]}>{selectedLostObject.label}</Text>
+                    <TouchableOpacity onPress={() => setSelectedLostObject(null)}>
+                      <Text style={[styles.selectedReportChange, { color: '#1565C0' }]}>Changer</Text>
+                    </TouchableOpacity>
+                  </View>
                   <Text style={styles.fieldLabel}>Description (optionnel)</Text>
                   <TextInput
                     style={styles.textArea}
@@ -743,6 +725,25 @@ export default function TaskDetailScreen() {
                       ))}
                     </View>
                   )}
+                </View>
+              )}
+
+              {!selectedLostObject && (
+                <View style={styles.reportGrid}>
+                  {LOST_OBJECT_TYPES.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.reportGridItem}
+                      onPress={() => {
+                        setSelectedLostObject(item);
+                        if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.reportGridIcon}>{item.icon}</Text>
+                      <Text style={styles.reportGridLabel}>{item.label}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               )}
             </ScrollView>
