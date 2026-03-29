@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/providers/ThemeProvider";
 import { HotelProvider } from "@/providers/HotelProvider";
 import { SuperAdminProvider } from "@/providers/SuperAdminProvider";
 import { HousekeepingManagerProvider } from "@/providers/HousekeepingProvider";
+import { SubscriptionProvider } from "@/providers/SubscriptionProvider";
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -36,9 +37,11 @@ export default function RootLayout() {
           <ThemeProvider>
             <HotelProvider>
               <SuperAdminProvider>
-                <HousekeepingManagerProvider>
-                  <RootLayoutNav />
-                </HousekeepingManagerProvider>
+                <SubscriptionProvider>
+                  <HousekeepingManagerProvider>
+                    <RootLayoutNav />
+                  </HousekeepingManagerProvider>
+                </SubscriptionProvider>
               </SuperAdminProvider>
             </HotelProvider>
           </ThemeProvider>
