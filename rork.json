@@ -10,6 +10,11 @@
       "name": "Hotel Manager",
       "path": "expo",
       "framework": "react-native"
+    },
+    {
+      "name": "Gestion Hôtelière",
+      "path": "expo",
+      "framework": "react-native"
     }
   ]
 }
