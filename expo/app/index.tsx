@@ -18,7 +18,7 @@ export default function IndexScreen() {
       return;
     }
 
-    void loadUserPrefs(currentUser.id).then(() => {
+    void loadUserPrefs(currentUser.id, currentUser.role).then(() => {
       console.log('[Index] User prefs loaded for:', currentUser.id);
       if (currentUser.role === 'super_admin' || currentUser.role === 'support') {
         router.replace('/(superadmin)/dashboard');

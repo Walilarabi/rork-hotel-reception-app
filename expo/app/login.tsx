@@ -25,6 +25,7 @@ const ROLE_ICONS: Record<AdminUserRole, string> = {
   femme_de_chambre: '🧹',
   maintenance: '🔧',
   breakfast: '☕',
+  spa: '💆',
 };
 
 export default function LoginScreen() {
@@ -46,12 +47,12 @@ export default function LoginScreen() {
 
   const handleLogin = useCallback((user: AuthUser) => {
     setSelectedUser(user);
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     login(user, {
       onSuccess: async () => {
         console.log('[Login] Success, role:', user.role);
-        await loadUserPrefs(user.id);
+        await loadUserPrefs(user.id, user.role);
         if (user.role === 'super_admin' || user.role === 'support') {
           router.replace('/(superadmin)/dashboard');
         } else if (user.role === 'femme_de_chambre') {

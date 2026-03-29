@@ -51,6 +51,8 @@ export default function SettingsScreen() {
 
   const roleConfig = currentUser ? ADMIN_ROLE_CONFIG[currentUser.role] : null;
   const canManageTeam = currentUser ? canInviteRoles(currentUser.role).length > 0 : false;
+  const MOBILE_ROLES: string[] = ['reception', 'gouvernante', 'femme_de_chambre', 'maintenance', 'breakfast', 'spa'];
+  const isMobileRole = currentUser ? MOBILE_ROLES.includes(currentUser.role) : false;
 
   const bg = isDarkMode ? modeColors.background : Colors.background;
   const cardBg = isDarkMode ? modeColors.surface : Colors.surface;
@@ -150,21 +152,25 @@ export default function SettingsScreen() {
           </View>
 
           <View style={[styles.prefCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
-            <View style={styles.prefRow}>
-              <View style={[styles.prefIcon, { backgroundColor: '#6366F112' }]}>
-                {isDarkMode ? <Sun size={16} color="#F59E0B" /> : <Moon size={16} color="#6366F1" />}
-              </View>
-              <Text style={[styles.prefLabel, { color: textColor }]}>{t.menu.darkMode}</Text>
-              <Switch
-                value={isDarkMode}
-                onValueChange={toggleDarkMode}
-                trackColor={{ false: borderCol, true: Colors.primary + '60' }}
-                thumbColor={isDarkMode ? Colors.primary : '#f4f3f4'}
-                style={styles.prefSwitch}
-              />
-            </View>
+            {!isMobileRole && (
+              <>
+                <View style={styles.prefRow}>
+                  <View style={[styles.prefIcon, { backgroundColor: '#6366F112' }]}>
+                    {isDarkMode ? <Sun size={16} color="#F59E0B" /> : <Moon size={16} color="#6366F1" />}
+                  </View>
+                  <Text style={[styles.prefLabel, { color: textColor }]}>{t.menu.darkMode}</Text>
+                  <Switch
+                    value={isDarkMode}
+                    onValueChange={toggleDarkMode}
+                    trackColor={{ false: borderCol, true: Colors.primary + '60' }}
+                    thumbColor={isDarkMode ? Colors.primary : '#f4f3f4'}
+                    style={styles.prefSwitch}
+                  />
+                </View>
 
-            <View style={[styles.prefDivider, { backgroundColor: borderCol }]} />
+                <View style={[styles.prefDivider, { backgroundColor: borderCol }]} />
+              </>
+            )}
 
             <View style={styles.prefSection}>
               <View style={styles.prefRow}>

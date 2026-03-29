@@ -57,6 +57,8 @@ export default function UserMenuButton({ tintColor = Colors.white, size = 28 }: 
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
   const roleConfig = currentUser ? ADMIN_ROLE_CONFIG[currentUser.role] : null;
+  const MOBILE_ROLES: string[] = ['reception', 'gouvernante', 'femme_de_chambre', 'maintenance', 'breakfast', 'spa'];
+  const isMobileRole = currentUser ? MOBILE_ROLES.includes(currentUser.role) : false;
 
   const initials = currentUser
     ? `${currentUser.firstName.charAt(0)}${currentUser.lastName.charAt(0)}`
@@ -65,7 +67,7 @@ export default function UserMenuButton({ tintColor = Colors.white, size = 28 }: 
   const openMenu = useCallback(() => {
     setVisible(true);
     setSubMenu('none');
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
       Animated.spring(scaleAnim, { toValue: 1, friction: 8, useNativeDriver: true }),
@@ -109,19 +111,19 @@ export default function UserMenuButton({ tintColor = Colors.white, size = 28 }: 
   }, [closeMenu, router, logout]);
 
   const handleToggleDark = useCallback(() => {
-    toggleDarkMode();
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void toggleDarkMode();
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [toggleDarkMode]);
 
   const handleThemeSelect = useCallback((id: MobileThemeId) => {
-    setMobileTheme(id);
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void setMobileTheme(id);
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSubMenu('none');
   }, [setMobileTheme]);
 
   const handleLanguageSelect = useCallback((id: LanguageId) => {
-    setLanguage(id);
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void setLanguage(id);
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSubMenu('none');
   }, [setLanguage]);
 
@@ -140,8 +142,8 @@ export default function UserMenuButton({ tintColor = Colors.white, size = 28 }: 
       Alert.alert(t.common.error, t.common.noData);
       return;
     }
-    updateUserName(fn, ln);
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    void updateUserName(fn, ln);
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setSubMenu('none');
   }, [editFirstName, editLastName, updateUserName, t]);
 
@@ -193,19 +195,21 @@ export default function UserMenuButton({ tintColor = Colors.white, size = 28 }: 
         </TouchableOpacity>
       )}
 
-      <View style={styles.menuItem}>
-        <View style={[styles.menuItemIcon, { backgroundColor: '#6366F112' }]}>
-          {isDarkMode ? <Sun size={16} color="#F59E0B" /> : <Moon size={16} color="#6366F1" />}
+      {!isMobileRole && (
+        <View style={styles.menuItem}>
+          <View style={[styles.menuItemIcon, { backgroundColor: '#6366F112' }]}>
+            {isDarkMode ? <Sun size={16} color="#F59E0B" /> : <Moon size={16} color="#6366F1" />}
+          </View>
+          <Text style={[styles.menuItemLabel, { color: menuText }]}>{t.menu.darkMode}</Text>
+          <Switch
+            value={isDarkMode}
+            onValueChange={handleToggleDark}
+            trackColor={{ false: menuBorder, true: Colors.primary + '60' }}
+            thumbColor={isDarkMode ? Colors.primary : '#f4f3f4'}
+            style={styles.menuSwitch}
+          />
         </View>
-        <Text style={[styles.menuItemLabel, { color: menuText }]}>{t.menu.darkMode}</Text>
-        <Switch
-          value={isDarkMode}
-          onValueChange={handleToggleDark}
-          trackColor={{ false: menuBorder, true: Colors.primary + '60' }}
-          thumbColor={isDarkMode ? Colors.primary : '#f4f3f4'}
-          style={styles.menuSwitch}
-        />
-      </View>
+      )}
 
       <TouchableOpacity
         style={styles.menuItem}

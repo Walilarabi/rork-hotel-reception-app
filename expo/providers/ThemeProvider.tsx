@@ -133,14 +133,19 @@ export const MOBILE_THEMES: Record<MobileThemeId, MobileTheme> = {
   },
 };
 
+const MOBILE_ROLES = ['reception', 'gouvernante', 'femme_de_chambre', 'maintenance', 'breakfast', 'spa'];
+
 export const [ThemeProvider, useTheme] = createContextHook(() => {
   const [themeId, setThemeId] = useState<MobileThemeId>('ocean');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [languageId, setLanguageId] = useState<LanguageId>('fr');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const loadUserPrefs = useCallback(async (userId: string | null) => {
-    console.log('[ThemeProvider] Loading prefs for user:', userId);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const loadUserPrefs = useCallback(async (userId: string | null, role?: string | null) => {
+    console.log('[ThemeProvider] Loading prefs for user:', userId, 'role:', role);
     setCurrentUserId(userId);
+    setCurrentUserRole(role ?? null);
+    const isMobile = role ? MOBILE_ROLES.includes(role) : false;
     const keys = getUserKeys(userId);
     try {
       const [storedTheme, storedDark, storedLang] = await Promise.all([
@@ -150,7 +155,7 @@ export const [ThemeProvider, useTheme] = createContextHook(() => {
       ]);
       console.log('[ThemeProvider] Loaded prefs:', { storedTheme, storedDark, storedLang, userId });
       setThemeId((storedTheme && storedTheme in MOBILE_THEMES) ? storedTheme as MobileThemeId : 'ocean');
-      setIsDarkMode(storedDark === 'true');
+      setIsDarkMode(isMobile ? false : storedDark === 'true');
       setLanguageId((storedLang && storedLang in TRANSLATION_MAP) ? storedLang as LanguageId : 'fr');
     } catch (e) {
       console.log('[ThemeProvider] Error reading preferences:', e);
@@ -167,21 +172,25 @@ export const [ThemeProvider, useTheme] = createContextHook(() => {
     await AsyncStorage.setItem(keys.themeKey, id);
   }, [currentUserId]);
 
+  const isMobileRole = currentUserRole ? MOBILE_ROLES.includes(currentUserRole) : false;
+
   const toggleDarkMode = useCallback(async () => {
+    if (isMobileRole) return;
     setIsDarkMode((prev) => {
       const next = !prev;
       const keys = getUserKeys(currentUserId);
       console.log('[ThemeProvider] Toggling dark mode to:', next, 'for user:', currentUserId);
-      AsyncStorage.setItem(keys.darkKey, String(next));
+      void AsyncStorage.setItem(keys.darkKey, String(next));
       return next;
     });
-  }, [currentUserId]);
+  }, [currentUserId, isMobileRole]);
 
   const setDarkMode = useCallback(async (value: boolean) => {
+    if (isMobileRole) return;
     setIsDarkMode(value);
     const keys = getUserKeys(currentUserId);
     await AsyncStorage.setItem(keys.darkKey, String(value));
-  }, [currentUserId]);
+  }, [currentUserId, isMobileRole]);
 
   const setLanguage = useCallback(async (id: LanguageId) => {
     console.log('[ThemeProvider] Setting language:', id, 'for user:', currentUserId);
@@ -194,7 +203,7 @@ export const [ThemeProvider, useTheme] = createContextHook(() => {
   const modeColors = isDarkMode ? DARK_COLORS : LIGHT_COLORS;
   const t = useMemo(() => TRANSLATION_MAP[languageId], [languageId]);
 
-  return {
+  return useMemo(() => ({
     themeId,
     theme,
     isDarkMode,
@@ -207,5 +216,5 @@ export const [ThemeProvider, useTheme] = createContextHook(() => {
     setLanguage,
     loadUserPrefs,
     allThemes: MOBILE_THEMES,
-  };
+  }), [themeId, theme, isDarkMode, languageId, modeColors, t, setMobileTheme, toggleDarkMode, setDarkMode, setLanguage, loadUserPrefs]);
 });
