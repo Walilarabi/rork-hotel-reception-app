@@ -5,6 +5,7 @@ import {
   ConfigProblemTemplate,
   ConfigRoomType,
   HousekeeperDetail,
+  ConfigUser,
 } from '@/constants/configTypes';
 
 export const INITIAL_PRODUCT_CATEGORIES: ConfigProductCategory[] = [
@@ -67,6 +68,13 @@ export const INITIAL_CONFIG_ROOM_TYPES: ConfigRoomType[] = [
   { id: 'rt-4', name: 'Suite', code: 'STE', displayOrder: 4, active: true },
   { id: 'rt-5', name: 'Deluxe', code: 'DLX', displayOrder: 5, active: true },
   { id: 'rt-6', name: 'Familiale', code: 'FAM', displayOrder: 6, active: true },
+];
+
+export const INITIAL_CONFIG_USERS: ConfigUser[] = [
+  { id: 'cu-1', firstName: 'Sophie', lastName: 'Martin', email: 'sophie.martin@grandhotelparis.fr', role: 'reception', active: true, createdAt: '2025-01-15T10:00:00Z' },
+  { id: 'cu-2', firstName: 'Catherine', lastName: 'Moreau', email: 'c.moreau@grandhotelparis.fr', role: 'gouvernante', active: true, createdAt: '2025-01-15T10:00:00Z' },
+  { id: 'cu-3', firstName: 'Pierre', lastName: 'Durand', email: 'pierre.durand@grandhotelparis.fr', role: 'maintenance', active: true, createdAt: '2025-02-01T09:00:00Z' },
+  { id: 'cu-4', firstName: 'Claire', lastName: 'Petit', email: 'claire.petit@grandhotelparis.fr', role: 'breakfast', active: true, createdAt: '2025-02-10T08:00:00Z' },
 ];
 
 export const INITIAL_HOUSEKEEPER_DETAILS: HousekeeperDetail[] = [

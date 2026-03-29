@@ -96,6 +96,26 @@ export const MAINTENANCE_CATEGORY_OPTIONS = [
   'Autre',
 ] as const;
 
+export interface ConfigUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: import('@/constants/types').AdminUserRole;
+  active: boolean;
+  createdAt: string;
+}
+
+export const CREATABLE_ROLES = [
+  { value: 'reception' as const, label: 'Réception' },
+  { value: 'gouvernante' as const, label: 'Gouvernante' },
+  { value: 'femme_de_chambre' as const, label: 'Femme de chambre' },
+  { value: 'maintenance' as const, label: 'Maintenance' },
+  { value: 'breakfast' as const, label: 'Service petit-déjeuner' },
+  { value: 'spa' as const, label: 'SPA' },
+  { value: 'direction' as const, label: 'Direction' },
+] as const;
+
 export const PRODUCT_CATEGORY_LABELS: Record<string, string> = {
   linge: 'Linge',
   accueil: 'Produits d\'accueil',

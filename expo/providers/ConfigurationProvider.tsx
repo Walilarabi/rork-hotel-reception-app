@@ -9,6 +9,7 @@ import {
   ConfigProblemTemplate,
   ConfigRoomType,
   HousekeeperDetail,
+  ConfigUser,
 } from '@/constants/configTypes';
 import {
   INITIAL_PRODUCT_CATEGORIES,
@@ -17,6 +18,7 @@ import {
   INITIAL_PROBLEM_TEMPLATES,
   INITIAL_CONFIG_ROOM_TYPES,
   INITIAL_HOUSEKEEPER_DETAILS,
+  INITIAL_CONFIG_USERS,
 } from '@/mocks/configuration';
 
 const PRODUCT_CATEGORIES_KEY = 'config_product_categories';
@@ -25,6 +27,7 @@ const CHECKLIST_KEY = 'config_checklist_items';
 const PROBLEM_TEMPLATES_KEY = 'config_problem_templates';
 const ROOM_TYPES_KEY = 'config_room_types';
 const HOUSEKEEPER_DETAILS_KEY = 'config_housekeeper_details';
+const CONFIG_USERS_KEY = 'config_users';
 
 function makeQuery<T>(key: string, initial: T) {
   return {
@@ -53,6 +56,7 @@ export const [ConfigurationProvider, useConfiguration] = createContextHook(() =>
   const [problemTemplates, setProblemTemplates] = useState<ConfigProblemTemplate[]>([]);
   const [roomTypes, setRoomTypes] = useState<ConfigRoomType[]>([]);
   const [housekeeperDetails, setHousekeeperDetails] = useState<HousekeeperDetail[]>([]);
+  const [configUsers, setConfigUsers] = useState<ConfigUser[]>([]);
 
   const catQ = useQuery(makeQuery<ConfigProductCategory[]>(PRODUCT_CATEGORIES_KEY, INITIAL_PRODUCT_CATEGORIES));
   const prodQ = useQuery(makeQuery<ConfigProduct[]>(PRODUCTS_KEY, INITIAL_CONFIG_PRODUCTS));
@@ -60,6 +64,7 @@ export const [ConfigurationProvider, useConfiguration] = createContextHook(() =>
   const probQ = useQuery(makeQuery<ConfigProblemTemplate[]>(PROBLEM_TEMPLATES_KEY, INITIAL_PROBLEM_TEMPLATES));
   const rtQ = useQuery(makeQuery<ConfigRoomType[]>(ROOM_TYPES_KEY, INITIAL_CONFIG_ROOM_TYPES));
   const hkQ = useQuery(makeQuery<HousekeeperDetail[]>(HOUSEKEEPER_DETAILS_KEY, INITIAL_HOUSEKEEPER_DETAILS));
+  const usersQ = useQuery(makeQuery<ConfigUser[]>(CONFIG_USERS_KEY, INITIAL_CONFIG_USERS));
 
   useEffect(() => { if (catQ.data) setProductCategories(catQ.data); }, [catQ.data]);
   useEffect(() => { if (prodQ.data) setProducts(prodQ.data); }, [prodQ.data]);
@@ -67,6 +72,7 @@ export const [ConfigurationProvider, useConfiguration] = createContextHook(() =>
   useEffect(() => { if (probQ.data) setProblemTemplates(probQ.data); }, [probQ.data]);
   useEffect(() => { if (rtQ.data) setRoomTypes(rtQ.data); }, [rtQ.data]);
   useEffect(() => { if (hkQ.data) setHousekeeperDetails(hkQ.data); }, [hkQ.data]);
+  useEffect(() => { if (usersQ.data) setConfigUsers(usersQ.data); }, [usersQ.data]);
 
   const persist = useCallback(async <T,>(key: string, data: T) => {
     await AsyncStorage.setItem(key, JSON.stringify(data));
@@ -180,7 +186,25 @@ export const [ConfigurationProvider, useConfiguration] = createContextHook(() =>
     },
   });
 
-  const isLoading = catQ.isLoading || prodQ.isLoading || checkQ.isLoading || probQ.isLoading || rtQ.isLoading || hkQ.isLoading;
+  const addConfigUserMutation = useMutation({
+    mutationFn: async (user: Omit<ConfigUser, 'id'>) => {
+      const newUser: ConfigUser = { ...user, id: `cu-${Date.now()}` };
+      const updated = [...configUsers, newUser];
+      setConfigUsers(updated);
+      await persist(CONFIG_USERS_KEY, updated);
+      return newUser;
+    },
+  });
+
+  const updateConfigUserMutation = useMutation({
+    mutationFn: async (params: { id: string; updates: Partial<ConfigUser> }) => {
+      const updated = configUsers.map((u) => u.id === params.id ? { ...u, ...params.updates } : u);
+      setConfigUsers(updated);
+      await persist(CONFIG_USERS_KEY, updated);
+    },
+  });
+
+  const isLoading = catQ.isLoading || prodQ.isLoading || checkQ.isLoading || probQ.isLoading || rtQ.isLoading || hkQ.isLoading || usersQ.isLoading;
 
   return useMemo(() => ({
     productCategories,
@@ -202,6 +226,9 @@ export const [ConfigurationProvider, useConfiguration] = createContextHook(() =>
     updateRoomType: updateRoomTypeMutation.mutate,
     addHousekeeper: addHousekeeperMutation.mutate,
     updateHousekeeper: updateHousekeeperMutation.mutate,
+    configUsers,
+    addConfigUser: addConfigUserMutation.mutate,
+    updateConfigUser: updateConfigUserMutation.mutate,
   }), [
     productCategories, products, checklistItems, problemTemplates, roomTypes, housekeeperDetails, isLoading,
     addProductCategoryMutation.mutate, updateProductCategoryMutation.mutate,
@@ -210,5 +237,6 @@ export const [ConfigurationProvider, useConfiguration] = createContextHook(() =>
     addProblemTemplateMutation.mutate, updateProblemTemplateMutation.mutate,
     addRoomTypeMutation.mutate, updateRoomTypeMutation.mutate,
     addHousekeeperMutation.mutate, updateHousekeeperMutation.mutate,
+    configUsers, addConfigUserMutation.mutate, updateConfigUserMutation.mutate,
   ]);
 });

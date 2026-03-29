@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   BedDouble,
   Users,
+  UserPlus,
   Plus,
   X,
   ChevronDown,
@@ -30,6 +31,11 @@ import {
   Upload,
   FileSpreadsheet,
   CheckCircle2,
+  Eye,
+  EyeOff,
+  Shield,
+  Mail,
+  Lock,
 } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
@@ -44,14 +50,17 @@ import {
   ConfigProblemTemplate,
   ConfigRoomType,
   HousekeeperDetail,
+  ConfigUser,
   CHECKLIST_CATEGORIES,
   MAINTENANCE_CATEGORY_OPTIONS,
   PROBLEM_ICONS,
   CONTRACT_TYPES,
+  CREATABLE_ROLES,
 } from '@/constants/configTypes';
-import { RoomType } from '@/constants/types';
+import { RoomType, AdminUserRole, ADMIN_ROLE_CONFIG } from '@/constants/types';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
-type TabId = 'products' | 'checklists' | 'problems' | 'roomTypes' | 'staff';
+type TabId = 'products' | 'checklists' | 'problems' | 'roomTypes' | 'staff' | 'users';
 
 interface TabDef {
   id: TabId;
@@ -65,6 +74,7 @@ const TABS: TabDef[] = [
   { id: 'problems', label: 'Signalements', icon: <AlertTriangle size={16} color={Colors.warning} /> },
   { id: 'roomTypes', label: 'Chambres', icon: <BedDouble size={16} color={Colors.info} /> },
   { id: 'staff', label: 'Personnel', icon: <Users size={16} color={Colors.teal} /> },
+  { id: 'users', label: 'Utilisateurs', icon: <UserPlus size={16} color="#AB47BC" /> },
 ];
 
 export default function ConfigurationScreen() {
@@ -143,6 +153,9 @@ export default function ConfigurationScreen() {
       )}
       {activeTab === 'staff' && (
         <StaffTab config={config} search={searchQuery} canWrite={canWrite && !isReception} />
+      )}
+      {activeTab === 'users' && (
+        <UsersTab config={config} search={searchQuery} canWrite={canWrite && !isReception} />
       )}
     </View>
   );
@@ -1177,6 +1190,285 @@ function StaffFormModal({ housekeeper, onSave, onClose }: StaffFormModalProps) {
   );
 }
 
+function UsersTab({ config, search, canWrite }: TabProps) {
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<ConfigUser | null>(null);
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return config.configUsers.filter((u) =>
+      !q || u.firstName.toLowerCase().includes(q) || u.lastName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || ADMIN_ROLE_CONFIG[u.role]?.label.toLowerCase().includes(q)
+    );
+  }, [config.configUsers, search]);
+
+  const roleColor = (role: AdminUserRole) => ADMIN_ROLE_CONFIG[role]?.color ?? Colors.textMuted;
+  const roleLabel = (role: AdminUserRole) => ADMIN_ROLE_CONFIG[role]?.label ?? role;
+
+  return (
+    <View style={styles.tabContent}>
+      <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollPadding}>
+        {filtered.map((user) => (
+          <View key={user.id} style={[userStyles.userCard, !user.active && styles.tableRowInactive]}>
+            <View style={[userStyles.userAvatar, { backgroundColor: roleColor(user.role) + '18' }]}>
+              <Text style={[userStyles.userAvatarText, { color: roleColor(user.role) }]}>
+                {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+              </Text>
+            </View>
+            <View style={userStyles.userInfo}>
+              <Text style={[styles.staffName, !user.active && styles.tdCellInactive]}>
+                {user.firstName} {user.lastName}
+              </Text>
+              <View style={userStyles.userMeta}>
+                <View style={[userStyles.roleBadge, { backgroundColor: roleColor(user.role) + '15' }]}>
+                  <Shield size={10} color={roleColor(user.role)} />
+                  <Text style={[userStyles.roleBadgeText, { color: roleColor(user.role) }]}>{roleLabel(user.role)}</Text>
+                </View>
+                <View style={userStyles.emailRow}>
+                  <Mail size={10} color={Colors.textMuted} />
+                  <Text style={userStyles.emailText} numberOfLines={1}>{user.email}</Text>
+                </View>
+              </View>
+            </View>
+            {canWrite && (
+              <View style={styles.rowActions}>
+                <TouchableOpacity onPress={() => setEditingUser(user)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Edit3 size={14} color={Colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => config.updateConfigUser({ id: user.id, updates: { active: !user.active } })}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  {user.active ? <ToggleRight size={14} color={Colors.success} /> : <ToggleLeft size={14} color={Colors.textMuted} />}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        ))}
+
+        {filtered.length === 0 && (
+          <View style={styles.emptyState}>
+            <Users size={40} color={Colors.textMuted} />
+            <Text style={styles.emptyText}>Aucun utilisateur trouvé</Text>
+          </View>
+        )}
+      </ScrollView>
+
+      {canWrite && (
+        <TouchableOpacity style={styles.fab} onPress={() => setShowAddModal(true)} testID="add-user-btn">
+          <Plus size={22} color="#FFF" />
+        </TouchableOpacity>
+      )}
+
+      {(showAddModal || editingUser) && (
+        <UserFormModal
+          user={editingUser}
+          onSave={(data) => {
+            if (editingUser) {
+              config.updateConfigUser({ id: editingUser.id, updates: data });
+            } else {
+              config.addConfigUser(data as Omit<ConfigUser, 'id'>);
+            }
+            setShowAddModal(false);
+            setEditingUser(null);
+          }}
+          onClose={() => { setShowAddModal(false); setEditingUser(null); }}
+        />
+      )}
+    </View>
+  );
+}
+
+interface UserFormModalProps {
+  user: ConfigUser | null;
+  onSave: (data: Partial<ConfigUser> & { password?: string }) => void;
+  onClose: () => void;
+}
+
+function UserFormModal({ user, onSave, onClose }: UserFormModalProps) {
+  const [firstName, setFirstName] = useState(user?.firstName ?? '');
+  const [lastName, setLastName] = useState(user?.lastName ?? '');
+  const [email, setEmail] = useState(user?.email ?? '');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [role, setRole] = useState<AdminUserRole>(user?.role ?? 'reception');
+  const [showRolePicker, setShowRolePicker] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const isEditing = user !== null;
+  const selectedRoleLabel = ADMIN_ROLE_CONFIG[role]?.label ?? role;
+
+  const handleSave = useCallback(async () => {
+    if (!firstName.trim() || !lastName.trim()) {
+      Alert.alert('Erreur', 'Prénom et nom sont obligatoires');
+      return;
+    }
+    if (!email.trim() || !email.includes('@')) {
+      Alert.alert('Erreur', 'Adresse email invalide');
+      return;
+    }
+    if (!isEditing && password.length < 6) {
+      Alert.alert('Erreur', 'Le mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+
+    if (!isEditing && isSupabaseConfigured) {
+      setIsCreating(true);
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+        });
+        if (error) {
+          console.log('[UserCreate] Supabase auth error:', error.message);
+          Alert.alert('Erreur', error.message);
+          setIsCreating(false);
+          return;
+        }
+        if (data.user) {
+          const { error: profileError } = await supabase.from('users').insert({
+            auth_id: data.user.id,
+            email: email.trim(),
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            role,
+            status: 'active',
+          });
+          if (profileError) {
+            console.log('[UserCreate] Profile insert error:', profileError.message);
+          }
+        }
+        console.log('[UserCreate] Supabase user created successfully');
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (e) {
+        console.log('[UserCreate] Error:', e);
+        Alert.alert('Erreur', 'Impossible de créer le compte Supabase');
+        setIsCreating(false);
+        return;
+      }
+      setIsCreating(false);
+    }
+
+    onSave({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: email.trim(),
+      role,
+      active: user?.active ?? true,
+      createdAt: user?.createdAt ?? new Date().toISOString(),
+    });
+  }, [firstName, lastName, email, password, role, isEditing, user, onSave]);
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalCard}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{isEditing ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'}</Text>
+            <TouchableOpacity onPress={onClose}><X size={20} color={Colors.textSecondary} /></TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldCol}>
+                <Text style={styles.fieldLabel}>Prénom</Text>
+                <TextInput style={styles.fieldInput} value={firstName} onChangeText={setFirstName} placeholder="Jean" placeholderTextColor={Colors.textMuted} />
+              </View>
+              <View style={styles.fieldCol}>
+                <Text style={styles.fieldLabel}>Nom</Text>
+                <TextInput style={styles.fieldInput} value={lastName} onChangeText={setLastName} placeholder="Dupont" placeholderTextColor={Colors.textMuted} />
+              </View>
+            </View>
+
+            <Text style={styles.fieldLabel}>Rôle</Text>
+            <TouchableOpacity style={styles.fieldSelect} onPress={() => setShowRolePicker(!showRolePicker)}>
+              <View style={userStyles.roleSelectInner}>
+                <Shield size={14} color={ADMIN_ROLE_CONFIG[role]?.color ?? Colors.textMuted} />
+                <Text style={styles.fieldSelectText}>{selectedRoleLabel}</Text>
+              </View>
+              <ChevronDown size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+            {showRolePicker && (
+              <View style={styles.pickerDropdown}>
+                {CREATABLE_ROLES.map((r) => (
+                  <TouchableOpacity
+                    key={r.value}
+                    style={[styles.pickerItem, r.value === role && styles.pickerItemActive]}
+                    onPress={() => { setRole(r.value); setShowRolePicker(false); }}
+                  >
+                    <View style={userStyles.rolePickerRow}>
+                      <View style={[userStyles.rolePickerDot, { backgroundColor: ADMIN_ROLE_CONFIG[r.value]?.color ?? Colors.textMuted }]} />
+                      <Text style={[styles.pickerItemText, r.value === role && styles.pickerItemTextActive]}>{r.label}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <View style={userStyles.credentialsSection}>
+              <View style={userStyles.credentialsSectionHeader}>
+                <Lock size={14} color={Colors.primary} />
+                <Text style={userStyles.credentialsSectionTitle}>Identifiants de connexion</Text>
+              </View>
+
+              <Text style={styles.fieldLabel}>Email (identifiant)</Text>
+              <View style={userStyles.inputWithIcon}>
+                <Mail size={16} color={Colors.textMuted} />
+                <TextInput
+                  style={userStyles.inputWithIconField}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="jean.dupont@hotel.fr"
+                  placeholderTextColor={Colors.textMuted}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isEditing}
+                />
+              </View>
+
+              {!isEditing && (
+                <>
+                  <Text style={styles.fieldLabel}>Mot de passe</Text>
+                  <View style={userStyles.inputWithIcon}>
+                    <Lock size={16} color={Colors.textMuted} />
+                    <TextInput
+                      style={userStyles.inputWithIconField}
+                      value={password}
+                      onChangeText={setPassword}
+                      placeholder="Min. 6 caractères"
+                      placeholderTextColor={Colors.textMuted}
+                      secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      {showPassword ? <EyeOff size={16} color={Colors.textMuted} /> : <Eye size={16} color={Colors.textMuted} />}
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.fieldHint}>L'utilisateur pourra se connecter avec cet email et ce mot de passe</Text>
+                </>
+              )}
+            </View>
+          </ScrollView>
+          <View style={styles.modalFooter}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}><Text style={styles.cancelBtnText}>Annuler</Text></TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.saveBtn, isCreating && { opacity: 0.6 }]}
+              onPress={handleSave}
+              disabled={isCreating}
+            >
+              {isCreating ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <Text style={styles.saveBtnText}>{isEditing ? 'Enregistrer' : 'Créer le compte'}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 function RoomImportModal({ onClose }: { onClose: () => void }) {
   const { bulkImportRooms, isBulkImporting, rooms } = useHotel();
   const [step, setStep] = useState<ImportStep>(1);
@@ -1498,6 +1790,76 @@ function RoomImportModal({ onClose }: { onClose: () => void }) {
     </Modal>
   );
 }
+
+const userStyles = StyleSheet.create({
+  userCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  userAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  userAvatarText: { fontSize: 15, fontWeight: '700' as const },
+  userInfo: { flex: 1, gap: 4 },
+  userMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  roleBadgeText: { fontSize: 10, fontWeight: '700' as const },
+  emailRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  emailText: { fontSize: 11, color: Colors.textMuted, maxWidth: 160 },
+  roleSelectInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rolePickerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rolePickerDot: { width: 8, height: 8, borderRadius: 4 },
+  credentialsSection: {
+    marginTop: 20,
+    backgroundColor: Colors.surfaceLight,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  credentialsSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  credentialsSectionTitle: { fontSize: 13, fontWeight: '700' as const, color: Colors.primary },
+  inputWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 8,
+  },
+  inputWithIconField: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
+    paddingVertical: 10,
+    padding: 0,
+  },
+});
 
 const impStyles = StyleSheet.create({
   stepIndicator: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },

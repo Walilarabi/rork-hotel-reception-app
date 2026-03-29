@@ -209,10 +209,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const canInviteRoles = useCallback((role: AdminUserRole): AdminUserRole[] => {
     if (role === 'super_admin') {
-      return ['support', 'direction', 'reception', 'gouvernante', 'femme_de_chambre', 'maintenance', 'breakfast'];
+      return ['support', 'direction', 'reception', 'gouvernante', 'femme_de_chambre', 'maintenance', 'breakfast', 'spa'];
     }
     if (role === 'direction' || role === 'reception') {
-      return ['gouvernante', 'femme_de_chambre', 'maintenance', 'breakfast'];
+      return ['gouvernante', 'femme_de_chambre', 'maintenance', 'breakfast', 'spa'];
     }
     return [];
   }, []);

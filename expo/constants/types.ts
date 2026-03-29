@@ -460,7 +460,7 @@ export interface HousekeeperPerformance {
   confidenceIndex: number;
 }
 
-export type AdminUserRole = 'reception' | 'gouvernante' | 'femme_de_chambre' | 'maintenance' | 'breakfast' | 'direction' | 'super_admin' | 'support';
+export type AdminUserRole = 'reception' | 'gouvernante' | 'femme_de_chambre' | 'maintenance' | 'breakfast' | 'direction' | 'super_admin' | 'support' | 'spa';
 
 export interface AdminUser {
   id: string;
@@ -532,6 +532,7 @@ export const ADMIN_ROLE_CONFIG: Record<AdminUserRole, { label: string; color: st
   femme_de_chambre: { label: 'Femme de chambre', color: '#FB8C00' },
   maintenance: { label: 'Maintenance', color: '#78909C' },
   breakfast: { label: 'Petit-déjeuner', color: '#E53935' },
+  spa: { label: 'SPA', color: '#AB47BC' },
 };
 
 export type PMSType =
