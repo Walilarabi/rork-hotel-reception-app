@@ -36,9 +36,11 @@ import {
   Shield,
   Mail,
   Lock,
+  QrCode,
 } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
+import QRCodeGenerator from '@/components/QRCodeGenerator';
 import { useConfiguration } from '@/providers/ConfigurationProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { useHotel } from '@/providers/HotelProvider';
@@ -60,7 +62,7 @@ import {
 import { RoomType, AdminUserRole, ADMIN_ROLE_CONFIG } from '@/constants/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
-type TabId = 'products' | 'checklists' | 'problems' | 'roomTypes' | 'staff' | 'users';
+type TabId = 'products' | 'checklists' | 'problems' | 'roomTypes' | 'staff' | 'users' | 'qrRooms' | 'qrReview' | 'qrServices';
 
 interface TabDef {
   id: TabId;
@@ -70,11 +72,14 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   { id: 'products', label: 'Produits', icon: <Package size={16} color={Colors.primary} /> },
-  { id: 'checklists', label: 'Checklists', icon: <CheckSquare size={16} color={Colors.primary} /> },
+  { id: 'checklists', label: 'Checklist Gouv.', icon: <CheckSquare size={16} color={Colors.primary} /> },
   { id: 'problems', label: 'Signalements', icon: <AlertTriangle size={16} color={Colors.warning} /> },
   { id: 'roomTypes', label: 'Chambres', icon: <BedDouble size={16} color={Colors.info} /> },
   { id: 'staff', label: 'Personnel', icon: <Users size={16} color={Colors.teal} /> },
   { id: 'users', label: 'Utilisateurs', icon: <UserPlus size={16} color="#AB47BC" /> },
+  { id: 'qrRooms', label: 'QR Chambres', icon: <QrCode size={16} color="#14B8A6" /> },
+  { id: 'qrReview', label: 'QR Avis', icon: <QrCode size={16} color="#F59E0B" /> },
+  { id: 'qrServices', label: 'QR Services', icon: <QrCode size={16} color="#6B5CE7" /> },
 ];
 
 export default function ConfigurationScreen() {
@@ -157,6 +162,9 @@ export default function ConfigurationScreen() {
       {activeTab === 'users' && (
         <UsersTab config={config} search={searchQuery} canWrite={canWrite && !isReception} />
       )}
+      {activeTab === 'qrRooms' && <QRRoomsTab search={searchQuery} />}
+      {activeTab === 'qrReview' && <QRReviewTab search={searchQuery} />}
+      {activeTab === 'qrServices' && <QRServicesTab search={searchQuery} />}
     </View>
   );
 }
@@ -1791,6 +1799,377 @@ function RoomImportModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+const SERVICE_QR_LIST: { id: string; label: string; emoji: string; color: string }[] = [
+  { id: 'breakfast', label: 'Petit déjeuner', emoji: '☕', color: '#F59E0B' },
+  { id: 'spa', label: 'Spa', emoji: '💆', color: '#8B5CF6' },
+  { id: 'restaurant', label: 'Restaurant', emoji: '🍽️', color: '#EF4444' },
+  { id: 'business', label: 'Business Center', emoji: '💼', color: '#3B82F6' },
+  { id: 'fitness', label: 'Fitness', emoji: '🏋️', color: '#22C55E' },
+  { id: 'sanitaire', label: 'Sanitaire', emoji: '🚿', color: '#14B8A6' },
+  { id: 'bar', label: 'Bar', emoji: '🍸', color: '#F97316' },
+  { id: 'pool', label: 'Piscine', emoji: '🏊', color: '#0EA5E9' },
+  { id: 'roomservice', label: 'Room Service', emoji: '🛎️', color: '#EC4899' },
+  { id: 'concierge', label: 'Conciergerie', emoji: '🔑', color: '#6366F1' },
+];
+
+function QRRoomsTab({ search }: { search: string }) {
+  const { rooms } = useHotel();
+  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
+  const [expandedFloors, setExpandedFloors] = useState<Set<number>>(new Set([1]));
+
+  const floors = useMemo(() => {
+    const q = search.toLowerCase();
+    const filtered = rooms.filter((r) => !q || r.roomNumber.toLowerCase().includes(q));
+    const map = new Map<number, typeof rooms>();
+    for (const room of filtered) {
+      const arr = map.get(room.floor) || [];
+      arr.push(room);
+      map.set(room.floor, arr);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0] - b[0]);
+  }, [rooms, search]);
+
+  const selectedRoomData = useMemo(() => rooms.find((r) => r.id === selectedRoom), [rooms, selectedRoom]);
+
+  const toggleFloor = useCallback((floor: number) => {
+    setExpandedFloors((prev) => {
+      const next = new Set(prev);
+      if (next.has(floor)) next.delete(floor); else next.add(floor);
+      return next;
+    });
+  }, []);
+
+  const handlePrint = useCallback(() => {
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (selectedRoomData) {
+      Alert.alert('Impression QR Code', `QR Code chambre ${selectedRoomData.roomNumber} prêt pour impression.\n\nFormat recommandé : A6/A7\nPour affichage sur la porte de chambre.`);
+    }
+  }, [selectedRoomData]);
+
+  const handlePrintAll = useCallback(() => {
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert('Impression en masse', `${rooms.length} QR Codes seront générés en PDF.\n\nFormat : A6/A7 par page\nPour affichage sur les portes de chambre.`);
+  }, [rooms.length]);
+
+  return (
+    <View style={styles.tabContent}>
+      <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollPadding}>
+        <View style={qrStyles.infoBanner}>
+          <Text style={qrStyles.infoBannerIcon}>🧹</Text>
+          <View style={qrStyles.infoBannerContent}>
+            <Text style={qrStyles.infoBannerTitle}>QR Code Ménage — Chambres</Text>
+            <Text style={qrStyles.infoBannerDesc}>La femme de chambre scanne le QR pour ouvrir la page de la chambre et démarrer le chrono de nettoyage.</Text>
+          </View>
+        </View>
+
+        {floors.map(([floor, floorRooms]) => {
+          const isExpanded = expandedFloors.has(floor);
+          return (
+            <View key={floor} style={qrStyles.floorSection}>
+              <TouchableOpacity style={qrStyles.floorHeader} onPress={() => toggleFloor(floor)} activeOpacity={0.7}>
+                <Text style={qrStyles.floorLabel}>Étage {floor}</Text>
+                <View style={qrStyles.floorMeta}>
+                  <Text style={qrStyles.floorCount}>{floorRooms.length} ch.</Text>
+                  {isExpanded ? <ChevronUp size={14} color={Colors.textMuted} /> : <ChevronDown size={14} color={Colors.textMuted} />}
+                </View>
+              </TouchableOpacity>
+              {isExpanded && (
+                <View style={qrStyles.roomGrid}>
+                  {floorRooms.map((room) => {
+                    const isSelected = selectedRoom === room.id;
+                    return (
+                      <TouchableOpacity
+                        key={room.id}
+                        style={[qrStyles.roomChip, isSelected && qrStyles.roomChipActive]}
+                        onPress={() => {
+                          setSelectedRoom(room.id);
+                          if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[qrStyles.roomChipNumber, isSelected && qrStyles.roomChipNumberActive]}>{room.roomNumber}</Text>
+                        <Text style={qrStyles.roomChipType}>{room.roomType}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          );
+        })}
+
+        {selectedRoomData ? (
+          <View style={qrStyles.qrPreview}>
+            <View style={qrStyles.qrCard}>
+              <Text style={qrStyles.qrCardBrand}>FLOWTYM</Text>
+              <Text style={qrStyles.qrCardSubtitle}>Chambre {selectedRoomData.roomNumber} — Ménage</Text>
+              <View style={qrStyles.qrCodeWrap}>
+                <QRCodeGenerator
+                  value={`https://app.flowtym.com/scan/cleaning?hotel_id=hotel-1&room_id=${selectedRoomData.id}&room=${selectedRoomData.roomNumber}`}
+                  size={160}
+                  color="#1E293B"
+                />
+              </View>
+              <Text style={qrStyles.qrCardInstruction}>{'Scannez pour démarrer\nle nettoyage de la chambre.'}</Text>
+              <View style={qrStyles.qrRoomTag}>
+                <Text style={qrStyles.qrRoomTagText}>Chambre {selectedRoomData.roomNumber}</Text>
+              </View>
+            </View>
+            <TouchableOpacity style={qrStyles.printBtn} onPress={handlePrint} activeOpacity={0.7}>
+              <QrCode size={16} color="#FFF" />
+              <Text style={qrStyles.printBtnText}>Imprimer ce QR Code</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={qrStyles.emptyQR}>
+            <QrCode size={44} color={Colors.textMuted} />
+            <Text style={qrStyles.emptyQRText}>Sélectionnez une chambre</Text>
+            <Text style={qrStyles.emptyQRSub}>Le QR Code démarrera le chrono de nettoyage au scan.</Text>
+          </View>
+        )}
+
+        <TouchableOpacity style={qrStyles.bulkBtn} onPress={handlePrintAll} activeOpacity={0.7}>
+          <QrCode size={18} color={Colors.primary} />
+          <View style={qrStyles.bulkBtnInfo}>
+            <Text style={qrStyles.bulkBtnTitle}>Télécharger tous les QR Codes en PDF</Text>
+            <Text style={qrStyles.bulkBtnSub}>{rooms.length} QR Codes • Format A6/A7 • Prêt à imprimer</Text>
+          </View>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
+  );
+}
+
+function QRReviewTab({ search }: { search: string }) {
+  const { rooms } = useHotel();
+  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
+  const [expandedFloors, setExpandedFloors] = useState<Set<number>>(new Set([1]));
+
+  const floors = useMemo(() => {
+    const q = search.toLowerCase();
+    const filtered = rooms.filter((r) => !q || r.roomNumber.toLowerCase().includes(q));
+    const map = new Map<number, typeof rooms>();
+    for (const room of filtered) {
+      const arr = map.get(room.floor) || [];
+      arr.push(room);
+      map.set(room.floor, arr);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0] - b[0]);
+  }, [rooms, search]);
+
+  const selectedRoomData = useMemo(() => rooms.find((r) => r.id === selectedRoom), [rooms, selectedRoom]);
+
+  const toggleFloor = useCallback((floor: number) => {
+    setExpandedFloors((prev) => {
+      const next = new Set(prev);
+      if (next.has(floor)) next.delete(floor); else next.add(floor);
+      return next;
+    });
+  }, []);
+
+  const handlePrint = useCallback(() => {
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (selectedRoomData) {
+      Alert.alert('Impression QR Code', `QR Code avis client chambre ${selectedRoomData.roomNumber} prêt.\n\nFormat recommandé : A6/A7\nÀ placer dans la chambre (table de chevet, bureau).`);
+    }
+  }, [selectedRoomData]);
+
+  const handlePrintAll = useCallback(() => {
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert('Impression en masse', `${rooms.length} QR Codes Avis Client seront générés en PDF.\n\nChaque QR Code est lié à l'ID de la chambre.`);
+  }, [rooms.length]);
+
+  return (
+    <View style={styles.tabContent}>
+      <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollPadding}>
+        <View style={[qrStyles.infoBanner, { borderColor: '#F59E0B30' }]}>
+          <Text style={qrStyles.infoBannerIcon}>⭐</Text>
+          <View style={qrStyles.infoBannerContent}>
+            <Text style={qrStyles.infoBannerTitle}>QR Code Avis Client</Text>
+            <Text style={qrStyles.infoBannerDesc}>Chaque QR Code est lié à l'ID de la chambre. Le client scanne et laisse son avis directement.</Text>
+          </View>
+        </View>
+
+        {floors.map(([floor, floorRooms]) => {
+          const isExpanded = expandedFloors.has(floor);
+          return (
+            <View key={floor} style={qrStyles.floorSection}>
+              <TouchableOpacity style={qrStyles.floorHeader} onPress={() => toggleFloor(floor)} activeOpacity={0.7}>
+                <Text style={qrStyles.floorLabel}>Étage {floor}</Text>
+                <View style={qrStyles.floorMeta}>
+                  <Text style={qrStyles.floorCount}>{floorRooms.length} ch.</Text>
+                  {isExpanded ? <ChevronUp size={14} color={Colors.textMuted} /> : <ChevronDown size={14} color={Colors.textMuted} />}
+                </View>
+              </TouchableOpacity>
+              {isExpanded && (
+                <View style={qrStyles.roomGrid}>
+                  {floorRooms.map((room) => {
+                    const isSelected = selectedRoom === room.id;
+                    return (
+                      <TouchableOpacity
+                        key={room.id}
+                        style={[qrStyles.roomChip, isSelected && { backgroundColor: '#F59E0B15', borderColor: '#F59E0B' }]}
+                        onPress={() => {
+                          setSelectedRoom(room.id);
+                          if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[qrStyles.roomChipNumber, isSelected && { color: '#F59E0B' as const }]}>{room.roomNumber}</Text>
+                        <Text style={qrStyles.roomChipType}>{room.roomType}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          );
+        })}
+
+        {selectedRoomData ? (
+          <View style={qrStyles.qrPreview}>
+            <View style={qrStyles.qrCard}>
+              <Text style={qrStyles.qrCardBrand}>FLOWTYM</Text>
+              <Text style={qrStyles.qrCardSubtitle}>Votre avis compte pour nous ⭐</Text>
+              <View style={qrStyles.qrCodeWrap}>
+                <QRCodeGenerator
+                  value={`https://app.flowtym.com/feedback?hotel_id=hotel-1&room_id=${selectedRoomData.id}&room=${selectedRoomData.roomNumber}&type=room`}
+                  size={160}
+                  color="#1E293B"
+                />
+              </View>
+              <Text style={qrStyles.qrCardInstruction}>{'Scannez ce QR Code\net partagez votre expérience.'}</Text>
+              <Text style={qrStyles.qrCardMini}>Cela prend moins de 30 secondes.</Text>
+              <View style={[qrStyles.qrRoomTag, { backgroundColor: '#F59E0B12' }]}>
+                <Text style={[qrStyles.qrRoomTagText, { color: '#F59E0B' }]}>Chambre {selectedRoomData.roomNumber}</Text>
+              </View>
+            </View>
+            <TouchableOpacity style={[qrStyles.printBtn, { backgroundColor: '#F59E0B' }]} onPress={handlePrint} activeOpacity={0.7}>
+              <QrCode size={16} color="#FFF" />
+              <Text style={qrStyles.printBtnText}>Imprimer ce QR Code</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={qrStyles.emptyQR}>
+            <QrCode size={44} color={Colors.textMuted} />
+            <Text style={qrStyles.emptyQRText}>Sélectionnez une chambre</Text>
+            <Text style={qrStyles.emptyQRSub}>Le QR Code ouvrira le formulaire d'avis lié à cette chambre.</Text>
+          </View>
+        )}
+
+        <TouchableOpacity style={qrStyles.bulkBtn} onPress={handlePrintAll} activeOpacity={0.7}>
+          <QrCode size={18} color="#F59E0B" />
+          <View style={qrStyles.bulkBtnInfo}>
+            <Text style={qrStyles.bulkBtnTitle}>Télécharger tous les QR Avis en PDF</Text>
+            <Text style={qrStyles.bulkBtnSub}>{rooms.length} QR Codes • Liés aux ID Chambres • Prêt à imprimer</Text>
+          </View>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
+  );
+}
+
+function QRServicesTab({ search }: { search: string }) {
+  const [selectedService, setSelectedService] = useState<string | null>(null);
+
+  const filteredServices = useMemo(() => {
+    const q = search.toLowerCase();
+    return SERVICE_QR_LIST.filter((s) => !q || s.label.toLowerCase().includes(q));
+  }, [search]);
+
+  const selectedServiceData = useMemo(() => SERVICE_QR_LIST.find((s) => s.id === selectedService), [selectedService]);
+
+  const handlePrint = useCallback(() => {
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (selectedServiceData) {
+      Alert.alert('Impression QR Code', `QR Code ${selectedServiceData.label} prêt.\n\nFormat recommandé : A5/A6\nPour affichage dans les espaces communs.`);
+    }
+  }, [selectedServiceData]);
+
+  const handlePrintAll = useCallback(() => {
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert('Impression en masse', `${SERVICE_QR_LIST.length} QR Codes Services seront générés en PDF.`);
+  }, []);
+
+  return (
+    <View style={styles.tabContent}>
+      <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollPadding}>
+        <View style={[qrStyles.infoBanner, { borderColor: '#6B5CE730' }]}>
+          <Text style={qrStyles.infoBannerIcon}>🏨</Text>
+          <View style={qrStyles.infoBannerContent}>
+            <Text style={qrStyles.infoBannerTitle}>QR Code par Service</Text>
+            <Text style={qrStyles.infoBannerDesc}>Générez un QR Code pour chaque service de l'hôtel. À placer dans les espaces communs.</Text>
+          </View>
+        </View>
+
+        <View style={qrStyles.serviceGrid}>
+          {filteredServices.map((service) => {
+            const isSelected = selectedService === service.id;
+            return (
+              <TouchableOpacity
+                key={service.id}
+                style={[qrStyles.serviceCard, isSelected && { borderColor: service.color, backgroundColor: service.color + '08' }]}
+                onPress={() => {
+                  setSelectedService(service.id);
+                  if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={qrStyles.serviceEmoji}>{service.emoji}</Text>
+                <Text style={[qrStyles.serviceLabel, isSelected && { color: service.color }]}>{service.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {filteredServices.length === 0 && (
+          <View style={qrStyles.emptyQR}>
+            <Text style={qrStyles.emptyQRText}>Aucun service trouvé</Text>
+          </View>
+        )}
+
+        {selectedServiceData ? (
+          <View style={qrStyles.qrPreview}>
+            <View style={qrStyles.qrCard}>
+              <Text style={qrStyles.qrCardBrand}>FLOWTYM</Text>
+              <Text style={qrStyles.qrCardSubtitle}>{selectedServiceData.emoji} {selectedServiceData.label}</Text>
+              <View style={qrStyles.qrCodeWrap}>
+                <QRCodeGenerator
+                  value={`https://app.flowtym.com/service?hotel_id=hotel-1&service=${selectedServiceData.id}`}
+                  size={160}
+                  color="#1E293B"
+                />
+              </View>
+              <Text style={qrStyles.qrCardInstruction}>{'Scannez pour accéder\nau service ' + selectedServiceData.label + '.'}</Text>
+              <View style={[qrStyles.qrRoomTag, { backgroundColor: selectedServiceData.color + '12' }]}>
+                <Text style={[qrStyles.qrRoomTagText, { color: selectedServiceData.color }]}>{selectedServiceData.label}</Text>
+              </View>
+            </View>
+            <TouchableOpacity style={[qrStyles.printBtn, { backgroundColor: selectedServiceData.color }]} onPress={handlePrint} activeOpacity={0.7}>
+              <QrCode size={16} color="#FFF" />
+              <Text style={qrStyles.printBtnText}>Imprimer ce QR Code</Text>
+            </TouchableOpacity>
+          </View>
+        ) : filteredServices.length > 0 ? (
+          <View style={qrStyles.emptyQR}>
+            <QrCode size={44} color={Colors.textMuted} />
+            <Text style={qrStyles.emptyQRText}>Sélectionnez un service</Text>
+            <Text style={qrStyles.emptyQRSub}>Un QR Code sera généré pour le service sélectionné.</Text>
+          </View>
+        ) : null}
+
+        <TouchableOpacity style={qrStyles.bulkBtn} onPress={handlePrintAll} activeOpacity={0.7}>
+          <QrCode size={18} color="#6B5CE7" />
+          <View style={qrStyles.bulkBtnInfo}>
+            <Text style={qrStyles.bulkBtnTitle}>Télécharger tous les QR Services en PDF</Text>
+            <Text style={qrStyles.bulkBtnSub}>{SERVICE_QR_LIST.length} QR Codes • Tous les services • Prêt à imprimer</Text>
+          </View>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
+  );
+}
+
 const userStyles = StyleSheet.create({
   userCard: {
     flexDirection: 'row',
@@ -2007,6 +2386,119 @@ const impStyles = StyleSheet.create({
   resultNumber: { fontSize: 28, fontWeight: '800' as const, color: Colors.success },
   resultLabel: { fontSize: 11, fontWeight: '600' as const, color: Colors.textMuted, marginTop: 4 },
   successSub: { fontSize: 13, color: Colors.textSecondary, textAlign: 'center' as const, marginTop: 8 },
+});
+
+const qrStyles = StyleSheet.create({
+  infoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primarySoft,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.primary + '30',
+    gap: 12,
+  },
+  infoBannerIcon: { fontSize: 28 },
+  infoBannerContent: { flex: 1 },
+  infoBannerTitle: { fontSize: 14, fontWeight: '700' as const, color: Colors.text },
+  infoBannerDesc: { fontSize: 12, color: Colors.textSecondary, marginTop: 2, lineHeight: 18 },
+  floorSection: { marginBottom: 4 },
+  floorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  floorLabel: { fontSize: 14, fontWeight: '700' as const, color: Colors.text },
+  floorMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  floorCount: { fontSize: 12, color: Colors.textMuted, fontWeight: '500' as const },
+  roomGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 10 },
+  roomChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    minWidth: 72,
+    alignItems: 'center' as const,
+  },
+  roomChipActive: { backgroundColor: Colors.primary + '12', borderColor: Colors.primary },
+  roomChipNumber: { fontSize: 15, fontWeight: '800' as const, color: Colors.text },
+  roomChipNumberActive: { color: Colors.primary },
+  roomChipType: { fontSize: 10, color: Colors.textMuted, marginTop: 2 },
+  qrPreview: { marginTop: 16, gap: 12 },
+  qrCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center' as const,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  qrCardBrand: { fontSize: 16, fontWeight: '900' as const, color: '#6B5CE7', letterSpacing: 1 },
+  qrCardSubtitle: { fontSize: 13, fontWeight: '600' as const, color: '#64748B' },
+  qrCodeWrap: { padding: 10, backgroundColor: '#FFF', borderRadius: 12 },
+  qrCardInstruction: { fontSize: 14, fontWeight: '600' as const, color: '#1E293B', textAlign: 'center' as const, lineHeight: 22 },
+  qrCardMini: { fontSize: 12, color: '#94A3B8' },
+  qrRoomTag: {
+    backgroundColor: Colors.primary + '12',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  qrRoomTagText: { fontSize: 13, fontWeight: '700' as const, color: Colors.primary },
+  printBtn: {
+    flexDirection: 'row',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: 8,
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  printBtnText: { fontSize: 15, fontWeight: '600' as const, color: '#FFF' },
+  emptyQR: { alignItems: 'center' as const, paddingVertical: 40, gap: 10 },
+  emptyQRText: { fontSize: 15, fontWeight: '700' as const, color: Colors.textSecondary },
+  emptyQRSub: { fontSize: 13, color: Colors.textMuted, textAlign: 'center' as const, lineHeight: 20, maxWidth: 260 },
+  bulkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center' as const,
+    gap: 14,
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginTop: 20,
+  },
+  bulkBtnInfo: { flex: 1 },
+  bulkBtnTitle: { fontSize: 14, fontWeight: '700' as const, color: Colors.text },
+  bulkBtnSub: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  serviceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  serviceCard: {
+    width: '47%' as any,
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    alignItems: 'center' as const,
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  serviceEmoji: { fontSize: 32 },
+  serviceLabel: { fontSize: 13, fontWeight: '600' as const, color: Colors.text, textAlign: 'center' as const },
 });
 
 const styles = StyleSheet.create({
