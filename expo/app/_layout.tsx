@@ -9,6 +9,10 @@ import { HotelProvider } from "@/providers/HotelProvider";
 import { SuperAdminProvider } from "@/providers/SuperAdminProvider";
 import { HousekeepingManagerProvider } from "@/providers/HousekeepingProvider";
 import { SubscriptionProvider } from "@/providers/SubscriptionProvider";
+import { ForecastProvider } from "@/providers/ForecastProvider";
+import { SatisfactionProvider } from "@/providers/SatisfactionProvider";
+import { ChatbotProvider } from "@/providers/ChatbotProvider";
+import { ConfigurationProvider } from "@/providers/ConfigurationProvider";
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -39,8 +43,16 @@ export default function RootLayout() {
               <SuperAdminProvider>
                 <SubscriptionProvider>
                   <HousekeepingManagerProvider>
-                    <RootLayoutNav />
-                  </HousekeepingManagerProvider>
+                        <ForecastProvider>
+                          <SatisfactionProvider>
+                            <ChatbotProvider>
+                              <ConfigurationProvider>
+                                <RootLayoutNav />
+                              </ConfigurationProvider>
+                            </ChatbotProvider>
+                          </SatisfactionProvider>
+                        </ForecastProvider>
+                      </HousekeepingManagerProvider>
                 </SubscriptionProvider>
               </SuperAdminProvider>
             </HotelProvider>
