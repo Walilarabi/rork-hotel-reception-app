@@ -3,7 +3,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/providers/AuthProvider';
 import { useTheme } from '@/providers/ThemeProvider';
-import Colors from '@/constants/colors';
+import { Colors } from '@/constants/colors';
 
 export default function IndexScreen() {
   const router = useRouter();
@@ -40,7 +40,7 @@ export default function IndexScreen() {
 
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color={Colors.light.tint} />
+      <ActivityIndicator size="large" color={Colors.primary} />
     </View>
   );
 }
@@ -50,6 +50,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.light.background,
+    backgroundColor: Colors.background,
   },
 });

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import createContextHook from '@nkzw/create-context-hook';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { AdminUserRole } from '@/constants/types';
 import type { Session } from '@supabase/supabase-js';
 
@@ -71,6 +71,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const isReadyRef = useRef(false);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      console.log('[AuthProvider] Supabase not configured, running in demo mode');
+      setIsReady(true);
+      isReadyRef.current = true;
+      return;
+    }
+
     console.log('[AuthProvider] Initializing Supabase auth listener...');
 
     void supabase.auth.getSession().then(({ data: { session: s } }) => {
@@ -87,6 +94,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         setIsReady(true);
         isReadyRef.current = true;
       }
+    }).catch((err) => {
+      console.warn('[AuthProvider] Error getting session:', err);
+      setIsReady(true);
+      isReadyRef.current = true;
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
