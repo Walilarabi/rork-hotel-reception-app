@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { HotelProvider } from "@/providers/HotelProvider";
+import { SuperAdminProvider } from "@/providers/SuperAdminProvider";
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -33,7 +34,9 @@ export default function RootLayout() {
         <AuthProvider>
           <ThemeProvider>
             <HotelProvider>
-              <RootLayoutNav />
+              <SuperAdminProvider>
+                <RootLayoutNav />
+              </SuperAdminProvider>
             </HotelProvider>
           </ThemeProvider>
         </AuthProvider>
