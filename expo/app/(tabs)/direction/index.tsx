@@ -29,6 +29,7 @@ import {
   FileText,
   Package,
   Settings,
+  Cog,
 } from 'lucide-react-native';
 import UserMenuButton from '@/components/UserMenuButton';
 import FlowtymHeader from '@/components/FlowtymHeader';
@@ -135,10 +136,13 @@ export default function DirectionDashboard() {
             { label: 'Centre de contrôle', icon: LayoutDashboard, color: FT.brand, route: '/control-center' as const },
             { label: 'Plan Chambres', icon: MapPin, color: FT.info, route: '/hotel-plan' as const },
             { label: 'Répartition', icon: Zap, color: FT.success, route: '/housekeeping-assignments' as const },
+            { label: 'Objets trouvés', icon: Package, color: FT.warning, route: '/reception-objets-trouves' as const },
+            { label: 'Signalements', icon: AlertTriangle, color: FT.danger, route: '/reception-signalements' as const },
             { label: 'Historique', icon: History, color: FT.orange, route: '/history' as const },
             { label: 'Maintenance', icon: Wrench, color: FT.warning, route: '/maintenance-tracking' as const },
             { label: 'Statistiques', icon: BarChart3, color: FT.teal, route: '/breakfast-stats' as const },
             { label: 'Rapports', icon: FileText, color: FT.brandDark, route: '/history' as const },
+            { label: 'Configuration', icon: Cog, color: FT.teal, route: '/configuration' as const },
           ].map((item) => {
             const IconComp = item.icon;
             return (

@@ -243,7 +243,19 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        {(currentUser?.role === 'direction' || currentUser?.role === 'gouvernante' || currentUser?.role === 'reception' || currentUser?.role === 'super_admin') && (
+        {currentUser?.role === 'direction' && (
+          <View style={styles.section}>
+            <View style={[styles.configNotice, { backgroundColor: Colors.teal + '08', borderColor: Colors.teal + '25' }]}>
+              <Settings size={16} color={Colors.teal} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.configNoticeTitle, { color: textColor }]}>Gestion de l'hôtel</Text>
+                <Text style={[styles.configNoticeSub, { color: textSec }]}>Accédez à la Configuration depuis le menu Direction de votre tableau de bord.</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {(currentUser?.role === 'gouvernante' || currentUser?.role === 'reception' || currentUser?.role === 'super_admin') && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <BedDouble size={18} color={Colors.primary} />
@@ -270,7 +282,7 @@ export default function SettingsScreen() {
               </View>
               <ChevronRight size={16} color={textMut} />
             </TouchableOpacity>
-            {(currentUser?.role === 'direction' || currentUser?.role === 'super_admin') && (
+            {currentUser?.role === 'super_admin' && (
               <>
                 <View style={{ height: 8 }} />
                 <TouchableOpacity style={[styles.menuBtn, { backgroundColor: cardBg, borderColor: borderCol }]} onPress={() => router.push('/import-rooms' as any)}>
@@ -524,4 +536,7 @@ const styles = StyleSheet.create({
   footerBrandAccent: { fontSize: 14, fontWeight: '800' as const, color: Colors.primary, letterSpacing: -0.3 },
   footerBrandText: { fontSize: 14, fontWeight: '800' as const, letterSpacing: -0.3 },
   footerSub: { fontSize: 11 },
+  configNotice: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 14, borderWidth: 1 },
+  configNoticeTitle: { fontSize: 14, fontWeight: '700' as const },
+  configNoticeSub: { fontSize: 12, marginTop: 2, lineHeight: 17 },
 });
