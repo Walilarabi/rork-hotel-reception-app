@@ -1,85 +1,90 @@
 import { Tabs } from 'expo-router';
-import { BedDouble, ClipboardCheck, Sparkles, Wrench, Coffee, BarChart3 } from 'lucide-react-native';
 import React from 'react';
-import { FT } from '@/constants/flowtym';
+import { Platform } from 'react-native';
+import {
+  DoorOpen,
+  BedDouble,
+  Wrench,
+  Coffee,
+  ClipboardCheck,
+  BarChart3,
+} from 'lucide-react-native';
 import { useAuth } from '@/providers/AuthProvider';
 import { useTheme } from '@/providers/ThemeProvider';
+import Colors from '@/constants/colors';
 
 export default function TabLayout() {
   const { currentUser } = useAuth();
-  const { isDarkMode, modeColors, theme, t } = useTheme();
-  const role = currentUser?.role;
+  const { theme, isDarkMode } = useTheme();
 
-  const showDirection = role === 'direction';
-  const showReception = role === 'reception' || role === 'direction';
-  const showGouvernante = role === 'gouvernante' || role === 'direction';
-  const showHousekeeping = role === 'femme_de_chambre' || role === 'direction' || role === 'gouvernante';
-  const showMaintenance = role === 'maintenance' || role === 'direction';
-  const showBreakfast = role === 'breakfast' || role === 'direction';
+  const role = currentUser?.role;
+  const tint = theme?.primary ?? Colors.light.tint;
+  const tabBg = isDarkMode ? '#1A1A2E' : '#FFFFFF';
+  const inactiveTint = isDarkMode ? '#8E8EA0' : '#999';
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: theme.primary,
-        tabBarInactiveTintColor: isDarkMode ? modeColors.textMuted : FT.textMuted,
-        tabBarStyle: {
-          backgroundColor: isDarkMode ? modeColors.surface : FT.surface,
-          borderTopColor: isDarkMode ? modeColors.border : FT.border,
-        },
         headerShown: false,
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '600' as const,
+        tabBarActiveTintColor: tint,
+        tabBarInactiveTintColor: inactiveTint,
+        tabBarStyle: {
+          backgroundColor: tabBg,
+          borderTopColor: isDarkMode ? '#2A2A3E' : '#E8E8EE',
+          ...Platform.select({
+            web: { maxWidth: 600, alignSelf: 'center' as const, width: '100%' },
+            default: {},
+          }),
         },
       }}
     >
       <Tabs.Screen
-        name="direction"
-        options={{
-          title: t.direction.title,
-          tabBarIcon: ({ color, size }) => <BarChart3 size={size - 2} color={color} />,
-          href: showDirection ? undefined : null,
-        }}
-      />
-      <Tabs.Screen
         name="reception"
         options={{
-          title: t.reception.title,
-          tabBarIcon: ({ color, size }) => <BedDouble size={size - 2} color={color} />,
-          href: showReception ? undefined : null,
+          title: 'Réception',
+          tabBarIcon: ({ color, size }) => <DoorOpen size={size} color={color} />,
         }}
-      />
-      <Tabs.Screen
-        name="gouvernante"
-        options={{
-          title: t.gouvernante.title,
-          tabBarIcon: ({ color, size }) => <ClipboardCheck size={size - 2} color={color} />,
-          href: showGouvernante ? undefined : null,
-        }}
+        redirect={role === 'femme_de_chambre' || role === 'maintenance' || role === 'breakfast'}
       />
       <Tabs.Screen
         name="housekeeping"
         options={{
-          title: t.housekeeping.title,
-          tabBarIcon: ({ color, size }) => <Sparkles size={size - 2} color={color} />,
-          href: showHousekeeping ? undefined : null,
+          title: 'Ménage',
+          tabBarIcon: ({ color, size }) => <BedDouble size={size} color={color} />,
         }}
+        redirect={role === 'maintenance' || role === 'breakfast'}
       />
       <Tabs.Screen
         name="maintenance"
         options={{
-          title: t.maintenance.title,
-          tabBarIcon: ({ color, size }) => <Wrench size={size - 2} color={color} />,
-          href: showMaintenance ? undefined : null,
+          title: 'Maintenance',
+          tabBarIcon: ({ color, size }) => <Wrench size={size} color={color} />,
         }}
+        redirect={role === 'femme_de_chambre' || role === 'breakfast'}
       />
       <Tabs.Screen
         name="breakfast"
         options={{
-          title: t.breakfast.title,
-          tabBarIcon: ({ color, size }) => <Coffee size={size - 2} color={color} />,
-          href: showBreakfast ? undefined : null,
+          title: 'Petit-déj',
+          tabBarIcon: ({ color, size }) => <Coffee size={size} color={color} />,
         }}
+        redirect={role === 'femme_de_chambre' || role === 'maintenance'}
+      />
+      <Tabs.Screen
+        name="gouvernante"
+        options={{
+          title: 'Gouvernante',
+          tabBarIcon: ({ color, size }) => <ClipboardCheck size={size} color={color} />,
+        }}
+        redirect={role !== 'gouvernante' && role !== 'direction' && role !== 'reception'}
+      />
+      <Tabs.Screen
+        name="direction"
+        options={{
+          title: 'Direction',
+          tabBarIcon: ({ color, size }) => <BarChart3 size={size} color={color} />,
+        }}
+        redirect={role !== 'direction'}
       />
     </Tabs>
   );

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Hotel Reception App",
-    "slug": "hotel-reception-app",
+    "name": "Hotel Manager",
+    "slug": "6zursdq4rls7lh4k3wzki",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -15,14 +15,14 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.rork.hotel-reception-app"
+      "bundleIdentifier": "app.rork.6zursdq4rls7lh4k3wzki"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.hotel_reception_app"
+      "package": "app.rork.6zursdq4rls7lh4k3wzki"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
