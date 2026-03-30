@@ -11,10 +11,12 @@ import {
   Platform,
 } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
-import { Upload, FileText, ChevronRight, ChevronLeft, Check, X, Plus, Trash2, AlertTriangle, CheckCircle, Coffee, Download } from 'lucide-react-native';
+import { Upload, FileText, ChevronRight, ChevronLeft, Check, X, Plus, Trash2, AlertTriangle, CheckCircle, Coffee, Download, Sparkles } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
 import * as XLSX from 'xlsx';
+import { generateObject } from '@rork-ai/toolkit-sdk';
+import { z } from 'zod';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useHotel } from '@/providers/HotelProvider';
 import { FT } from '@/constants/flowtym';
@@ -264,6 +266,77 @@ async function parseTextFile(uri: string): Promise<string> {
   return text;
 }
 
+const reservationExtractionSchema = z.object({
+  reservations: z.array(z.object({
+    guestName: z.string().describe('Nom complet du client / guest full name'),
+    roomNumber: z.string().describe('Numéro de chambre / room number'),
+    checkInDate: z.string().describe('Date d\'arrivée au format YYYY-MM-DD'),
+    checkOutDate: z.string().describe('Date de départ au format YYYY-MM-DD'),
+    adults: z.number().optional().describe('Nombre d\'adultes'),
+    children: z.number().optional().describe('Nombre d\'enfants'),
+    preferences: z.string().optional().describe('Notes ou préférences'),
+    breakfastIncluded: z.boolean().optional().describe('Petit-déjeuner inclus'),
+  })),
+});
+
+type ExtractedReservation = z.infer<typeof reservationExtractionSchema>['reservations'][number];
+
+async function readFileAsBase64(uri: string): Promise<string> {
+  console.log('[Import] Reading file as base64 from URI:', uri);
+  const response = await fetch(uri);
+  const arrayBuffer = await response.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  const base64 = btoa(binary);
+  console.log('[Import] Base64 length:', base64.length);
+  return base64;
+}
+
+async function extractReservationsFromPDFWithAI(base64Content: string): Promise<ExtractedReservation[]> {
+  console.log('[Import] Sending PDF to AI for extraction...');
+  const dataUri = `data:application/pdf;base64,${base64Content}`;
+
+  const result = await generateObject({
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: `Analyse ce document PDF contenant des réservations d'hôtel. Extrais TOUTES les réservations trouvées dans le document.
+
+Pour chaque réservation, extrais :
+- guestName : Le nom complet du client
+- roomNumber : Le numéro de chambre (en string)
+- checkInDate : La date d'arrivée au format YYYY-MM-DD
+- checkOutDate : La date de départ au format YYYY-MM-DD
+- adults : Le nombre d'adultes (par défaut 1 si non précisé)
+- children : Le nombre d'enfants (par défaut 0 si non précisé)
+- preferences : Les notes, remarques ou préférences
+- breakfastIncluded : Si le petit-déjeuner est inclus (true/false)
+
+Si une information n'est pas disponible, utilise une valeur par défaut raisonnable.
+Retourne les dates au format YYYY-MM-DD uniquement.`,
+          },
+          {
+            type: 'image',
+            image: dataUri,
+          },
+        ],
+      },
+    ],
+    schema: reservationExtractionSchema,
+  });
+
+  console.log('[Import] AI extracted', result.reservations.length, 'reservations');
+  return result.reservations;
+}
+
 export default function ImportReservationsScreen() {
   const router = useRouter();
   const { t } = useTheme();
@@ -407,50 +480,87 @@ export default function ImportReservationsScreen() {
     setIsParsing(true);
     try {
       let content = '';
+      let isBinaryPDF = false;
       try {
         const response = await fetch(uri);
         content = await response.text();
+        isBinaryPDF = content.length < 10 || content.startsWith('%PDF');
       } catch {
-        Alert.alert(ti.parseError, 'Impossible de lire le contenu du PDF. Essayez de convertir le fichier en CSV ou Excel.');
-        setIsParsing(false);
-        return;
+        isBinaryPDF = true;
       }
 
-      if (content.length < 10 || content.startsWith('%PDF')) {
+      if (!isBinaryPDF) {
+        const detectedSep = detectSeparator(content);
+        setSeparator(detectedSep);
+        const lines = content.split('\n').filter((l) => l.trim().length > 0);
+        if (lines.length >= 2) {
+          const headerRow = parseCSVLine(lines[0], detectedSep);
+          setHeaders(headerRow);
+          const dataRows = lines.slice(1).map((line) => parseCSVLine(line, detectedSep));
+          setCsvData(dataRows);
+          const autoMapping = autoDetectMapping(headerRow);
+          setMapping(autoMapping);
+          if (autoMapping.checkInDate !== null) {
+            setDateFormat(autoDetectDateFormat(dataRows, autoMapping.checkInDate));
+          }
+          setStep(2);
+          if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          return;
+        }
+      }
+
+      console.log('[Import] PDF is binary, using AI extraction...');
+      const base64 = await readFileAsBase64(uri);
+      const extracted = await extractReservationsFromPDFWithAI(base64);
+
+      if (!extracted || extracted.length === 0) {
         Alert.alert(
-          'PDF non supporté directement',
-          'Les fichiers PDF binaires ne peuvent pas être lus directement. Veuillez :\n\n1. Ouvrir le PDF dans Excel ou Google Sheets\n2. Exporter en CSV ou Excel\n3. Importer le fichier converti\n\nAlternativement, utilisez la saisie manuelle.',
+          'Aucune réservation détectée',
+          'L\'IA n\'a pas pu extraire de réservations depuis ce PDF. Vérifiez que le fichier contient bien des données de réservation (nom client, chambre, dates).\n\nVous pouvez aussi essayer la saisie manuelle.',
           [{ text: 'OK' }]
         );
-        setIsParsing(false);
         return;
       }
 
-      const detectedSep = detectSeparator(content);
-      setSeparator(detectedSep);
-      const lines = content.split('\n').filter((l) => l.trim().length > 0);
-      if (lines.length < 2) {
-        Alert.alert(ti.parseError, 'Le fichier ne contient pas assez de données exploitables.');
-        setIsParsing(false);
-        return;
-      }
-      const headerRow = parseCSVLine(lines[0], detectedSep);
-      setHeaders(headerRow);
-      const dataRows = lines.slice(1).map((line) => parseCSVLine(line, detectedSep));
-      setCsvData(dataRows);
-      const autoMapping = autoDetectMapping(headerRow);
-      setMapping(autoMapping);
-      if (autoMapping.checkInDate !== null) {
-        setDateFormat(autoDetectDateFormat(dataRows, autoMapping.checkInDate));
-      }
+      const aiHeaders = ['Nom client', 'N° Chambre', 'Arrivée', 'Départ', 'Adultes', 'Enfants', 'Préférences', 'Petit-déj'];
+      const aiRows = extracted.map((r) => [
+        r.guestName ?? '',
+        r.roomNumber ?? '',
+        r.checkInDate ?? '',
+        r.checkOutDate ?? '',
+        String(r.adults ?? 1),
+        String(r.children ?? 0),
+        r.preferences ?? '',
+        r.breakfastIncluded ? 'Oui' : 'Non',
+      ]);
+
+      setHeaders(aiHeaders);
+      setCsvData(aiRows);
+      setMapping({
+        guestName: 0,
+        roomNumber: 1,
+        checkInDate: 2,
+        checkOutDate: 3,
+        adults: 4,
+        children: 5,
+        preferences: 6,
+        breakfastIncluded: 7,
+      });
+      setDateFormat('yyyy-mm-dd');
       setStep(2);
-      if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      console.log('[Import] AI extraction complete:', extracted.length, 'reservations found');
     } catch (e) {
-      Alert.alert(ti.parseError, String(e));
+      console.log('[Import] PDF processing error:', e);
+      Alert.alert(
+        'Erreur d\'extraction PDF',
+        `L'extraction des données a échoué : ${String(e)}\n\nVeuillez réessayer ou utiliser un autre format (CSV, Excel) ou la saisie manuelle.`,
+        [{ text: 'OK' }]
+      );
     } finally {
       setIsParsing(false);
     }
-  }, [ti.parseError]);
+  }, []);
 
   const handlePickFile = useCallback(async () => {
     try {
@@ -675,7 +785,7 @@ export default function ImportReservationsScreen() {
       {([{ key: 'csv' as const, label: 'CSV / Texte', desc: '.csv, .tsv, .txt', icon: 'text' },
         { key: 'excel' as const, label: 'Excel', desc: '.xlsx, .xls, .ods', icon: 'spreadsheet' },
         { key: 'image' as const, label: 'Image (OCR)', desc: '.jpg, .png, .gif', icon: 'image' },
-        { key: 'pdf' as const, label: 'PDF', desc: '.pdf (texte)', icon: 'pdf' },
+        { key: 'pdf' as const, label: 'PDF (IA)', desc: '.pdf — extraction automatique par IA', icon: 'pdf' },
         { key: 'manual' as const, label: ti.manualEntry, desc: ti.manualEntryDesc, icon: 'manual' },
       ] as const).map((opt) => (
         <TouchableOpacity
@@ -702,6 +812,15 @@ export default function ImportReservationsScreen() {
         </TouchableOpacity>
       ))}
 
+      {mode === 'pdf' && (
+        <View style={styles.aiInfoBanner}>
+          <Sparkles size={16} color="#7C3AED" />
+          <Text style={styles.aiInfoBannerText}>
+            {'L\'IA analysera automatiquement votre PDF pour en extraire les réservations (noms, chambres, dates...). Formats variés acceptés.'}
+          </Text>
+        </View>
+      )}
+
       {mode !== 'manual' && (
         <TouchableOpacity
           style={[styles.uploadBtn, isParsing && styles.uploadBtnDisabled]}
@@ -712,10 +831,12 @@ export default function ImportReservationsScreen() {
         >
           {isParsing ? (
             <ActivityIndicator size="small" color="#FFF" />
+          ) : mode === 'pdf' ? (
+            <Sparkles size={18} color="#FFF" />
           ) : (
             <Upload size={18} color="#FFF" />
           )}
-          <Text style={styles.uploadBtnText}>{isParsing ? 'Traitement en cours...' : ti.selectFile}</Text>
+          <Text style={styles.uploadBtnText}>{isParsing ? 'Extraction IA en cours...' : ti.selectFile}</Text>
         </TouchableOpacity>
       )}
 
@@ -1226,4 +1347,7 @@ const styles = StyleSheet.create({
   resultStatText: { fontSize: 14, color: FT.textSec },
   resultCloseBtn: { backgroundColor: FT.brand, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12, marginTop: 16 },
   resultCloseBtnText: { fontSize: 15, fontWeight: '700' as const, color: '#FFF' },
+
+  aiInfoBanner: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, backgroundColor: '#F3E8FF', borderRadius: 10, padding: 12, marginTop: 12, borderWidth: 1, borderColor: '#DDD6FE' },
+  aiInfoBannerText: { fontSize: 12, color: '#6D28D9', flex: 1, lineHeight: 18 },
 });
