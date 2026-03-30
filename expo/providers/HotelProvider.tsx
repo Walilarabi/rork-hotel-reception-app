@@ -607,11 +607,45 @@ export const [HotelProvider, useHotel] = createContextHook(() => {
       const updatedRooms = [...rooms];
 
       for (const res of reservations) {
-        const roomIdx = updatedRooms.findIndex((r) => r.roomNumber === res.roomNumber);
+        let roomIdx = updatedRooms.findIndex((r) => r.roomNumber === res.roomNumber);
         if (roomIdx === -1) {
-          console.log('[HotelProvider] Room not found for import:', res.roomNumber);
-          failed++;
-          continue;
+          console.log('[HotelProvider] Room not found, auto-creating:', res.roomNumber);
+          const floorNum = parseInt(res.roomNumber.substring(0, res.roomNumber.length - 2), 10) || 0;
+          const newRoomId = `room-imp-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+          const newRoom: Room = {
+            id: newRoomId,
+            roomNumber: res.roomNumber,
+            floor: floorNum,
+            roomType: 'Double' as const,
+            status: 'libre' as RoomStatus,
+            clientBadge: 'normal' as ClientBadge,
+            vipInstructions: '',
+            cleaningStatus: 'none' as const,
+            cleaningAssignee: null,
+            assignedTo: null,
+            cleaningStartedAt: null,
+            cleaningCompletedAt: null,
+            breakfastIncluded: false,
+            viewType: 'Rue' as const,
+            bathroomType: 'Douche' as const,
+            roomCategory: '',
+            roomSize: 0,
+            capacity: 2,
+            equipment: [],
+            dotation: [],
+            currentReservation: null,
+            history: [{
+              id: `h-create-${Date.now()}-${newRoomId}`,
+              roomId: newRoomId,
+              action: 'Chambre créée automatiquement',
+              performedBy: 'Import fichier',
+              date: new Date().toISOString(),
+              details: `Chambre ${res.roomNumber} créée automatiquement lors de l'import de réservations`,
+            }],
+          };
+          updatedRooms.push(newRoom);
+          roomIdx = updatedRooms.length - 1;
+          console.log('[HotelProvider] Auto-created room:', res.roomNumber);
         }
 
         const room = updatedRooms[roomIdx];

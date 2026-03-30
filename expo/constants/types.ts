@@ -930,6 +930,7 @@ export interface ImportedReservation {
   breakfastIncluded: boolean;
   selected: boolean;
   error: string | null;
+  willCreateRoom?: boolean;
 }
 
 export interface ColumnMapping {

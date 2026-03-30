@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
-import { Upload, FileText, ChevronRight, ChevronLeft, Check, X, Plus, Trash2, AlertTriangle, CheckCircle, Coffee, Download, Sparkles } from 'lucide-react-native';
+import { Upload, FileText, ChevronRight, ChevronLeft, Check, X, Plus, Trash2, AlertTriangle, CheckCircle, Coffee, Download, Sparkles, PlusCircle } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
 import * as XLSX from 'xlsx';
@@ -644,11 +644,13 @@ export default function ImportReservationsScreen() {
       const checkInDate = parseDate(rawCheckIn, dateFormat);
       const checkOutDate = parseDate(rawCheckOut, dateFormat);
 
+      const roomExists = roomNumber ? rooms.some((r) => r.roomNumber === roomNumber) : false;
+      const willCreateRoom = !!(roomNumber && !roomExists);
+
       let error: string | null = null;
       if (!guestName) error = ti.missingRequired + ': ' + ti.guestName;
       else if (!checkInDate) error = ti.invalidDate + ': ' + rawCheckIn;
       else if (!checkOutDate) error = ti.invalidDate + ': ' + rawCheckOut;
-      else if (roomNumber && !rooms.find((r) => r.roomNumber === roomNumber)) error = ti.roomNotFound + ': ' + roomNumber;
       else if (!roomNumber) error = 'N° chambre manquant';
 
       return {
@@ -663,6 +665,7 @@ export default function ImportReservationsScreen() {
         breakfastIncluded,
         selected: error === null,
         error,
+        willCreateRoom,
       };
     });
 
@@ -673,13 +676,14 @@ export default function ImportReservationsScreen() {
 
   const handlePrepareManual = useCallback(() => {
     const validated = manualRows.map((row) => {
+      const roomExists = row.roomNumber ? rooms.some((r) => r.roomNumber === row.roomNumber) : false;
+      const willCreateRoom = !!(row.roomNumber && !roomExists);
       let error: string | null = null;
       if (!row.guestName) error = ti.missingRequired + ': ' + ti.guestName;
       else if (!row.checkInDate) error = ti.missingRequired + ': ' + ti.checkInDate;
       else if (!row.checkOutDate) error = ti.missingRequired + ': ' + ti.checkOutDate;
       else if (!row.roomNumber) error = 'N° chambre manquant';
-      else if (!rooms.find((r) => r.roomNumber === row.roomNumber)) error = ti.roomNotFound + ': ' + row.roomNumber;
-      return { ...row, selected: error === null, error };
+      return { ...row, selected: error === null, error, willCreateRoom };
     });
     setParsedReservations(validated);
     setStep(3);
@@ -1077,7 +1081,7 @@ export default function ImportReservationsScreen() {
         return (
           <TouchableOpacity
             key={res.id}
-            style={[styles.reservationRow, res.error && styles.reservationRowError]}
+            style={[styles.reservationRow, res.error && styles.reservationRowError, !res.error && res.willCreateRoom && styles.reservationRowNewRoom]}
             onPress={() => !res.error && toggleReservation(res.id)}
             activeOpacity={res.error ? 1 : 0.7}
           >
@@ -1089,8 +1093,8 @@ export default function ImportReservationsScreen() {
               <View style={styles.reservationHeaderRow}>
                 <Text style={styles.reservationName} numberOfLines={1}>{res.guestName || `Ligne ${idx + 1}`}</Text>
                 {res.roomNumber ? (
-                  <View style={styles.reservationRoomBadge}>
-                    <Text style={styles.reservationRoomText}>{'Ch. '}{res.roomNumber}</Text>
+                  <View style={[styles.reservationRoomBadge, res.willCreateRoom && styles.reservationRoomBadgeNew]}>
+                    <Text style={[styles.reservationRoomText, res.willCreateRoom && styles.reservationRoomTextNew]}>{'Ch. '}{res.roomNumber}</Text>
                   </View>
                 ) : null}
               </View>
@@ -1111,6 +1115,12 @@ export default function ImportReservationsScreen() {
                 )}
               </View>
               {res.error && <Text style={styles.reservationError}>{res.error}</Text>}
+              {!res.error && res.willCreateRoom && (
+                <View style={styles.newRoomIndicator}>
+                  <PlusCircle size={10} color="#F59E0B" />
+                  <Text style={styles.newRoomIndicatorText}>{'Chambre sera cr\u00e9\u00e9e automatiquement'}</Text>
+                </View>
+              )}
             </View>
           </TouchableOpacity>
         );
@@ -1350,4 +1360,10 @@ const styles = StyleSheet.create({
 
   aiInfoBanner: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, backgroundColor: '#F3E8FF', borderRadius: 10, padding: 12, marginTop: 12, borderWidth: 1, borderColor: '#DDD6FE' },
   aiInfoBannerText: { fontSize: 12, color: '#6D28D9', flex: 1, lineHeight: 18 },
+
+  reservationRowNewRoom: { borderColor: '#FDE68A', backgroundColor: '#FFFBEB' },
+  reservationRoomBadgeNew: { backgroundColor: '#FEF3C7' },
+  reservationRoomTextNew: { color: '#B45309' },
+  newRoomIndicator: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, marginTop: 2 },
+  newRoomIndicatorText: { fontSize: 10, color: '#F59E0B' },
 });
