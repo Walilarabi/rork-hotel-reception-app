@@ -1,0 +1,9 @@
+Numero_Chambre;Etage;Type_Chambre;Categorie;Superficie_m2;Capacite;Vue;Salle_de_bain;Equipements;Dotation
+101;1;Simple;Classique;16;2;Rue;Douche;TV, Climatisation, Coffre-fort, Wi-Fi, Minibar;Serviette bain x2, Savon x1, Shampoing x1
+102;1;Double;Classique;22;3;Cour;Baignoire;TV, Climatisation, Coffre-fort, Wi-Fi, Minibar, Téléphone;Serviette bain x4, Savon x2, Shampoing x2, Gel douche x2
+103;1;Twin;Classique;20;2;Jardin;Douche;TV, Climatisation, Coffre-fort, Wi-Fi;Serviette bain x4, Savon x2, Shampoing x2
+201;2;Double;Supérieure;25;3;Mer;Douche+Baignoire;TV, Climatisation, Coffre-fort, Wi-Fi, Minibar, Bouilloire, Peignoir;Serviette bain x4, Peignoir x2, Savon x2, Shampoing x2, Gel douche x2
+202;2;Suite;Prestige;40;4;Mer;Douche+Baignoire;TV, Climatisation, Coffre-fort, Wi-Fi, Minibar, Bouilloire, Peignoir, Machine Nespresso, Fer à repasser;Serviette bain x6, Peignoir x2, Savon x3, Shampoing x3, Gel douche x3, Champagne x1, Fleurs
+203;2;Deluxe;Supérieure;30;3;Piscine;Baignoire;TV, Climatisation, Coffre-fort, Wi-Fi, Minibar, Bouilloire, Peignoir, Machine Nespresso;Serviette bain x4, Peignoir x2, Savon x2, Shampoing x2, Gel douche x2
+301;3;Familiale;Famille;35;5;Jardin;Douche+Baignoire;TV x2, Climatisation, Coffre-fort, Wi-Fi, Minibar, Lit bébé, Barrière lit enfant;Serviette bain x6, Savon x3, Shampoing x3, Gel douche x3, Kit enfant x2
+302;3;Simple;Économique;14;1;Cour;Douche;TV, Wi-Fi, Ventilateur;Serviette bain x2, Savon x1, Shampoing x1
