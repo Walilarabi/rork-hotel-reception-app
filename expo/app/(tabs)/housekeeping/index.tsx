@@ -18,7 +18,6 @@ import {
 import { useRouter, Stack } from 'expo-router';
 import { Camera, Search, ChevronRight, X, ScanLine, Play, CheckCircle, Flame } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import UserMenuButton from '@/components/UserMenuButton';
 import { useHotel } from '@/providers/HotelProvider';
 import { useTheme } from '@/providers/ThemeProvider';
@@ -29,6 +28,31 @@ import { Room } from '@/constants/types';
 const SWIPE_THRESHOLD = 80;
 
 type RoomFilter = 'all' | 'depart' | 'recouche';
+
+type BarcodeScanningResult = {
+  data: string;
+};
+
+type CameraPermissionResponse = {
+  granted: boolean;
+};
+
+const expoCameraModule: typeof import('expo-camera') | null = Platform.OS !== 'web'
+  ? require('expo-camera')
+  : null;
+
+const CameraView = expoCameraModule?.CameraView ?? null;
+
+const usePlatformCameraPermissions: () => [CameraPermissionResponse | null, () => Promise<CameraPermissionResponse>] =
+  expoCameraModule?.useCameraPermissions ??
+  (() => {
+    const requestPermission = async (): Promise<CameraPermissionResponse> => {
+      console.log('[Scanner] Camera permission requested on web fallback');
+      return { granted: false };
+    };
+
+    return [null, requestPermission];
+  });
 
 interface SwipeableCardProps {
   room: Room;
@@ -425,7 +449,7 @@ export default function HousekeepingScreen() {
   const [scanModalVisible, setScanModalVisible] = useState(false);
   const [scanInput, setScanInput] = useState('');
   const [cameraActive, setCameraActive] = useState(false);
-  const [permission, requestPermission] = useCameraPermissions();
+  const [permission, requestPermission] = usePlatformCameraPermissions();
   const scanProcessedRef = useRef(false);
 
   const handleScanQR = useCallback(() => {
@@ -711,12 +735,22 @@ export default function HousekeepingScreen() {
               </View>
             ) : (
               <View style={styles.cameraContainer}>
-                <CameraView
-                  style={styles.cameraPreview}
-                  facing="back"
-                  barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                  onBarcodeScanned={handleBarCodeScanned}
-                />
+                {CameraView ? (
+                  <CameraView
+                    style={styles.cameraPreview}
+                    facing="back"
+                    barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                    onBarcodeScanned={handleBarCodeScanned}
+                  />
+                ) : (
+                  <View style={styles.cameraUnavailableState}>
+                    <Camera size={28} color="#FFF" />
+                    <Text style={styles.cameraUnavailableTitle}>Scanner indisponible</Text>
+                    <Text style={styles.cameraUnavailableText}>
+                      Le scanner caméra n'est pas disponible sur cet appareil.
+                    </Text>
+                  </View>
+                )}
                 <View style={styles.cameraOverlay}>
                   <View style={styles.cameraTopBar}>
                     <TouchableOpacity
@@ -1241,6 +1275,25 @@ const styles = StyleSheet.create({
   },
   cameraPreview: {
     flex: 1,
+  },
+  cameraUnavailableState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 28,
+    backgroundColor: '#0F172A',
+  },
+  cameraUnavailableTitle: {
+    fontSize: 18,
+    fontWeight: '800' as const,
+    color: '#FFF',
+  },
+  cameraUnavailableText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: 'rgba(255,255,255,0.72)',
+    textAlign: 'center' as const,
   },
   cameraOverlay: {
     ...StyleSheet.absoluteFillObject,
