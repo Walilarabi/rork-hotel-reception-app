@@ -155,7 +155,7 @@ export default function HousekeepingScreen() {
         </SafeAreaView>
 
         {/* Scanner */}
-        <TouchableOpacity style={styles.scanCard} onPress={() => setScanOpen(true)} activeOpacity={0.9}>
+        <TouchableOpacity style={styles.scanCard} onPress={() => router.push('/hk-scan' as never)} activeOpacity={0.9}>
           <View style={styles.scanIcon}><Camera size={22} color={FT.brand} /></View>
           <View style={{ flex: 1 }}>
             <Text style={styles.scanTitle}>Scanner une chambre</Text>

@@ -8,9 +8,11 @@ import {
   Animated,
   Platform,
   KeyboardAvoidingView,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronRight, Shield, Building2 } from 'lucide-react-native';
+import { ChevronRight, Shield, Building2, LogIn } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAuth, AuthUser } from '@/providers/AuthProvider';
 import { useTheme } from '@/providers/ThemeProvider';
@@ -30,9 +32,20 @@ const ROLE_ICONS: Record<AdminUserRole, string> = {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { demoUsers, login } = useAuth();
+  const { demoUsers, login, signIn, authError, isLoggingIn } = useAuth();
   const { loadUserPrefs } = useTheme();
   const [selectedUser, setSelectedUser] = useState<AuthUser | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleEmailLogin = useCallback(() => {
+    if (!email.trim() || !password) return;
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    signIn(
+      { email: email.trim(), password },
+      { onSuccess: () => router.replace('/') },
+    );
+  }, [email, password, signIn, router]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const logoScale = useRef(new Animated.Value(0.8)).current;
@@ -97,9 +110,50 @@ export default function LoginScreen() {
           </Animated.View>
 
           <Animated.View style={[styles.formSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+            {/* Connexion réelle (Supabase) */}
+            <View style={styles.loginBox}>
+              <Text style={styles.loginBoxTitle}>Connexion</Text>
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Email"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoCorrect={false}
+                testID="login-email"
+              />
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Mot de passe"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                secureTextEntry
+                testID="login-password"
+              />
+              {authError ? <Text style={styles.errorText}>{authError}</Text> : null}
+              <TouchableOpacity
+                style={[styles.loginBtn, (!email.trim() || !password || isLoggingIn) && styles.loginBtnDisabled]}
+                onPress={handleEmailLogin}
+                disabled={!email.trim() || !password || isLoggingIn}
+                testID="login-submit"
+              >
+                {isLoggingIn ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <LogIn size={18} color="#FFFFFF" />
+                    <Text style={styles.loginBtnText}>Se connecter</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.demoNotice}>
               <Shield size={14} color="#5B8A9A" />
-              <Text style={styles.demoNoticeText}>Mode démo — Sélectionnez un profil pour accéder à l{"'"}application</Text>
+              <Text style={styles.demoNoticeText}>Ou — accès démo (sélectionnez un profil)</Text>
             </View>
 
             {Object.entries(groupedByHotel).map(([hotelName, users]) => (
@@ -203,6 +257,53 @@ const styles = StyleSheet.create({
   formSection: {
     paddingHorizontal: 20,
     gap: 6,
+  },
+  loginBox: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    gap: 10,
+  },
+  loginBoxTitle: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  input: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  errorText: {
+    color: '#FF8A80',
+    fontSize: 12,
+  },
+  loginBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#6B5CE7',
+    borderRadius: 10,
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  loginBtnDisabled: {
+    opacity: 0.5,
+  },
+  loginBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700' as const,
+    fontSize: 15,
   },
   demoNotice: {
     flexDirection: 'row',

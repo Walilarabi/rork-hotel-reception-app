@@ -1,577 +1,205 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  TextInput,
   ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
-import { Search, ChevronDown, CheckCircle, Package, Users, ArrowRight, RefreshCw, History, MapPin, Zap } from 'lucide-react-native';
-import UserMenuButton from '@/components/UserMenuButton';
-import FlowtymHeader from '@/components/FlowtymHeader';
-import DeskKPI from '@/components/DeskKPI';
-import DeskTeamCard from '@/components/DeskTeamCard';
-import DeskRoomChip from '@/components/DeskRoomChip';
-import StaffForecastCard from '@/components/StaffForecastCard';
-import { useHotel } from '@/providers/HotelProvider';
-import { useTheme } from '@/providers/ThemeProvider';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Check, X, Clock, Moon, AlertTriangle } from 'lucide-react-native';
 import { FT } from '@/constants/flowtym';
-import { Inspection, ROOM_STATUS_CONFIG } from '@/constants/types';
+import { useAuth } from '@/providers/AuthProvider';
+import { useHkTasks } from '@/providers/HkTasksProvider';
+import { elapsedSeconds, type HkTaskRow } from '@/lib/db/housekeeping';
+
+type Tab = 'control' | 'all';
+
+function fmtMin(sec: number): string {
+  const m = Math.round(sec / 60);
+  return `${m} min`;
+}
 
 export default function GouvernanteScreen() {
-  const router = useRouter();
-  const { t } = useTheme();
-  const { pendingInspections, inspections, rooms, staff, lowStockItems, inventoryItems } = useHotel();
-  const [searchText, setSearchText] = useState('');
-  const [floorFilter, setFloorFilter] = useState<number | 'all'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'en_attente' | 'valide' | 'refuse'>('all');
-  const [showFloorDropdown, setShowFloorDropdown] = useState(false);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [activeTab, setActiveTab] = useState<'validation' | 'equipe' | 'stocks'>('validation');
+  const { currentUser } = useAuth();
+  const { tasks, isLoading, isConfigured, refetch, validateTask, redoTask } = useHkTasks();
+  const [tab, setTab] = useState<Tab>('control');
+  const [refreshing, setRefreshing] = useState(false);
 
-  const floors = useMemo(() => [...new Set(rooms.map((r) => r.floor))].sort((a, b) => a - b), [rooms]);
+  const kpi = useMemo(() => {
+    const toControl = tasks.filter((t) => t.status === 'done').length;
+    const validated = tasks.filter((t) => t.status === 'validated').length;
+    const inProgress = tasks.filter((t) => t.status === 'in_progress').length;
+    const npd = tasks.filter((t) => t.is_npd).length;
+    const finished = tasks.filter((t) => t.status === 'done' || t.status === 'validated');
+    const avg = finished.length
+      ? Math.round(finished.reduce((s, t) => s + elapsedSeconds(t), 0) / finished.length)
+      : 0;
+    return { toControl, validated, inProgress, npd, avg };
+  }, [tasks]);
 
-  const filteredInspections = useMemo(() => {
-    let result = statusFilter === 'all' ? inspections : inspections.filter((i) => i.status === statusFilter);
-    if (floorFilter !== 'all') result = result.filter((i) => i.floor === floorFilter);
-    if (searchText) {
-      const s = searchText.toLowerCase();
-      result = result.filter((i) => i.roomNumber.includes(s) || i.cleanedBy.toLowerCase().includes(s));
-    }
-    return result.sort((a, b) => {
-      if (a.status === 'en_attente' && b.status !== 'en_attente') return -1;
-      if (a.status !== 'en_attente' && b.status === 'en_attente') return 1;
-      return 0;
-    });
-  }, [inspections, statusFilter, floorFilter, searchText]);
-
-  const housekeepers = useMemo(() =>
-    staff.filter((s) => s.role === 'femme_de_chambre' && s.active),
-    [staff]
+  const list = useMemo(
+    () => (tab === 'control' ? tasks.filter((t) => t.status === 'done') : tasks),
+    [tasks, tab],
   );
 
-  const inspectionStats = useMemo(() => ({
-    pending: inspections.filter((i) => i.status === 'en_attente').length,
-    validated: inspections.filter((i) => i.status === 'valide').length,
-    refused: inspections.filter((i) => i.status === 'refuse').length,
-  }), [inspections]);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
 
-  const roomsByFloor = useMemo(() => {
-    const grouped: Record<number, typeof rooms> = {};
-    rooms.forEach((r) => {
-      if (!grouped[r.floor]) grouped[r.floor] = [];
-      grouped[r.floor].push(r);
-    });
-    return Object.entries(grouped)
-      .map(([f, rms]) => ({ floor: parseInt(f, 10), rooms: rms.sort((a, b) => a.roomNumber.localeCompare(b.roomNumber)) }))
-      .sort((a, b) => a.floor - b.floor);
-  }, [rooms]);
+  const onValidate = useCallback((t: HkTaskRow) => validateTask(t.id), [validateTask]);
+  const onReject = useCallback((t: HkTaskRow) => {
+    Alert.alert('Refuser la chambre', `La chambre ${t.room_number} repassera en « à nettoyer ».`, [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Refuser', style: 'destructive', onPress: () => redoTask(t.id) },
+    ]);
+  }, [redoTask]);
 
-  const todoRooms = useMemo(() =>
-    rooms.filter((r) => r.cleaningStatus === 'none' && (r.status === 'depart' || r.status === 'recouche')),
-    [rooms]
-  );
-
-  const renderInspectionItem = useCallback(({ item }: { item: Inspection }) => {
-    const room = rooms.find((r) => r.id === item.roomId);
-    const statusConfig = room ? ROOM_STATUS_CONFIG[room.status] : null;
-
-    const getColor = () => {
-      switch (item.status) {
-        case 'en_attente': return FT.warning;
-        case 'valide': return FT.success;
-        case 'refuse': return FT.danger;
-        default: return FT.textMuted;
-      }
-    };
-
-    const getLabel = () => {
-      switch (item.status) {
-        case 'en_attente': return t.gouvernante.toValidate;
-        case 'valide': return t.gouvernante.validatedF;
-        case 'refuse': return t.rooms.refused;
-        default: return '';
-      }
-    };
-
-    const color = getColor();
-
+  if (!isConfigured) {
     return (
-      <TouchableOpacity
-        style={styles.inspCard}
-        onPress={() => router.push({ pathname: '/validate-room', params: { inspectionId: item.id } })}
-        activeOpacity={0.7}
-      >
-        <View style={[styles.inspStripe, { backgroundColor: color }]} />
-        <View style={styles.inspContent}>
-          <View style={styles.inspTop}>
-            <Text style={styles.inspRoom}>{item.roomNumber}</Text>
-            <Text style={styles.inspType}>{item.roomType}</Text>
-            {statusConfig && (
-              <View style={[styles.inspStatusChip, { backgroundColor: statusConfig.color }]}>
-                <Text style={styles.inspStatusChipText}>{statusConfig.label}</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.inspMid}>
-            <View style={[styles.inspBadge, { backgroundColor: color + '12' }]}>
-              <View style={[styles.inspDot, { backgroundColor: color }]} />
-              <Text style={[styles.inspBadgeText, { color }]}>{getLabel()}</Text>
-            </View>
-          </View>
-          <Text style={styles.inspSub}>
-            {item.cleanedBy} • {new Date(item.completedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-          </Text>
-        </View>
-        <Text style={styles.chevron}>›</Text>
-      </TouchableOpacity>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.center}><Text style={styles.emptyTitle}>Backend non connecté</Text></View>
+      </SafeAreaView>
     );
-  }, [rooms, router, t]);
-
-  const renderEquipeTab = () => (
-    <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-      <View style={styles.sectionCard}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t.gouvernante.supervision}</Text>
-          <Text style={styles.sectionSub}>{housekeepers.length} {t.gouvernante.activeMembers}</Text>
-        </View>
-      </View>
-
-      <View style={styles.twoCol}>
-        <View style={styles.colLeft}>
-          {housekeepers.map((hk) => {
-            const assignedRooms = rooms.filter((r) => r.assignedTo === hk.id);
-            const loadPercent = hk.maxLoad > 0 ? (hk.currentLoad / hk.maxLoad) * 100 : 0;
-
-            return (
-              <DeskTeamCard
-                key={hk.id}
-                name={`${hk.firstName} ${hk.lastName}`}
-                details={`${assignedRooms.length} chambres`}
-                metrics={`${hk.currentLoad}/${hk.maxLoad} charge`}
-                loadPercent={loadPercent}
-                loadCurrent={hk.currentLoad}
-                loadMax={hk.maxLoad}
-                roomChips={
-                  assignedRooms.length > 0 ? (
-                    <>
-                      {assignedRooms.map((r) => (
-                        <DeskRoomChip
-                          key={r.id}
-                          roomNumber={r.roomNumber}
-                          status={r.status}
-                          cleaningStatus={r.cleaningStatus}
-                          clientBadge={r.clientBadge}
-                          onPress={() => router.push({ pathname: '/room-details', params: { roomId: r.id } })}
-                        />
-                      ))}
-                    </>
-                  ) : undefined
-                }
-              />
-            );
-          })}
-
-          {todoRooms.length > 0 && (
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>{t.gouvernante.todoRooms}</Text>
-              <View style={styles.chipGrid}>
-                {todoRooms.slice(0, 6).map((r) => (
-                  <DeskRoomChip
-                    key={r.id}
-                    roomNumber={r.roomNumber}
-                    status={r.status}
-                    cleaningStatus={r.cleaningStatus}
-                    clientBadge={r.clientBadge}
-                    onPress={() => router.push({ pathname: '/room-details', params: { roomId: r.id } })}
-                  />
-                ))}
-              </View>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.colRight}>
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>{t.gouvernante.allTodoRooms}</Text>
-            <Text style={styles.sectionSub}>{t.gouvernante.tasks}</Text>
-            {roomsByFloor.map(({ floor, rooms: fRooms }) => {
-              const todoFloor = fRooms.filter((r) => r.cleaningStatus !== 'validee');
-              if (todoFloor.length === 0) return null;
-              return (
-                <View key={floor} style={styles.miniFloor}>
-                  <Text style={styles.miniFloorLabel}>{t.rooms.floorN} {floor}</Text>
-                  <View style={styles.chipGrid}>
-                    {todoFloor.map((r) => (
-                      <DeskRoomChip
-                        key={r.id}
-                        roomNumber={r.roomNumber}
-                        status={r.status}
-                        cleaningStatus={r.cleaningStatus}
-                        clientBadge={r.clientBadge}
-                        onPress={() => router.push({ pathname: '/room-details', params: { roomId: r.id } })}
-                      />
-                    ))}
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>{t.gouvernante.kpis}</Text>
-            <DeskKPI value={inspectionStats.pending} label={t.gouvernante.toValidate} color={FT.warning} />
-            <DeskKPI value={inspectionStats.refused} label={t.gouvernante.toRedo} color={FT.danger} />
-            <DeskKPI value={inspectionStats.validated} label={t.gouvernante.validatedF} color={FT.success} />
-            <DeskKPI value={rooms.filter((r) => r.cleaningStatus === 'none' && r.assignedTo).length} label={t.gouvernante.assign} color={FT.info} />
-            <DeskKPI value={rooms.filter((r) => r.status === 'recouche').length} label={t.rooms.stayover} color={FT.teal} />
-          </View>
-
-          <TouchableOpacity style={styles.actionBtnPrimary} activeOpacity={0.7}>
-            <RefreshCw size={14} color="#FFF" />
-            <Text style={styles.actionBtnText}>{t.gouvernante.reassign}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionBtnSecondary}
-            activeOpacity={0.7}
-            onPress={() => {
-              const first = pendingInspections[0];
-              if (first) router.push({ pathname: '/validate-room', params: { inspectionId: first.id } });
-            }}
-          >
-            <CheckCircle size={14} color={FT.brand} />
-            <Text style={styles.actionBtnSecText}>{t.gouvernante.validateRooms}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionBtnOutline} activeOpacity={0.7}>
-            <Users size={14} color={FT.textSec} />
-            <Text style={styles.actionBtnOutText}>{t.gouvernante.assign}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionBtnOutline}
-            activeOpacity={0.7}
-            onPress={() => router.push('/history')}
-          >
-            <History size={14} color={FT.textSec} />
-            <Text style={styles.actionBtnOutText}>{t.gouvernante.history}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <StaffForecastCard />
-
-      {housekeepers.length === 0 && (
-        <View style={styles.emptyState}>
-          <Users size={24} color={FT.textMuted} />
-          <Text style={styles.emptyTitle}>{t.gouvernante.noActiveHousekeeper}</Text>
-        </View>
-      )}
-    </ScrollView>
-  );
-
-  const renderStocksTab = () => (
-    <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-      <TouchableOpacity
-        style={styles.economatLink}
-        onPress={() => router.push('/economat')}
-        activeOpacity={0.7}
-      >
-        <View style={styles.economatIcon}>
-          <Package size={18} color={FT.brand} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.economatTitle}>{t.gouvernante.fullEconomat}</Text>
-          <Text style={styles.economatSub}>{t.gouvernante.economatDesc}</Text>
-        </View>
-        <ArrowRight size={16} color={FT.brand} />
-      </TouchableOpacity>
-
-      {lowStockItems.length > 0 && (
-        <View style={styles.alertBanner}>
-          <Text style={styles.alertText}>⚠️ {lowStockItems.length} article(s) en stock bas</Text>
-        </View>
-      )}
-
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>{t.gouvernante.inventory}</Text>
-        {inventoryItems.map((item) => {
-          const isLow = item.currentStock <= item.minimumThreshold;
-          const percent = item.minimumThreshold > 0 ? Math.min(100, (item.currentStock / (item.minimumThreshold * 3)) * 100) : 100;
-          const barColor = isLow ? FT.danger : percent < 50 ? FT.warning : FT.success;
-          return (
-            <View key={item.id} style={styles.stockItem}>
-              <View style={styles.stockItemTop}>
-                <Text style={styles.stockName}>{item.itemName}</Text>
-                <Text style={[styles.stockCount, isLow && { color: FT.danger }]}>
-                  {item.currentStock} {item.unit}
-                </Text>
-              </View>
-              <View style={styles.stockBarBg}>
-                <View style={[styles.stockBarFill, { width: `${percent}%`, backgroundColor: barColor }]} />
-              </View>
-              <Text style={styles.stockLoc}>{item.location} • Seuil: {item.minimumThreshold}</Text>
-            </View>
-          );
-        })}
-      </View>
-    </ScrollView>
-  );
+  }
 
   return (
-    <View style={styles.container}>
-      <Stack.Screen
-        options={{
-          headerStyle: { backgroundColor: FT.headerBg },
-          headerTintColor: '#FFF',
-          headerShadowVisible: false,
-          headerTitle: () => (
-            <FlowtymHeader
-              navItems={[
-                { label: t.settings.statistics, icon: '📊', onPress: () => router.push('/breakfast-stats') },
-                { label: t.direction.todayAlerts, icon: '🔔', badge: pendingInspections.length },
-              ]}
-            />
-          ),
-          headerRight: () => <UserMenuButton />,
-        }}
-      />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Contrôle</Text>
+        <Text style={styles.subtitle}>{currentUser?.hotelName ?? 'Mon hôtel'} · supervision du jour</Text>
+      </View>
 
-      <View style={styles.navStripSection}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.navStripScroll}>
-          {[
-            { label: 'Plan Chambres', icon: MapPin, color: FT.info, route: '/hotel-plan' as const },
-            { label: 'Répartition', icon: Zap, color: FT.success, route: '/housekeeping-assignments' as const },
-          ].map((item) => {
-            const IconComp = item.icon;
-            return (
-              <TouchableOpacity
-                key={item.label}
-                style={styles.navStripItem}
-                onPress={() => router.push(item.route)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.navStripIcon, { backgroundColor: item.color + '15' }]}>
-                  <IconComp size={16} color={item.color} />
-                </View>
-                <Text style={styles.navStripLabel} numberOfLines={1}>{item.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
+      <View style={styles.kpiRow}>
+        <KpiCard value={kpi.toControl} label="À contrôler" color={FT.warning} icon={<AlertTriangle size={16} color={FT.warning} />} />
+        <KpiCard value={kpi.validated} label="Validées" color={FT.success} icon={<Check size={16} color={FT.success} />} />
+        <KpiCard value={kpi.inProgress} label="En cours" color={FT.info} icon={<Clock size={16} color={FT.info} />} />
+        <KpiCard value={kpi.npd} label="NPD" color={FT.textSec} icon={<Moon size={16} color={FT.textSec} />} />
+      </View>
+      <View style={styles.avgRow}>
+        <Clock size={14} color={FT.textMuted} />
+        <Text style={styles.avgText}>Temps moyen de nettoyage : <Text style={styles.avgBold}>{fmtMin(kpi.avg)}</Text></Text>
+      </View>
+
+      <View style={styles.tabs}>
+        <TabBtn label={`À contrôler (${kpi.toControl})`} active={tab === 'control'} onPress={() => setTab('control')} />
+        <TabBtn label={`Toutes (${tasks.length})`} active={tab === 'all'} onPress={() => setTab('all')} />
+      </View>
+
+      {isLoading && tasks.length === 0 ? (
+        <View style={styles.center}><ActivityIndicator color={FT.brand} /></View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.list}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={FT.brand} />}
+        >
+          {list.length === 0 ? (
+            <View style={styles.center}>
+              <Text style={styles.emptyTitle}>Rien à contrôler</Text>
+              <Text style={styles.emptySub}>Toutes les chambres terminées ont été validées.</Text>
+            </View>
+          ) : (
+            list.map((t) => <ControlRow key={t.id} task={t} onValidate={() => onValidate(t)} onReject={() => onReject(t)} />)
+          )}
+          <View style={{ height: 20 }} />
         </ScrollView>
-      </View>
-
-      <View style={styles.dashTitle}>
-        <Text style={styles.dashTitleBold}>{t.gouvernante.supervision}</Text>
-      </View>
-
-      <View style={styles.tabRow}>
-        {[
-          { key: 'validation' as const, label: t.gouvernante.validation, icon: <CheckCircle size={14} color={activeTab === 'validation' ? FT.brand : FT.textMuted} /> },
-          { key: 'equipe' as const, label: t.gouvernante.team, icon: <Users size={14} color={activeTab === 'equipe' ? FT.brand : FT.textMuted} /> },
-          { key: 'stocks' as const, label: t.gouvernante.stocks, icon: <Package size={14} color={activeTab === 'stocks' ? FT.brand : FT.textMuted} /> },
-        ].map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[styles.tabBtn, activeTab === tab.key && styles.tabBtnActive]}
-            onPress={() => setActiveTab(tab.key)}
-          >
-            {tab.icon}
-            <Text style={[styles.tabBtnText, activeTab === tab.key && styles.tabBtnTextActive]}>{tab.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {activeTab === 'validation' && (
-        <>
-          <View style={styles.filterBar}>
-            <View style={styles.searchBar}>
-              <Search size={14} color={FT.textMuted} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder={t.common.search + '...'}
-                placeholderTextColor={FT.textMuted}
-                value={searchText}
-                onChangeText={setSearchText}
-              />
-            </View>
-            <TouchableOpacity
-              style={styles.filterChip}
-              onPress={() => { setShowFloorDropdown(!showFloorDropdown); setShowStatusDropdown(false); }}
-            >
-              <Text style={styles.filterChipText}>{floorFilter === 'all' ? t.rooms.floor : `${t.rooms.floorN} ${floorFilter}`}</Text>
-              <ChevronDown size={12} color={FT.textSec} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.filterChip}
-              onPress={() => { setShowStatusDropdown(!showStatusDropdown); setShowFloorDropdown(false); }}
-            >
-              <Text style={styles.filterChipText}>
-                {statusFilter === 'all' ? t.gouvernante.statusFilter : statusFilter === 'en_attente' ? t.gouvernante.toValidate : statusFilter === 'valide' ? t.gouvernante.validatedF : t.rooms.refused}
-              </Text>
-              <ChevronDown size={12} color={FT.textSec} />
-            </TouchableOpacity>
-          </View>
-
-          {showFloorDropdown && (
-            <View style={styles.dropdown}>
-              <TouchableOpacity style={styles.dropdownItem} onPress={() => { setFloorFilter('all'); setShowFloorDropdown(false); }}>
-                <Text style={styles.dropdownText}>{t.rooms.allFloors}</Text>
-              </TouchableOpacity>
-              {floors.map((f) => (
-                <TouchableOpacity key={f} style={styles.dropdownItem} onPress={() => { setFloorFilter(f); setShowFloorDropdown(false); }}>
-                  <Text style={styles.dropdownText}>{t.rooms.floorN} {f}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          {showStatusDropdown && (
-            <View style={styles.dropdown}>
-              {[
-                { value: 'all' as const, label: t.gouvernante.allStatuses },
-                { value: 'en_attente' as const, label: t.gouvernante.toValidate },
-                { value: 'valide' as const, label: t.gouvernante.validatedF },
-                { value: 'refuse' as const, label: t.rooms.refused },
-              ].map((opt) => (
-                <TouchableOpacity key={opt.value} style={styles.dropdownItem} onPress={() => { setStatusFilter(opt.value); setShowStatusDropdown(false); }}>
-                  <Text style={styles.dropdownText}>{opt.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          <View style={styles.kpiStrip}>
-            <View style={[styles.kpiMini, { borderLeftColor: FT.warning }]}>
-              <Text style={styles.kpiMiniVal}>{inspectionStats.pending}</Text>
-              <Text style={styles.kpiMiniLabel}>{t.gouvernante.toValidate}</Text>
-            </View>
-            <View style={[styles.kpiMini, { borderLeftColor: FT.success }]}>
-              <Text style={styles.kpiMiniVal}>{inspectionStats.validated}</Text>
-              <Text style={styles.kpiMiniLabel}>{t.gouvernante.validatedF}</Text>
-            </View>
-            <View style={[styles.kpiMini, { borderLeftColor: FT.danger }]}>
-              <Text style={styles.kpiMiniVal}>{inspectionStats.refused}</Text>
-              <Text style={styles.kpiMiniLabel}>{t.rooms.refused}</Text>
-            </View>
-          </View>
-
-          <FlatList
-            data={filteredInspections}
-            keyExtractor={(item) => item.id}
-            renderItem={renderInspectionItem}
-            contentContainerStyle={styles.listContent}
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>✅</Text>
-                <Text style={styles.emptyTitle}>{t.gouvernante.noInspectionPending}</Text>
-              </View>
-            }
-          />
-        </>
       )}
+    </SafeAreaView>
+  );
+}
 
-      {activeTab === 'equipe' && renderEquipeTab()}
-      {activeTab === 'stocks' && renderStocksTab()}
+function KpiCard({ value, label, color, icon }: { value: number; label: string; color: string; icon: React.ReactNode }) {
+  return (
+    <View style={styles.kpiCard}>
+      <View style={styles.kpiIconRow}>{icon}<Text style={[styles.kpiValue, { color }]}>{value}</Text></View>
+      <Text style={styles.kpiLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function TabBtn({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={[styles.tabBtn, active && styles.tabBtnActive]} onPress={onPress}>
+      <Text style={[styles.tabTxt, active && styles.tabTxtActive]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
+  pending: { label: 'À nettoyer', color: FT.danger, bg: FT.dangerSoft },
+  in_progress: { label: 'En cours', color: FT.info, bg: FT.infoSoft },
+  done: { label: 'À contrôler', color: FT.warning, bg: FT.warningSoft },
+  validated: { label: 'Validée', color: FT.success, bg: FT.successSoft },
+  skipped: { label: 'NPD', color: FT.textSec, bg: FT.surfaceHover },
+};
+
+function ControlRow({ task, onValidate, onReject }: { task: HkTaskRow; onValidate: () => void; onReject: () => void }) {
+  const meta = STATUS_LABEL[task.status] ?? STATUS_LABEL.pending;
+  const assignee = task.assignee ? `${task.assignee.first_name} ${task.assignee.last_name}` : 'Non assignée';
+  const mins = Math.round(elapsedSeconds(task) / 60);
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowMain}>
+        <View style={styles.rowTitleLine}>
+          <Text style={styles.roomNum}>{task.room_number}</Text>
+          <View style={[styles.badge, { backgroundColor: meta.bg }]}><Text style={[styles.badgeTxt, { color: meta.color }]}>{meta.label}</Text></View>
+          {task.is_npd ? <View style={[styles.badge, { backgroundColor: FT.surfaceHover }]}><Text style={[styles.badgeTxt, { color: FT.textSec }]}>NPD</Text></View> : null}
+        </View>
+        <Text style={styles.rowSub}>{assignee} · {mins} min</Text>
+      </View>
+      {task.status === 'done' ? (
+        <View style={styles.rowActions}>
+          <TouchableOpacity style={[styles.actBtn, styles.rejectBtn]} onPress={onReject}>
+            <X size={18} color={FT.danger} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.actBtn, styles.validateBtn]} onPress={onValidate}>
+            <Check size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      ) : task.status === 'validated' ? (
+        <View style={styles.validatedTag}><Check size={16} color={FT.success} /></View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: FT.bg },
-
-  navStripSection: { backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.border, paddingVertical: 10 },
-  navStripScroll: { paddingHorizontal: 16, gap: 10 },
-  navStripItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: FT.border, backgroundColor: FT.surfaceAlt },
-  navStripIcon: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  navStripLabel: { fontSize: 13, fontWeight: '600' as const, color: FT.text },
-
-  dashTitle: { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 },
-  dashTitleBold: { fontSize: 18, fontWeight: '800' as const, color: FT.text },
-  dashTitleLight: { fontSize: 18, fontWeight: '400' as const, color: FT.textSec },
-
-  tabRow: { flexDirection: 'row', backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.border },
-  tabBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 6, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabBtnActive: { borderBottomColor: FT.brand },
-  tabBtnText: { fontSize: 13, fontWeight: '500' as const, color: FT.textMuted },
-  tabBtnTextActive: { color: FT.brand, fontWeight: '600' as const },
-
-  filterBar: { flexDirection: 'row', paddingHorizontal: 14, paddingVertical: 8, backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.border, gap: 8 },
-  searchBar: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: FT.surfaceAlt, borderRadius: 8, paddingHorizontal: 10, gap: 6, borderWidth: 1, borderColor: FT.border },
-  searchInput: { flex: 1, fontSize: 13, color: FT.text, paddingVertical: 8 },
-  filterChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: FT.surfaceAlt, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, gap: 4, borderWidth: 1, borderColor: FT.border },
-  filterChipText: { fontSize: 11, color: FT.textSec, fontWeight: '500' as const },
-
-  dropdown: { position: 'absolute', top: 220, left: 14, right: 14, backgroundColor: FT.surface, borderRadius: 12, borderWidth: 1, borderColor: FT.border, zIndex: 100, elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12 },
-  dropdownItem: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: FT.border },
-  dropdownText: { fontSize: 14, color: FT.text },
-
-  kpiStrip: { flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: FT.surface, borderBottomWidth: 1, borderBottomColor: FT.border },
-  kpiMini: { flex: 1, backgroundColor: FT.surfaceAlt, borderRadius: 10, padding: 12, borderLeftWidth: 3, alignItems: 'center' },
-  kpiMiniVal: { fontSize: 24, fontWeight: '800' as const, color: FT.text },
-  kpiMiniLabel: { fontSize: 10, color: FT.textMuted, fontWeight: '500' as const, marginTop: 2 },
-
-  listContent: { padding: 14, paddingBottom: 20, gap: 8 },
-  inspCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: FT.surface, borderRadius: FT.cardRadius, borderWidth: 1, borderColor: FT.border, overflow: 'hidden' },
-  inspStripe: { width: 4, alignSelf: 'stretch' },
-  inspContent: { flex: 1, padding: 14, gap: 4 },
-  inspTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  inspRoom: { fontSize: 20, fontWeight: '800' as const, color: FT.text },
-  inspType: { fontSize: 12, color: FT.textSec },
-  inspStatusChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  inspStatusChipText: { fontSize: 10, fontWeight: '600' as const, color: '#FFF' },
-  inspMid: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  inspBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, gap: 4 },
-  inspDot: { width: 6, height: 6, borderRadius: 3 },
-  inspBadgeText: { fontSize: 11, fontWeight: '600' as const },
-  inspSub: { fontSize: 11, color: FT.textMuted },
-  chevron: { fontSize: 20, color: FT.textMuted, fontWeight: '300' as const, paddingRight: 14 },
-
-  scrollFlex: { flex: 1 },
-  scrollContent: { padding: 14, gap: 10 },
-
-  twoCol: { flexDirection: 'row', gap: 10 },
-  colLeft: { flex: 1, gap: 10 },
-  colRight: { width: 200, gap: 10 },
-
-  sectionCard: { backgroundColor: FT.surface, borderRadius: FT.cardRadius, padding: 14, borderWidth: 1, borderColor: FT.border, gap: 8 },
-  sectionHeader: { gap: 2 },
-  sectionTitle: { fontSize: 14, fontWeight: '700' as const, color: FT.text },
-  sectionSub: { fontSize: 11, color: FT.textMuted },
-
-  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-
-  miniFloor: { gap: 4, marginTop: 4 },
-  miniFloorLabel: { fontSize: 11, fontWeight: '600' as const, color: FT.textSec },
-
-  actionBtnPrimary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: FT.brand, paddingVertical: 12, borderRadius: 10 },
-  actionBtnText: { fontSize: 13, fontWeight: '600' as const, color: '#FFF' },
-  actionBtnSecondary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: FT.brandSoft, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: FT.brand + '25' },
-  actionBtnSecText: { fontSize: 13, fontWeight: '600' as const, color: FT.brand },
-  actionBtnOutline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: FT.surfaceAlt, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: FT.border },
-  actionBtnOutText: { fontSize: 13, fontWeight: '600' as const, color: FT.textSec },
-
-  economatLink: { flexDirection: 'row', alignItems: 'center', backgroundColor: FT.brandSoft, paddingHorizontal: 16, paddingVertical: 14, gap: 12, borderRadius: FT.cardRadius, borderWidth: 1, borderColor: FT.brand + '20' },
-  economatIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: FT.brand + '12', justifyContent: 'center', alignItems: 'center' },
-  economatTitle: { fontSize: 14, fontWeight: '700' as const, color: FT.brand },
-  economatSub: { fontSize: 11, color: FT.textSec, marginTop: 1 },
-
-  alertBanner: { backgroundColor: FT.warningSoft, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: FT.warning + '25' },
-  alertText: { fontSize: 13, fontWeight: '600' as const, color: FT.warning },
-
-  stockItem: { gap: 4, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: FT.border },
-  stockItemTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  stockName: { fontSize: 13, fontWeight: '500' as const, color: FT.text },
-  stockCount: { fontSize: 14, fontWeight: '700' as const, color: FT.text },
-  stockBarBg: { height: 4, backgroundColor: FT.bg, borderRadius: 2, overflow: 'hidden' },
-  stockBarFill: { height: 4, borderRadius: 2 },
-  stockLoc: { fontSize: 10, color: FT.textMuted },
-
-  emptyState: { alignItems: 'center', paddingTop: 60, gap: 8 },
-  emptyIcon: { fontSize: 48 },
-  emptyTitle: { fontSize: 15, fontWeight: '600' as const, color: FT.text },
+  center: { paddingVertical: 60, alignItems: 'center', gap: 6, paddingHorizontal: 40 },
+  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },
+  title: { fontSize: 22, fontWeight: '800', color: FT.text },
+  subtitle: { fontSize: 13, color: FT.textSec, marginTop: 2 },
+  kpiRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 6 },
+  kpiCard: { flex: 1, backgroundColor: FT.surface, borderRadius: 12, borderWidth: 1, borderColor: FT.border, padding: 10, alignItems: 'center' },
+  kpiIconRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  kpiValue: { fontSize: 18, fontWeight: '800' },
+  kpiLabel: { fontSize: 10, color: FT.textMuted, marginTop: 3, fontWeight: '600' },
+  avgRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingTop: 10 },
+  avgText: { fontSize: 13, color: FT.textSec },
+  avgBold: { fontWeight: '800', color: FT.text },
+  tabs: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 14 },
+  tabBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: FT.surface, borderWidth: 1, borderColor: FT.border },
+  tabBtnActive: { backgroundColor: FT.brand, borderColor: FT.brand },
+  tabTxt: { fontSize: 13, fontWeight: '700', color: FT.textSec },
+  tabTxtActive: { color: '#FFFFFF' },
+  list: { padding: 16, gap: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', backgroundColor: FT.surface, borderRadius: 14, borderWidth: 1, borderColor: FT.border, padding: 14 },
+  rowMain: { flex: 1 },
+  rowTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  roomNum: { fontSize: 18, fontWeight: '800', color: FT.text },
+  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  badgeTxt: { fontSize: 11, fontWeight: '700' },
+  rowSub: { fontSize: 13, color: FT.textSec, marginTop: 4 },
+  rowActions: { flexDirection: 'row', gap: 8 },
+  actBtn: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  rejectBtn: { backgroundColor: FT.dangerSoft },
+  validateBtn: { backgroundColor: FT.success },
+  validatedTag: { width: 42, height: 42, borderRadius: 21, backgroundColor: FT.successSoft, alignItems: 'center', justifyContent: 'center' },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: FT.text },
+  emptySub: { fontSize: 13, color: FT.textSec, textAlign: 'center' },
 });
