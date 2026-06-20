@@ -4,6 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider } from "@/providers/AuthProvider";
+import { RolesProvider } from "@/providers/RolesProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { HotelProvider } from "@/providers/HotelProvider";
 import { SuperAdminProvider } from "@/providers/SuperAdminProvider";
@@ -38,7 +39,8 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <AuthProvider>
-          <ThemeProvider>
+          <RolesProvider>
+            <ThemeProvider>
             <HotelProvider>
               <SuperAdminProvider>
                 <SubscriptionProvider>
@@ -56,7 +58,8 @@ export default function RootLayout() {
                 </SubscriptionProvider>
               </SuperAdminProvider>
             </HotelProvider>
-          </ThemeProvider>
+            </ThemeProvider>
+          </RolesProvider>
         </AuthProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>

@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { LanguageId, TRANSLATION_MAP } from '@/constants/i18n';
+import { isMobileRole as roleIsMobile } from '@/constants/roles';
 
 const THEME_KEY_PREFIX = 'app_theme_preference_';
 const DARK_MODE_KEY_PREFIX = 'app_dark_mode_';
@@ -133,8 +134,6 @@ export const MOBILE_THEMES: Record<MobileThemeId, MobileTheme> = {
   },
 };
 
-const MOBILE_ROLES = ['reception', 'gouvernante', 'femme_de_chambre', 'maintenance', 'breakfast', 'spa'];
-
 export const [ThemeProvider, useTheme] = createContextHook(() => {
   const [themeId, setThemeId] = useState<MobileThemeId>('ocean');
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -145,7 +144,7 @@ export const [ThemeProvider, useTheme] = createContextHook(() => {
     console.log('[ThemeProvider] Loading prefs for user:', userId, 'role:', role);
     setCurrentUserId(userId);
     setCurrentUserRole(role ?? null);
-    const isMobile = role ? MOBILE_ROLES.includes(role) : false;
+    const isMobile = roleIsMobile(role);
     const keys = getUserKeys(userId);
     try {
       const [storedTheme, storedDark, storedLang] = await Promise.all([
@@ -172,7 +171,7 @@ export const [ThemeProvider, useTheme] = createContextHook(() => {
     await AsyncStorage.setItem(keys.themeKey, id);
   }, [currentUserId]);
 
-  const isMobileRole = currentUserRole ? MOBILE_ROLES.includes(currentUserRole) : false;
+  const isMobileRole = roleIsMobile(currentUserRole);
 
   const toggleDarkMode = useCallback(async () => {
     if (isMobileRole) return;

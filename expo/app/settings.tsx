@@ -41,6 +41,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useTheme, MOBILE_THEMES, MobileThemeId } from '@/providers/ThemeProvider';
 import { Colors } from '@/constants/colors';
 import { ADMIN_ROLE_CONFIG } from '@/constants/types';
+import { isMobileRole as roleIsMobile } from '@/constants/roles';
 import { LANGUAGES } from '@/constants/i18n';
 
 export default function SettingsScreen() {
@@ -51,8 +52,7 @@ export default function SettingsScreen() {
 
   const roleConfig = currentUser ? ADMIN_ROLE_CONFIG[currentUser.role] : null;
   const canManageTeam = currentUser ? canInviteRoles(currentUser.role).length > 0 : false;
-  const MOBILE_ROLES: string[] = ['reception', 'gouvernante', 'femme_de_chambre', 'maintenance', 'breakfast', 'spa'];
-  const isMobileRole = currentUser ? MOBILE_ROLES.includes(currentUser.role) : false;
+  const isMobileRole = roleIsMobile(currentUser?.role);
 
   const bg = isDarkMode ? modeColors.background : Colors.background;
   const cardBg = isDarkMode ? modeColors.surface : Colors.surface;
@@ -242,6 +242,17 @@ export default function SettingsScreen() {
                 <View>
                   <Text style={[styles.menuBtnTitle, { color: textColor }]}>{t.menu.teamManagement}</Text>
                   <Text style={[styles.menuBtnSub, { color: textSec }]}>{t.menu.teamManagementDesc}</Text>
+                </View>
+              </View>
+              <ChevronRight size={16} color={textMut} />
+            </TouchableOpacity>
+            <View style={{ height: 8 }} />
+            <TouchableOpacity style={[styles.menuBtn, { backgroundColor: cardBg, borderColor: borderCol }]} onPress={() => router.push('/roles' as any)}>
+              <View style={styles.menuBtnLeft}>
+                <Shield size={18} color={Colors.primary} />
+                <View>
+                  <Text style={[styles.menuBtnTitle, { color: textColor }]}>Rôles & accès</Text>
+                  <Text style={[styles.menuBtnSub, { color: textSec }]}>Modules visibles par rôle, création de rôles personnalisés</Text>
                 </View>
               </View>
               <ChevronRight size={16} color={textMut} />

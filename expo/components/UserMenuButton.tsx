@@ -34,6 +34,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useTheme, MOBILE_THEMES, MobileThemeId } from '@/providers/ThemeProvider';
 import { Colors } from '@/constants/colors';
 import { ADMIN_ROLE_CONFIG } from '@/constants/types';
+import { isMobileRole as roleIsMobile } from '@/constants/roles';
 import { LANGUAGES, LanguageId } from '@/constants/i18n';
 import SecurityPolicyModal from '@/components/SecurityPolicyModal';
 
@@ -57,8 +58,7 @@ export default function UserMenuButton({ tintColor = Colors.white, size = 28 }: 
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
   const roleConfig = currentUser ? ADMIN_ROLE_CONFIG[currentUser.role] : null;
-  const MOBILE_ROLES: string[] = ['reception', 'gouvernante', 'femme_de_chambre', 'maintenance', 'breakfast', 'spa'];
-  const isMobileRole = currentUser ? MOBILE_ROLES.includes(currentUser.role) : false;
+  const isMobileRole = roleIsMobile(currentUser?.role);
 
   const initials = currentUser
     ? `${currentUser.firstName.charAt(0)}${currentUser.lastName.charAt(0)}`

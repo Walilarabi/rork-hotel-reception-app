@@ -2,12 +2,14 @@ import { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/providers/AuthProvider';
+import { useRoles } from '@/providers/RolesProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { Colors } from '@/constants/colors';
 
 export default function IndexScreen() {
   const router = useRouter();
   const { currentUser, isReady } = useAuth();
+  const { getLanding } = useRoles();
   const { loadUserPrefs } = useTheme();
 
   useEffect(() => {
@@ -20,23 +22,22 @@ export default function IndexScreen() {
 
     void loadUserPrefs(currentUser.id, currentUser.role).then(() => {
       console.log('[Index] User prefs loaded for:', currentUser.id);
+      // Rôles web (super admin / support) -> console web.
       if (currentUser.role === 'super_admin' || currentUser.role === 'support') {
         router.replace('/(superadmin)/dashboard');
-      } else if (currentUser.role === 'femme_de_chambre') {
-        router.replace('/(tabs)/housekeeping');
-      } else if (currentUser.role === 'maintenance') {
-        router.replace('/(tabs)/maintenance');
-      } else if (currentUser.role === 'breakfast') {
-        router.replace('/(tabs)/breakfast');
-      } else if (currentUser.role === 'gouvernante') {
-        router.replace('/(tabs)/gouvernante');
-      } else if (currentUser.role === 'direction') {
-        router.replace('/(tabs)/direction');
+        return;
+      }
+      // Rôles terrain (builtin ou personnalisés) -> module d'atterrissage du registre.
+      const landing = getLanding(currentUser.role);
+      if (landing) {
+        router.replace(landing.route as any);
       } else {
-        router.replace('/(tabs)/reception');
+        // Rôle sans module mobile (ex. réception, gérée côté web) : repli connexion.
+        console.warn('[Index] No mobile landing module for role:', currentUser.role);
+        router.replace('/login');
       }
     });
-  }, [isReady, currentUser, router, loadUserPrefs]);
+  }, [isReady, currentUser, router, loadUserPrefs, getLanding]);
 
   return (
     <View style={styles.container}>
