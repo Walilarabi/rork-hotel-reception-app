@@ -7,6 +7,7 @@ import { AuthProvider } from "@/providers/AuthProvider";
 import { RolesProvider } from "@/providers/RolesProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { HotelProvider } from "@/providers/HotelProvider";
+import { HkTasksProvider } from "@/providers/HkTasksProvider";
 import { SuperAdminProvider } from "@/providers/SuperAdminProvider";
 import { HousekeepingManagerProvider } from "@/providers/HousekeepingProvider";
 import { SubscriptionProvider } from "@/providers/SubscriptionProvider";
@@ -49,7 +50,9 @@ export default function RootLayout() {
                           <SatisfactionProvider>
                             <ChatbotProvider>
                               <ConfigurationProvider>
-                                <RootLayoutNav />
+                                <HkTasksProvider>
+                                  <RootLayoutNav />
+                                </HkTasksProvider>
                               </ConfigurationProvider>
                             </ChatbotProvider>
                           </SatisfactionProvider>

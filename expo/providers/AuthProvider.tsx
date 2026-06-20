@@ -32,11 +32,11 @@ async function fetchUserProfile(authId: string): Promise<AuthUser | null> {
     .from('users')
     .select(`
       id,
-      first_name,
-      last_name,
+      full_name,
       email,
       role,
       hotel_id,
+      is_active,
       hotels ( name )
     `)
     .eq('auth_id', authId)
@@ -51,10 +51,16 @@ async function fetchUserProfile(authId: string): Promise<AuthUser | null> {
     ? ((data as Record<string, unknown>).hotels as { name: string })?.name ?? null
     : null;
 
+  // La table `users` du backend Check-in stocke un seul champ full_name.
+  const fullName = (data.full_name ?? '').trim();
+  const spaceIdx = fullName.indexOf(' ');
+  const firstName = spaceIdx === -1 ? fullName : fullName.slice(0, spaceIdx);
+  const lastName = spaceIdx === -1 ? '' : fullName.slice(spaceIdx + 1);
+
   return {
     id: data.id,
-    firstName: data.first_name ?? '',
-    lastName: data.last_name ?? '',
+    firstName,
+    lastName,
     email: data.email,
     role: data.role as AdminUserRole,
     hotelId: data.hotel_id ?? null,
@@ -168,11 +174,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         const { error: profileError } = await supabase.from('users').insert({
           auth_id: data.user.id,
           email: params.email,
-          first_name: params.firstName,
-          last_name: params.lastName,
+          full_name: `${params.firstName} ${params.lastName}`.trim(),
           role: params.role,
           hotel_id: params.hotelId ?? null,
-          status: 'active',
+          is_active: true,
         });
         if (profileError) {
           console.log('[AuthProvider] Profile creation error:', profileError.message);
@@ -224,7 +229,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     if (session) {
       await supabase
         .from('users')
-        .update({ first_name: firstName, last_name: lastName })
+        .update({ full_name: `${firstName} ${lastName}`.trim() })
         .eq('auth_id', session.user.id);
     }
   }, [currentUser, session]);
