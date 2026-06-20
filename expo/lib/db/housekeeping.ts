@@ -8,18 +8,23 @@
 
 import { supabase } from '@/lib/supabase';
 
-// Statuts de tâche ménage. La colonne est en `text` côté DB :
-// ces valeurs DOIVENT rester alignées avec celles utilisées par
-// l'app web Flowtym Check-in pour l'interopérabilité.
+// Statuts de tâche ménage — valeurs réelles de la contrainte CHECK
+// `hk_tasks_status_check` du backend Check-in.
 export const HK_STATUS = {
   pending: 'pending',
   inProgress: 'in_progress',
-  completed: 'completed',
+  done: 'done',
   validated: 'validated',
-  toRedo: 'to_redo',
+  skipped: 'skipped',
 } as const;
 
 export type HkTaskStatus = (typeof HK_STATUS)[keyof typeof HK_STATUS];
+
+export interface HkStaffRef {
+  first_name: string;
+  last_name: string;
+  color: string | null;
+}
 
 export interface HkTaskRow {
   id: string;
@@ -39,23 +44,27 @@ export interface HkTaskRow {
   reservation_id: string | null;
   created_at: string | null;
   updated_at: string | null;
+  /** Personnel d'étage assigné (jointure hk_staff via assigned_to). */
+  assignee: HkStaffRef | null;
 }
 
 const TASK_COLUMNS =
   'id,hotel_id,room_id,room_number,task_type,status,priority,assigned_to,notes,started_at,completed_at,validated_at,validated_by,scheduled_for,reservation_id,created_at,updated_at';
 
+const TASK_SELECT = `${TASK_COLUMNS},assignee:hk_staff!assigned_to(first_name,last_name,color)`;
+
 export interface ListHkTasksParams {
   hotelId: string;
   /** Filtre par date planifiée (YYYY-MM-DD). */
   date?: string;
-  /** Filtre par utilisateur assigné (femme de chambre). */
+  /** Filtre par membre du personnel d'étage assigné (hk_staff.id). */
   assignedTo?: string;
 }
 
 export async function listHkTasks(params: ListHkTasksParams): Promise<HkTaskRow[]> {
   let query = supabase
     .from('hk_tasks')
-    .select(TASK_COLUMNS)
+    .select(TASK_SELECT)
     .eq('hotel_id', params.hotelId);
 
   if (params.date) query = query.eq('scheduled_for', params.date);
@@ -70,6 +79,29 @@ export async function listHkTasks(params: ListHkTasksParams): Promise<HkTaskRow[
     throw error;
   }
   return (data ?? []) as HkTaskRow[];
+}
+
+export interface HkStaffRow {
+  id: string;
+  hotel_id: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  status: string;
+  color: string | null;
+}
+
+export async function listHkStaff(hotelId: string): Promise<HkStaffRow[]> {
+  const { data, error } = await supabase
+    .from('hk_staff')
+    .select('id,hotel_id,first_name,last_name,role,status,color')
+    .eq('hotel_id', hotelId)
+    .order('first_name', { ascending: true });
+  if (error) {
+    console.warn('[hk] listHkStaff error:', error.message);
+    throw error;
+  }
+  return (data ?? []) as HkStaffRow[];
 }
 
 async function patchTask(id: string, patch: Record<string, unknown>): Promise<HkTaskRow> {
@@ -93,7 +125,7 @@ export function startHkTask(id: string) {
 
 /** Marquer le nettoyage terminé (passe en attente de validation gouvernante). */
 export function completeHkTask(id: string) {
-  return patchTask(id, { status: HK_STATUS.completed, completed_at: new Date().toISOString() });
+  return patchTask(id, { status: HK_STATUS.done, completed_at: new Date().toISOString() });
 }
 
 /** Validation par la gouvernante. */
@@ -105,7 +137,7 @@ export function validateHkTask(id: string, validatedBy: string) {
   });
 }
 
-/** Refuser / demander une reprise. */
+/** Refuser / demander une reprise : la tâche repart en « à nettoyer ». */
 export function redoHkTask(id: string) {
-  return patchTask(id, { status: HK_STATUS.toRedo });
+  return patchTask(id, { status: HK_STATUS.pending, completed_at: null, started_at: null });
 }

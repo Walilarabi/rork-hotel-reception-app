@@ -1,1466 +1,294 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SectionList,
+  ScrollView,
   TouchableOpacity,
-  Animated,
-  PanResponder,
-  Platform,
   RefreshControl,
-  TextInput,
-  Alert,
-  Modal,
-  FlatList,
-  KeyboardAvoidingView,
+  ActivityIndicator,
 } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
-import { Camera, Search, ChevronRight, X, ScanLine, Play, CheckCircle, Flame } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
-import UserMenuButton from '@/components/UserMenuButton';
-import { useHotel } from '@/providers/HotelProvider';
-import { useTheme } from '@/providers/ThemeProvider';
-import { useColors } from '@/hooks/useColors';
-import { Colors } from '@/constants/colors';
-import { Room } from '@/constants/types';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Play, CheckCircle2, ShieldCheck, Star, RotateCcw } from 'lucide-react-native';
+import { FT } from '@/constants/flowtym';
+import { useAuth } from '@/providers/AuthProvider';
+import { useHkTasks } from '@/providers/HkTasksProvider';
+import { HK_STATUS, type HkTaskRow } from '@/lib/db/housekeeping';
 
-const SWIPE_THRESHOLD = 80;
+type StatusFilter = 'all' | 'pending' | 'in_progress' | 'done' | 'validated';
 
-type RoomFilter = 'all' | 'depart' | 'recouche';
-
-type BarcodeScanningResult = {
-  data: string;
+const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
+  pending: { label: 'À nettoyer', color: FT.danger, bg: FT.dangerSoft },
+  in_progress: { label: 'En cours', color: FT.info, bg: FT.infoSoft },
+  done: { label: 'À contrôler', color: FT.warning, bg: FT.warningSoft },
+  validated: { label: 'Propre', color: FT.success, bg: FT.successSoft },
+  skipped: { label: 'Ignoré', color: FT.textMuted, bg: FT.surfaceHover },
 };
 
-type CameraPermissionResponse = {
-  granted: boolean;
+const TYPE_LABEL: Record<string, string> = {
+  checkout: 'Départ',
+  cleaning: 'Recouche',
+  turndown: 'Couverture',
+  deep_clean: 'Grand ménage',
+  inspection: 'Inspection',
 };
 
-const expoCameraModule: typeof import('expo-camera') | null = Platform.OS !== 'web'
-  ? require('expo-camera')
-  : null;
-
-const CameraView = expoCameraModule?.CameraView ?? null;
-
-const usePlatformCameraPermissions: () => [CameraPermissionResponse | null, () => Promise<CameraPermissionResponse>] =
-  expoCameraModule?.useCameraPermissions ??
-  (() => {
-    const requestPermission = async (): Promise<CameraPermissionResponse> => {
-      console.log('[Scanner] Camera permission requested on web fallback');
-      return { granted: false };
-    };
-
-    return [null, requestPermission];
-  });
-
-interface SwipeableCardProps {
-  room: Room;
-  onPress: () => void;
-  onSwipeRight: () => void;
-  onSwipeLeft: () => void;
-  onManualStart: () => void;
-  elapsed: string | null;
-  themeColor: string;
+function priorityMeta(p: string | null): { label: string; color: string } | null {
+  if (p === 'high' || p === 'urgent') return { label: 'Critique', color: FT.danger };
+  if (p === 'normal') return { label: 'Moyenne', color: FT.warning };
+  if (p === 'low') return { label: 'Basse', color: FT.textMuted };
+  return null;
 }
 
-const SwipeableRoomCard = React.memo(function SwipeableRoomCard({
-  room,
-  onPress,
-  onSwipeRight,
-  onSwipeLeft,
-  onManualStart,
-  elapsed,
-  themeColor,
-}: SwipeableCardProps) {
-  const pan = useRef(new Animated.Value(0)).current;
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gesture) =>
-        Math.abs(gesture.dx) > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
-      onPanResponderMove: (_, gesture) => {
-        pan.setValue(gesture.dx);
-      },
-      onPanResponderRelease: (_, gesture) => {
-        if (gesture.dx > SWIPE_THRESHOLD) {
-          if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          onSwipeRight();
-        } else if (gesture.dx < -SWIPE_THRESHOLD) {
-          if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onSwipeLeft();
-        }
-        Animated.spring(pan, { toValue: 0, useNativeDriver: true, tension: 80, friction: 10 }).start();
-      },
-    })
-  ).current;
-
-  const isInProgress = room.cleaningStatus === 'en_cours';
-  const isRefused = room.cleaningStatus === 'refusee';
-  const isDone = room.cleaningStatus === 'nettoyee' || room.cleaningStatus === 'validee';
-  const isDepart = room.status === 'depart';
-  const isRecouche = room.status === 'recouche';
-  const isNpd = room.status === 'hors_service' && room.vipInstructions === 'NPD';
-  const isPriority = room.clientBadge === 'prioritaire' || room.clientBadge === 'vip';
-  const isNotStarted = room.cleaningStatus === 'none' || room.cleaningStatus === 'refusee';
-
-  const getBadgeConfig = () => {
-    if (isNpd) return { label: 'NPD', color: '#78909C', bg: '#ECEFF1' };
-    if (isRefused) return { label: 'A refaire', color: '#E53935', bg: '#FFEBEE' };
-    if (isDone) return { label: 'Terminé', color: '#2E7D32', bg: '#E8F5E9' };
-    if (isInProgress) return null;
-    if (isDepart) return { label: 'Départ', color: '#C62828', bg: '#FFCDD2' };
-    if (isRecouche) return { label: 'Recouche', color: '#1565C0', bg: '#BBDEFB' };
-    return null;
-  };
-
-  const badge = getBadgeConfig();
-  const leftAction = isInProgress ? '✅' : '▶️';
-  const leftLabel = isInProgress ? 'Terminer' : 'Commencer';
-
-  const statusBarColor = isNpd ? '#78909C' : isRefused ? '#E53935' : isInProgress ? themeColor : isDone ? '#43A047' : isDepart ? '#E53935' : isRecouche ? '#1565C0' : '#CFD8DC';
-
-  return (
-    <View style={cardStyles.wrapper}>
-      <View style={[cardStyles.actionBg, cardStyles.actionBgLeft]}>
-        <Text style={cardStyles.actionEmoji}>{leftAction}</Text>
-        <Text style={cardStyles.actionLabel}>{leftLabel}</Text>
-      </View>
-      <View style={[cardStyles.actionBg, cardStyles.actionBgRight]}>
-        <Text style={cardStyles.actionEmoji}>{'🔒'}</Text>
-        <Text style={cardStyles.actionLabel}>NPD</Text>
-      </View>
-
-      <Animated.View
-        style={[cardStyles.card, { transform: [{ translateX: pan }] }]}
-        {...panResponder.panHandlers}
-      >
-        <TouchableOpacity
-          style={cardStyles.cardInner}
-          onPress={onPress}
-          activeOpacity={0.7}
-          testID={`room-card-${room.roomNumber}`}
-        >
-          <View style={[cardStyles.statusBar, { backgroundColor: statusBarColor }]} />
-
-          <View style={cardStyles.leftSection}>
-            <View style={cardStyles.roomNumRow}>
-              {isPriority && (
-                <Flame size={14} color="#E53935" fill="#E53935" style={{ marginRight: 2 }} />
-              )}
-              <Text style={cardStyles.roomNum}>{room.roomNumber}</Text>
-            </View>
-            <Text style={cardStyles.roomType} numberOfLines={1}>{room.roomType}</Text>
-          </View>
-
-          <View style={cardStyles.centerSection}>
-            <View style={cardStyles.badgeRow}>
-              {room.clientBadge === 'vip' && (
-                <View style={[cardStyles.smallBadge, { backgroundColor: '#FFF8E1' }]}>
-                  <Text style={cardStyles.smallBadgeText}>{'⭐ VIP'}</Text>
-                </View>
-              )}
-              {room.clientBadge === 'prioritaire' && (
-                <View style={[cardStyles.smallBadge, { backgroundColor: '#FFEBEE' }]}>
-                  <Text style={cardStyles.smallBadgeText}>{'⚡ Prio'}</Text>
-                </View>
-              )}
-              {badge && (
-                <View style={[cardStyles.smallBadge, { backgroundColor: badge.bg }]}>
-                  <Text style={[cardStyles.smallBadgeText, { color: badge.color }]}>{badge.label}</Text>
-                </View>
-              )}
-            </View>
-            {room.currentReservation ? (
-              <View style={cardStyles.guestRow}>
-                <Text style={cardStyles.guestName} numberOfLines={1}>
-                  {room.currentReservation.guestName}
-                </Text>
-                {isNotStarted && !isNpd && (
-                  <TouchableOpacity
-                    style={cardStyles.miniPlayBtn}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      onManualStart();
-                    }}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Play size={12} color="#FFF" fill="#FFF" />
-                  </TouchableOpacity>
-                )}
-              </View>
-            ) : null}
-            {room.vipInstructions && room.vipInstructions !== 'NPD' ? (
-              <Text style={cardStyles.instructions} numberOfLines={1}>
-                {room.vipInstructions}
-              </Text>
-            ) : null}
-          </View>
-
-          <View style={cardStyles.rightSection}>
-            {isInProgress && elapsed ? (
-              <View style={[cardStyles.timerPill, { backgroundColor: themeColor }]}>
-                <Text style={cardStyles.timerIcon}>{'🧹'}</Text>
-                <Text style={cardStyles.timerText}>{elapsed}</Text>
-              </View>
-            ) : (
-              <ChevronRight size={18} color={Colors.textMuted} />
-            )}
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
-    </View>
-  );
-});
-
-const cardStyles = StyleSheet.create({
-  wrapper: {
-    position: 'relative',
-    marginHorizontal: 16,
-    marginVertical: 4,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  actionBg: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    width: '50%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 4,
-  },
-  actionBgLeft: {
-    left: 0,
-    backgroundColor: '#E8F5E9',
-    borderTopLeftRadius: 14,
-    borderBottomLeftRadius: 14,
-  },
-  actionBgRight: {
-    right: 0,
-    backgroundColor: '#ECEFF1',
-    borderTopRightRadius: 14,
-    borderBottomRightRadius: 14,
-  },
-  actionEmoji: { fontSize: 26 },
-  actionLabel: { fontSize: 10, fontWeight: '600' as const, color: '#546E7A' },
-  card: {
-    borderRadius: 14,
-    backgroundColor: '#FFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  cardInner: {
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    paddingLeft: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusBar: {
-    width: 4,
-    height: 40,
-    borderRadius: 2,
-    marginRight: 10,
-  },
-  leftSection: { minWidth: 54, marginRight: 10 },
-  roomNumRow: { flexDirection: 'row', alignItems: 'center' },
-  roomNum: { fontSize: 26, fontWeight: '900' as const, color: '#1A2B33', letterSpacing: -0.5 },
-  roomType: { fontSize: 10, color: '#8A9AA8', marginTop: 1 },
-  centerSection: { flex: 1, gap: 3 },
-  badgeRow: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
-  smallBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
-  smallBadgeText: { fontSize: 10, fontWeight: '700' as const },
-  guestRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  guestName: { fontSize: 12, color: '#5A6B78', fontWeight: '500' as const, flex: 1 },
-  miniPlayBtn: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#00897B',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  instructions: { fontSize: 10, color: '#8A9AA8', fontStyle: 'italic' as const },
-  rightSection: { marginLeft: 8, alignItems: 'flex-end' },
-  timerPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
-  timerIcon: { fontSize: 14 },
-  timerText: { fontSize: 13, fontWeight: '700' as const, color: '#FFF', fontVariant: ['tabular-nums'] },
-});
-
-interface SectionData {
-  title: string;
-  data: Room[];
-}
+const FILTERS: { id: StatusFilter; label: string }[] = [
+  { id: 'all', label: 'Toutes' },
+  { id: 'pending', label: 'À nettoyer' },
+  { id: 'in_progress', label: 'En cours' },
+  { id: 'done', label: 'À contrôler' },
+  { id: 'validated', label: 'Propre' },
+];
 
 export default function HousekeepingScreen() {
-  const router = useRouter();
-  const { rooms, startCleaning, completeCleaning, updateRoom } = useHotel();
-  const { theme, t } = useTheme();
-  const colors = useColors();
+  const { currentUser } = useAuth();
+  const { tasks, staff, isLoading, isConfigured, refetch, startTask, completeTask, validateTask, redoTask } = useHkTasks();
+  const [filter, setFilter] = useState<StatusFilter>('all');
   const [refreshing, setRefreshing] = useState(false);
-  const [searchText, setSearchText] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<RoomFilter>('all');
-  const progressAnim = useRef(new Animated.Value(0)).current;
 
-  const assignedRooms = useMemo(() => {
-    return rooms
-      .filter((r) => r.assignedTo === 's1' || r.assignedTo === 's2')
-      .sort((a, b) => {
-        const priorityMap: Record<string, number> = { refusee: 0, none: 2, en_cours: 1, nettoyee: 3, validee: 4 };
-        const badgeMap: Record<string, number> = { prioritaire: 0, vip: 1, normal: 2 };
-        const statusMap: Record<string, number> = { hors_service: 0, depart: 1, recouche: 2, occupe: 3, libre: 4 };
-        const aBadge = badgeMap[a.clientBadge] ?? 2;
-        const bBadge = badgeMap[b.clientBadge] ?? 2;
-        if (aBadge !== bBadge) return aBadge - bBadge;
-        const aClean = priorityMap[a.cleaningStatus] ?? 2;
-        const bClean = priorityMap[b.cleaningStatus] ?? 2;
-        if (aClean !== bClean) return aClean - bClean;
-        return (statusMap[a.status] ?? 3) - (statusMap[b.status] ?? 3);
-      });
-  }, [rooms]);
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: tasks.length, pending: 0, in_progress: 0, done: 0, validated: 0 };
+    tasks.forEach((t) => { c[t.status] = (c[t.status] ?? 0) + 1; });
+    return c;
+  }, [tasks]);
 
-  const filteredRooms = useMemo(() => {
-    let result = assignedRooms;
-    if (activeFilter === 'depart') {
-      result = result.filter((r) => r.status === 'depart');
-    } else if (activeFilter === 'recouche') {
-      result = result.filter((r) => r.status === 'recouche');
-    }
-    if (!searchText.trim()) return result;
-    const q = searchText.toLowerCase();
-    return result.filter((r) =>
-      r.roomNumber.toLowerCase().includes(q) ||
-      r.roomType.toLowerCase().includes(q) ||
-      r.currentReservation?.guestName?.toLowerCase().includes(q)
-    );
-  }, [assignedRooms, searchText, activeFilter]);
+  const progress = useMemo(() => {
+    const total = tasks.length;
+    const ready = tasks.filter((t) => t.status === HK_STATUS.validated).length;
+    return { total, ready, pct: total ? Math.round((ready / total) * 100) : 0 };
+  }, [tasks]);
 
-  const sections: SectionData[] = useMemo(() => {
-    const floorMap = new Map<number, Room[]>();
-    for (const room of filteredRooms) {
-      const existing = floorMap.get(room.floor) ?? [];
-      existing.push(room);
-      floorMap.set(room.floor, existing);
-    }
-    return Array.from(floorMap.entries())
-      .sort(([a], [b]) => a - b)
-      .map(([floor, data]) => ({
-        title: `${floor}${floor === 1 ? 'er' : 'e'} étage`,
-        data,
-      }));
-  }, [filteredRooms]);
-
-  const stats = useMemo(() => {
-    const total = assignedRooms.length;
-    const done = assignedRooms.filter(
-      (r) => r.cleaningStatus === 'nettoyee' || r.cleaningStatus === 'validee'
-    ).length;
-    const departs = assignedRooms.filter((r) => r.status === 'depart').length;
-    const recouches = assignedRooms.filter((r) => r.status === 'recouche').length;
-    const inProgress = assignedRooms.filter((r) => r.cleaningStatus === 'en_cours').length;
-    return { total, done, departs, recouches, inProgress };
-  }, [assignedRooms]);
-
-  useEffect(() => {
-    const target = stats.total > 0 ? stats.done / stats.total : 0;
-    Animated.spring(progressAnim, {
-      toValue: target,
-      useNativeDriver: false,
-      tension: 30,
-      friction: 10,
-    }).start();
-  }, [stats.done, stats.total, progressAnim]);
-
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const interval = setInterval(() => setTick((prev) => prev + 1), 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const getElapsedTime = useCallback((startedAt: string | null) => {
-    if (!startedAt) return null;
-    const diff = Date.now() - new Date(startedAt).getTime();
-    const mins = Math.floor(diff / 60000);
-    const secs = Math.floor((diff % 60000) / 1000);
-    const hrs = Math.floor(mins / 60);
-    if (hrs > 0) return `${hrs}:${String(mins % 60).padStart(2, '0')}`;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  }, []);
-
-  const handleSwipeRight = useCallback(
-    (room: Room) => {
-      if (room.cleaningStatus === 'en_cours') {
-        completeCleaning(room.id);
-        if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } else if (room.cleaningStatus === 'none' || room.cleaningStatus === 'refusee') {
-        startCleaning(room.id);
-        if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        router.push({ pathname: '/task-detail', params: { roomId: room.id } });
-      }
-    },
-    [startCleaning, completeCleaning, router]
+  const filtered = useMemo(
+    () => (filter === 'all' ? tasks : tasks.filter((t) => t.status === filter)),
+    [tasks, filter],
   );
 
-  const handleSwipeLeft = useCallback(
-    (room: Room) => {
-      if (room.status === 'hors_service' && room.vipInstructions === 'NPD') {
-        updateRoom({ roomId: room.id, updates: { status: 'occupe', vipInstructions: '' } });
-      } else {
-        updateRoom({ roomId: room.id, updates: { status: 'hors_service', vipInstructions: 'NPD' } });
-      }
-      if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    },
-    [updateRoom]
-  );
-
-  const handleManualStart = useCallback(
-    (room: Room) => {
-      startCleaning(room.id);
-      if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      router.push({ pathname: '/task-detail', params: { roomId: room.id } });
-    },
-    [startCleaning, router]
-  );
-
-  const handlePress = useCallback(
-    (room: Room) => {
-      router.push({ pathname: '/task-detail', params: { roomId: room.id } });
-    },
-    [router]
-  );
-
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 800);
-  }, []);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
 
-  const progressWidth = progressAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
-
-  const progressPercent = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
-
-  const [scanModalVisible, setScanModalVisible] = useState(false);
-  const [scanInput, setScanInput] = useState('');
-  const [cameraActive, setCameraActive] = useState(false);
-  const [permission, requestPermission] = usePlatformCameraPermissions();
-  const scanProcessedRef = useRef(false);
-
-  const handleScanQR = useCallback(() => {
-    setScanInput('');
-    scanProcessedRef.current = false;
-    if (Platform.OS === 'web') {
-      setScanModalVisible(true);
-      setCameraActive(false);
-    } else {
-      setCameraActive(true);
-      setScanModalVisible(true);
-    }
-  }, []);
-
-  const handleScanRoom = useCallback((roomNumber: string) => {
-    const room = rooms.find((r) => r.roomNumber === roomNumber.trim());
-    if (!room) {
-      Alert.alert('Chambre introuvable', `Aucune chambre trouvée avec le numéro "${roomNumber.trim()}".`);
-      return;
-    }
-    if (room.cleaningStatus === 'en_cours') {
-      Alert.alert(
-        'Terminer le nettoyage',
-        `Chambre ${room.roomNumber} — Confirmer la fin du nettoyage ?\nStatut: Terminé, en Attente de Validation`,
-        [
-          { text: 'Annuler', style: 'cancel' },
-          {
-            text: 'Terminer',
-            onPress: () => {
-              completeCleaning(room.id);
-              if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              setScanModalVisible(false);
-              setScanInput('');
-            },
-          },
-        ]
-      );
-    } else if (room.cleaningStatus === 'none' || room.cleaningStatus === 'refusee') {
-      startCleaning(room.id);
-      if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      setScanModalVisible(false);
-      setScanInput('');
-      router.push({ pathname: '/task-detail', params: { roomId: room.id } });
-    } else {
-      setScanModalVisible(false);
-      setScanInput('');
-      router.push({ pathname: '/task-detail', params: { roomId: room.id } });
-    }
-  }, [rooms, startCleaning, completeCleaning, router]);
-
-  const handleBarCodeScanned = useCallback((result: BarcodeScanningResult) => {
-    if (scanProcessedRef.current) return;
-    scanProcessedRef.current = true;
-    console.log('[Scanner] Barcode scanned:', result.data);
-    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-    let roomNumber = '';
-    const url = result.data;
-    const roomIdMatch = url.match(/room_id=([^&]+)/);
-    if (roomIdMatch) {
-      const matchedId = roomIdMatch[1];
-      const foundRoom = rooms.find((r) => r.id === matchedId || r.roomNumber === matchedId);
-      if (foundRoom) {
-        roomNumber = foundRoom.roomNumber;
-      } else {
-        roomNumber = matchedId;
-      }
-    } else {
-      roomNumber = url.replace(/[^a-zA-Z0-9]/g, '');
-    }
-
-    setCameraActive(false);
-    if (roomNumber) {
-      handleScanRoom(roomNumber);
-    } else {
-      Alert.alert('QR Code invalide', 'Le QR code scanné ne correspond à aucune chambre.');
-      scanProcessedRef.current = false;
-    }
-  }, [rooms, handleScanRoom]);
-
-  const scanFilteredRooms = useMemo(() => {
-    if (!scanInput.trim()) return assignedRooms;
-    const q = scanInput.trim().toLowerCase();
-    return rooms.filter((r) => r.roomNumber.toLowerCase().includes(q));
-  }, [rooms, assignedRooms, scanInput]);
-
-  const renderItem = useCallback(
-    ({ item }: { item: Room }) => (
-      <SwipeableRoomCard
-        room={item}
-        elapsed={getElapsedTime(item.cleaningStartedAt)}
-        onPress={() => handlePress(item)}
-        onSwipeRight={() => handleSwipeRight(item)}
-        onSwipeLeft={() => handleSwipeLeft(item)}
-        onManualStart={() => handleManualStart(item)}
-        themeColor={theme.primary}
-      />
-    ),
-    [getElapsedTime, handlePress, handleSwipeRight, handleSwipeLeft, handleManualStart, theme]
-  );
-
-  const renderSectionHeader = useCallback(
-    ({ section }: { section: SectionData }) => (
-      <View style={styles.sectionHeader}>
-        <View style={styles.sectionDot} />
-        <Text style={styles.sectionHeaderText}>{section.title}</Text>
-        <Text style={styles.sectionCount}>{section.data.length}</Text>
-      </View>
-    ),
-    []
-  );
-
-  const userName = 'Sophie';
+  if (!isConfigured) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.center}>
+          <Text style={styles.emptyTitle}>Backend non connecté</Text>
+          <Text style={styles.emptySub}>Configurez EXPO_PUBLIC_SUPABASE_URL / ANON_KEY pour charger les tâches réelles.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>Housekeeping</Text>
+          <Text style={styles.subtitle}>{currentUser?.hotelName ?? 'Mon hôtel'} · aujourd&apos;hui</Text>
+        </View>
+        <View style={styles.progressPill}>
+          <Text style={styles.progressPct}>{progress.pct}%</Text>
+          <Text style={styles.progressSub}>{progress.ready}/{progress.total} prêtes</Text>
+        </View>
+      </View>
 
-      <View style={[styles.heroSection, { backgroundColor: theme.headerBg }]}>
-        <View style={styles.heroTop}>
-          <View style={styles.heroGreeting}>
-            <Text style={styles.heroHello}>{t.housekeeping.goodMorning}</Text>
-            <Text style={styles.heroName}>{userName}</Text>
-          </View>
-          <View style={styles.heroActions}>
-            <TouchableOpacity
-              style={styles.heroIconBtn}
-              onPress={() => setShowSearch((p) => !p)}
-            >
-              <Search size={20} color="#FFF" />
+      {/* Équipe d'étage */}
+      {staff.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.teamRow} contentContainerStyle={styles.teamRowContent}>
+          {staff.map((s) => {
+            const load = tasks.filter((t) => t.assigned_to === s.id).length;
+            const doneCount = tasks.filter((t) => t.assigned_to === s.id && (t.status === 'validated' || t.status === 'done')).length;
+            return (
+              <View key={s.id} style={styles.teamChip}>
+                <View style={[styles.avatar, { backgroundColor: (s.color ?? FT.brand) + '22' }]}>
+                  <Text style={[styles.avatarTxt, { color: s.color ?? FT.brand }]}>{s.first_name[0]}{s.last_name[0]}</Text>
+                </View>
+                <View>
+                  <Text style={styles.teamName}>{s.first_name}</Text>
+                  <Text style={styles.teamLoad}>{doneCount}/{load}</Text>
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+      )}
+
+      {/* Filtres par statut */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterRowContent}>
+        {FILTERS.map((f) => {
+          const active = filter === f.id;
+          return (
+            <TouchableOpacity key={f.id} style={[styles.filterChip, active && styles.filterChipActive]} onPress={() => setFilter(f.id)}>
+              <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>{f.label}</Text>
+              <View style={[styles.filterBadge, active && styles.filterBadgeActive]}>
+                <Text style={[styles.filterBadgeText, active && styles.filterBadgeTextActive]}>{counts[f.id] ?? 0}</Text>
+              </View>
             </TouchableOpacity>
-            <UserMenuButton />
-          </View>
-        </View>
+          );
+        })}
+      </ScrollView>
 
-        {showSearch && (
-          <View style={styles.searchRow}>
-            <View style={styles.searchContainer}>
-              <Search size={15} color="rgba(255,255,255,0.5)" />
-              <TextInput
-                style={styles.searchInput}
-                placeholder={t.common.search}
-                placeholderTextColor="rgba(255,255,255,0.4)"
-                value={searchText}
-                onChangeText={setSearchText}
-                autoFocus
-                testID="search-rooms"
+      {isLoading && tasks.length === 0 ? (
+        <View style={styles.center}><ActivityIndicator color={FT.brand} /></View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.list}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={FT.brand} />}
+        >
+          {filtered.length === 0 ? (
+            <View style={styles.center}>
+              <Text style={styles.emptyTitle}>Aucune chambre</Text>
+              <Text style={styles.emptySub}>Rien à afficher pour ce filtre.</Text>
+            </View>
+          ) : (
+            filtered.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                onStart={() => startTask(task.id)}
+                onComplete={() => completeTask(task.id)}
+                onValidate={() => validateTask(task.id)}
+                onRedo={() => redoTask(task.id)}
               />
-            </View>
-          </View>
-        )}
+            ))
+          )}
+        </ScrollView>
+      )}
+    </SafeAreaView>
+  );
+}
 
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryTop}>
-            <Text style={styles.summaryRoomCount}>{stats.total}</Text>
-            <Text style={styles.summaryLabel}>{t.housekeeping.roomsToday}</Text>
-          </View>
-          <View style={styles.progressRow}>
-            <View style={styles.progressBarBg}>
-              <Animated.View style={[styles.progressBarFill, { width: progressWidth }]} />
-            </View>
-            <Text style={styles.progressPct}>{progressPercent}%</Text>
-          </View>
-          <View style={styles.summaryStats}>
-            <View style={styles.miniStat}>
-              <Text style={styles.miniStatVal}>{stats.done}</Text>
-              <Text style={styles.miniStatLabel}>{t.housekeeping.done}</Text>
-            </View>
-            <View style={styles.miniStatDivider} />
-            <View style={styles.miniStat}>
-              <Text style={styles.miniStatVal}>{stats.departs}</Text>
-              <Text style={styles.miniStatLabel}>{t.housekeeping.departures}</Text>
-            </View>
-            <View style={styles.miniStatDivider} />
-            <View style={styles.miniStat}>
-              <Text style={styles.miniStatVal}>{stats.recouches}</Text>
-              <Text style={styles.miniStatLabel}>{t.housekeeping.stayovers}</Text>
-            </View>
-            <View style={styles.miniStatDivider} />
-            <View style={styles.miniStat}>
-              <Text style={styles.miniStatVal}>{stats.inProgress}</Text>
-              <Text style={styles.miniStatLabel}>{t.rooms.inProgress}</Text>
-            </View>
-          </View>
+function TaskCard({ task, onStart, onComplete, onValidate, onRedo }: {
+  task: HkTaskRow;
+  onStart: () => void;
+  onComplete: () => void;
+  onValidate: () => void;
+  onRedo: () => void;
+}) {
+  const meta = STATUS_META[task.status] ?? STATUS_META.pending;
+  const prio = priorityMeta(task.priority);
+  const isVip = prio?.label === 'Critique';
+  const assigneeName = task.assignee ? `${task.assignee.first_name} ${task.assignee.last_name}` : 'Non assignée';
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardTop}>
+        <View style={styles.cardTitleRow}>
+          <Text style={styles.roomNumber}>{(task.room_number ?? '').padStart(4, '0')}</Text>
+          {isVip && <Star size={13} color={FT.warning} fill={FT.warning} />}
+          {task.task_type ? <Text style={styles.typeTag}>{TYPE_LABEL[task.task_type] ?? task.task_type}</Text> : null}
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: meta.bg }]}>
+          <Text style={[styles.statusBadgeText, { color: meta.color }]}>{meta.label}</Text>
         </View>
       </View>
 
-      <TouchableOpacity
-        style={[styles.scannerBtn, { borderColor: theme.primary + '30' }]}
-        onPress={handleScanQR}
-        activeOpacity={0.7}
-        testID="scan-qr-btn"
-      >
-        <View style={[styles.scannerIconCircle, { backgroundColor: theme.primarySoft }]}>
-          <Camera size={22} color={theme.primary} />
+      {prio ? (
+        <View style={styles.metaRow}>
+          <View style={[styles.prioDot, { backgroundColor: prio.color }]} />
+          <Text style={[styles.prioText, { color: prio.color }]}>{prio.label}</Text>
         </View>
-        <View style={styles.scannerTextCol}>
-          <Text style={[styles.scannerTitle, { color: colors.text }]}>Scanner une chambre</Text>
-          <Text style={styles.scannerSub}>Scannez le QR code ou entrez le numéro</Text>
-        </View>
-        <ChevronRight size={18} color={Colors.textMuted} />
-      </TouchableOpacity>
+      ) : null}
 
-      <View style={styles.filterRow}>
-        <TouchableOpacity
-          style={[styles.filterTab, activeFilter === 'all' && styles.filterTabActiveAll]}
-          onPress={() => setActiveFilter('all')}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.filterTabText, activeFilter === 'all' && styles.filterTabTextActiveAll]}>
-            Toutes ({assignedRooms.length})
+      {task.notes ? <Text style={styles.notes}>{task.notes}</Text> : null}
+
+      <View style={styles.assigneeRow}>
+        <View style={[styles.assigneeDot, { backgroundColor: (task.assignee?.color ?? FT.textMuted) + '22' }]}>
+          <Text style={[styles.assigneeInitial, { color: task.assignee?.color ?? FT.textMuted }]}>
+            {task.assignee ? task.assignee.first_name[0] : '–'}
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterTab, styles.filterTabDepart, activeFilter === 'depart' && styles.filterTabActiveDepart]}
-          onPress={() => setActiveFilter('depart')}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.filterTabText, styles.filterTabTextDepart, activeFilter === 'depart' && styles.filterTabTextActiveDepart]}>
-            Départs ({stats.departs})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterTab, styles.filterTabRecouche, activeFilter === 'recouche' && styles.filterTabActiveRecouche]}
-          onPress={() => setActiveFilter('recouche')}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.filterTabText, styles.filterTabTextRecouche, activeFilter === 'recouche' && styles.filterTabTextActiveRecouche]}>
-            Recouches ({stats.recouches})
-          </Text>
-        </TouchableOpacity>
+        </View>
+        <Text style={styles.assigneeName}>{assigneeName}</Text>
       </View>
 
-      <View style={styles.swipeHintBar}>
-        <Text style={styles.swipeHintText}>
-          {'→ Glisser droite: Commencer/Terminer • ← Glisser gauche: NPD'}
-        </Text>
+      <View style={styles.actions}>
+        <ActionBtn label="Démarrer" icon={Play} active={task.status === 'pending'} onPress={onStart} />
+        <ActionBtn label="Terminer" icon={CheckCircle2} active={task.status === 'in_progress'} onPress={onComplete} />
+        <ActionBtn label="Valider" icon={ShieldCheck} active={task.status === 'done'} onPress={onValidate} />
+        {(task.status === 'done' || task.status === 'validated') ? (
+          <ActionBtn label="" icon={RotateCcw} active={false} onPress={onRedo} iconOnly />
+        ) : null}
       </View>
-
-      <Modal
-        visible={scanModalVisible}
-        animationType="slide"
-        transparent={!cameraActive}
-        onRequestClose={() => {
-          setCameraActive(false);
-          setScanModalVisible(false);
-        }}
-      >
-        {cameraActive && Platform.OS !== 'web' ? (
-          <View style={styles.cameraFullScreen}>
-            {!permission?.granted ? (
-              <View style={styles.cameraPermission}>
-                <View style={styles.cameraPermissionCard}>
-                  <Camera size={48} color={theme.primary} />
-                  <Text style={styles.cameraPermTitle}>Accès caméra requis</Text>
-                  <Text style={styles.cameraPermDesc}>
-                    Pour scanner les QR codes des chambres, autorisez l'accès à la caméra.
-                  </Text>
-                  <TouchableOpacity
-                    style={[styles.cameraPermBtn, { backgroundColor: theme.primary }]}
-                    onPress={async () => {
-                      const result = await requestPermission();
-                      if (!result.granted) {
-                        Alert.alert('Permission refusée', 'Vous pouvez activer la caméra dans les paramètres.');
-                        setCameraActive(false);
-                      }
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.cameraPermBtnText}>Autoriser la caméra</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.cameraPermSkip}
-                    onPress={() => setCameraActive(false)}
-                  >
-                    <Text style={styles.cameraPermSkipText}>Saisir manuellement</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.cameraContainer}>
-                {CameraView ? (
-                  <CameraView
-                    style={styles.cameraPreview}
-                    facing="back"
-                    barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                    onBarcodeScanned={handleBarCodeScanned}
-                  />
-                ) : (
-                  <View style={styles.cameraUnavailableState}>
-                    <Camera size={28} color="#FFF" />
-                    <Text style={styles.cameraUnavailableTitle}>Scanner indisponible</Text>
-                    <Text style={styles.cameraUnavailableText}>
-                      Le scanner caméra n'est pas disponible sur cet appareil.
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.cameraOverlay}>
-                  <View style={styles.cameraTopBar}>
-                    <TouchableOpacity
-                      style={styles.cameraCloseBtn}
-                      onPress={() => {
-                        setCameraActive(false);
-                        setScanModalVisible(false);
-                      }}
-                    >
-                      <X size={24} color="#FFF" />
-                    </TouchableOpacity>
-                    <Text style={styles.cameraTitle}>Scanner QR Code</Text>
-                    <View style={{ width: 40 }} />
-                  </View>
-
-                  <View style={styles.cameraCrosshair}>
-                    <View style={styles.crosshairCornerTL} />
-                    <View style={styles.crosshairCornerTR} />
-                    <View style={styles.crosshairCornerBL} />
-                    <View style={styles.crosshairCornerBR} />
-                  </View>
-
-                  <View style={styles.cameraBottomBar}>
-                    <Text style={styles.cameraHint}>Placez le QR code de la chambre dans le cadre</Text>
-                    <TouchableOpacity
-                      style={[styles.cameraManualBtn, { borderColor: '#FFF' }]}
-                      onPress={() => setCameraActive(false)}
-                      activeOpacity={0.7}
-                    >
-                      <Search size={18} color="#FFF" />
-                      <Text style={styles.cameraManualText}>Saisir le numéro</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            )}
-          </View>
-        ) : (
-        <KeyboardAvoidingView
-          style={styles.scanModalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <View style={styles.scanModalContainer}>
-            <View style={styles.scanModalHeader}>
-              <View style={styles.scanModalTitleRow}>
-                <ScanLine size={22} color={theme.primary} />
-                <Text style={styles.scanModalTitle}>Scanner / Sélectionner</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.scanModalClose}
-                onPress={() => {
-                  setCameraActive(false);
-                  setScanModalVisible(false);
-                }}
-              >
-                <X size={20} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            {Platform.OS !== 'web' && permission?.granted && (
-              <TouchableOpacity
-                style={[styles.openCameraBtn, { backgroundColor: theme.primary + '12', borderColor: theme.primary + '30' }]}
-                onPress={() => {
-                  scanProcessedRef.current = false;
-                  setCameraActive(true);
-                }}
-                activeOpacity={0.7}
-              >
-                <Camera size={20} color={theme.primary} />
-                <Text style={[styles.openCameraBtnText, { color: theme.primary }]}>Ouvrir la caméra</Text>
-              </TouchableOpacity>
-            )}
-
-            <View style={styles.scanInputRow}>
-              <View style={[styles.scanInputContainer, { borderColor: theme.primary + '40' }]}>
-                <Search size={16} color="#94A3B8" />
-                <TextInput
-                  style={styles.scanInputField}
-                  placeholder="Numéro de chambre (ex: 205)"
-                  placeholderTextColor="#94A3B8"
-                  value={scanInput}
-                  onChangeText={setScanInput}
-                  keyboardType="default"
-                  autoFocus
-                  returnKeyType="go"
-                  onSubmitEditing={() => {
-                    if (scanInput.trim()) handleScanRoom(scanInput);
-                  }}
-                  testID="scan-room-input"
-                />
-              </View>
-              <TouchableOpacity
-                style={[styles.scanGoBtn, { backgroundColor: theme.primary, opacity: scanInput.trim() ? 1 : 0.4 }]}
-                onPress={() => { if (scanInput.trim()) handleScanRoom(scanInput); }}
-                disabled={!scanInput.trim()}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.scanGoBtnText}>OK</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.scanSectionLabel}>
-              {scanInput.trim() ? `Résultats (${scanFilteredRooms.length})` : `Mes chambres (${assignedRooms.length})`}
-            </Text>
-
-            <FlatList
-              data={scanFilteredRooms}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.scanListContent}
-              showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => {
-                const isInProg = item.cleaningStatus === 'en_cours';
-                const isDoneStatus = item.cleaningStatus === 'nettoyee' || item.cleaningStatus === 'validee';
-                const isRefusedStatus = item.cleaningStatus === 'refusee';
-                const canAct = isInProg || item.cleaningStatus === 'none' || isRefusedStatus;
-                const actionColor = isInProg ? '#16A34A' : theme.primary;
-                const actionIcon = isInProg ? <CheckCircle size={16} color="#FFF" /> : <Play size={16} color="#FFF" />;
-                const actionLabel = isInProg ? 'Terminer' : 'Démarrer';
-                const statusLabel = isInProg ? '🧹 En cours' : isDoneStatus ? '✅ Terminé' : isRefusedStatus ? '🔄 À refaire' : '';
-
-                return (
-                  <TouchableOpacity
-                    style={styles.scanRoomItem}
-                    onPress={() => handleScanRoom(item.roomNumber)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.scanRoomLeft}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        {(item.clientBadge === 'prioritaire' || item.clientBadge === 'vip') && (
-                          <Flame size={14} color="#E53935" fill="#E53935" />
-                        )}
-                        <Text style={styles.scanRoomNumber}>{item.roomNumber}</Text>
-                      </View>
-                      <Text style={styles.scanRoomType}>{item.roomType}</Text>
-                      {statusLabel ? <Text style={styles.scanRoomStatus}>{statusLabel}</Text> : null}
-                    </View>
-                    {canAct && (
-                      <View style={[styles.scanRoomAction, { backgroundColor: actionColor }]}>
-                        {actionIcon}
-                        <Text style={styles.scanRoomActionText}>{actionLabel}</Text>
-                      </View>
-                    )}
-                    {isDoneStatus && (
-                      <View style={[styles.scanRoomAction, { backgroundColor: '#E2E8F0' }]}>
-                        <CheckCircle size={16} color="#16A34A" />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              }}
-              ListEmptyComponent={
-                <View style={styles.scanEmpty}>
-                  <Text style={styles.scanEmptyText}>Aucune chambre trouvée</Text>
-                </View>
-              }
-            />
-          </View>
-        </KeyboardAvoidingView>
-        )}
-      </Modal>
-
-      <SectionList
-        sections={sections}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        renderSectionHeader={renderSectionHeader}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        stickySectionHeadersEnabled={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={theme.primary}
-            colors={[theme.primary]}
-          />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>{'🎉'}</Text>
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>{t.housekeeping.allDone}</Text>
-            <Text style={styles.emptySubtext}>{t.housekeeping.noAssigned}</Text>
-          </View>
-        }
-      />
     </View>
+  );
+}
+
+function ActionBtn({ label, icon: Icon, active, onPress, iconOnly }: {
+  label: string;
+  icon: React.ComponentType<{ size: number; color: string }>;
+  active: boolean;
+  onPress: () => void;
+  iconOnly?: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.actionBtn, iconOnly && styles.actionBtnIcon, active && styles.actionBtnActive]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <Icon size={15} color={active ? '#FFFFFF' : FT.textSec} />
+      {!iconOnly && <Text style={[styles.actionLabel, active && styles.actionLabelActive]}>{label}</Text>}
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F0F2F5' },
-
-  heroSection: {
-    paddingTop: Platform.OS === 'ios' ? 56 : 40,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
-  heroTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  heroGreeting: { gap: 2 },
-  heroHello: { fontSize: 14, color: 'rgba(255,255,255,0.7)', fontWeight: '500' as const },
-  heroName: { fontSize: 26, fontWeight: '800' as const, color: '#FFF', letterSpacing: -0.5 },
-  heroActions: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingTop: 4 },
-  heroIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  searchRow: { marginTop: 12 },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
-    gap: 8,
-  },
-  searchInput: { flex: 1, fontSize: 15, color: '#FFF', padding: 0 },
-
-  summaryCard: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 16,
-  },
-  summaryTop: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
-    marginBottom: 10,
-  },
-  summaryRoomCount: { fontSize: 36, fontWeight: '900' as const, color: '#FFF' },
-  summaryLabel: { fontSize: 14, color: 'rgba(255,255,255,0.7)', fontWeight: '500' as const },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 14,
-  },
-  progressBarBg: {
-    flex: 1,
-    height: 6,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#4ADE80',
-  },
-  progressPct: { fontSize: 13, fontWeight: '700' as const, color: '#4ADE80', minWidth: 36 },
-  summaryStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  miniStat: { flex: 1, alignItems: 'center' },
-  miniStatVal: { fontSize: 18, fontWeight: '800' as const, color: '#FFF' },
-  miniStatLabel: { fontSize: 9, color: 'rgba(255,255,255,0.6)', marginTop: 2, fontWeight: '500' as const, textTransform: 'uppercase' as const },
-  miniStatDivider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.15)' },
-
-  scannerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: -10,
-    backgroundColor: '#FFF',
-    borderRadius: 14,
-    padding: 14,
-    gap: 12,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  scannerIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scannerTextCol: { flex: 1 },
-  scannerTitle: { fontSize: 15, fontWeight: '700' as const },
-  scannerSub: { fontSize: 11, color: '#8A9AA8', marginTop: 1 },
-
-  filterRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 4,
-    gap: 8,
-  },
-  filterTab: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignItems: 'center',
-    backgroundColor: '#E8ECF0',
-  },
-  filterTabActiveAll: {
-    backgroundColor: '#1A4D5C',
-  },
-  filterTabDepart: {
-    backgroundColor: '#FFEBEE',
-  },
-  filterTabActiveDepart: {
-    backgroundColor: '#E53935',
-  },
-  filterTabRecouche: {
-    backgroundColor: '#E3F2FD',
-  },
-  filterTabActiveRecouche: {
-    backgroundColor: '#1565C0',
-  },
-  filterTabText: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-    color: '#546E7A',
-  },
-  filterTabTextActiveAll: {
-    color: '#FFF',
-  },
-  filterTabTextDepart: {
-    color: '#C62828',
-  },
-  filterTabTextActiveDepart: {
-    color: '#FFF',
-  },
-  filterTabTextRecouche: {
-    color: '#1565C0',
-  },
-  filterTabTextActiveRecouche: {
-    color: '#FFF',
-  },
-
-  swipeHintBar: {
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-  },
-  swipeHintText: { fontSize: 10, textAlign: 'center', fontWeight: '500' as const, color: '#90A4AE' },
-
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 6,
-    gap: 8,
-  },
-  sectionDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#90A4AE',
-  },
-  sectionHeaderText: { fontSize: 13, fontWeight: '600' as const, color: '#5A6B78' },
-  sectionCount: { fontSize: 11, fontWeight: '700' as const, color: '#90A4AE', backgroundColor: '#ECEFF1', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 },
-  listContent: { paddingBottom: 100 },
-  emptyState: { alignItems: 'center', paddingTop: 60, gap: 8 },
-  emptyIcon: { fontSize: 56 },
-  emptyTitle: { fontSize: 18, fontWeight: '700' as const, color: '#1A2B33' },
-  emptySubtext: { fontSize: 13, color: '#5A6B78' },
-
-  scanModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  scanModalContainer: {
-    backgroundColor: '#FFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '85%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-  },
-  scanModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  scanModalTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  scanModalTitle: {
-    fontSize: 18,
-    fontWeight: '800' as const,
-    color: '#1E293B',
-  },
-  scanModalClose: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scanInputRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-    gap: 10,
-  },
-  scanInputContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    borderWidth: 1.5,
-    gap: 8,
-  },
-  scanInputField: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1E293B',
-    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
-    fontWeight: '600' as const,
-  },
-  scanGoBtn: {
-    width: 52,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scanGoBtnText: {
-    fontSize: 15,
-    fontWeight: '800' as const,
-    color: '#FFF',
-  },
-  scanSectionLabel: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: '#94A3B8',
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-  },
-  scanListContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  scanRoomItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  scanRoomLeft: {
-    flex: 1,
-    gap: 2,
-  },
-  scanRoomNumber: {
-    fontSize: 22,
-    fontWeight: '900' as const,
-    color: '#1E293B',
-  },
-  scanRoomType: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  scanRoomStatus: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  scanRoomAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  scanRoomActionText: {
-    fontSize: 13,
-    fontWeight: '700' as const,
-    color: '#FFF',
-  },
-  scanEmpty: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  scanEmptyText: {
-    fontSize: 14,
-    color: '#94A3B8',
-    fontWeight: '500' as const,
-  },
-
-  cameraFullScreen: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  cameraContainer: {
-    flex: 1,
-    position: 'relative',
-  },
-  cameraPreview: {
-    flex: 1,
-  },
-  cameraUnavailableState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    paddingHorizontal: 28,
-    backgroundColor: '#0F172A',
-  },
-  cameraUnavailableTitle: {
-    fontSize: 18,
-    fontWeight: '800' as const,
-    color: '#FFF',
-  },
-  cameraUnavailableText: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: 'rgba(255,255,255,0.72)',
-    textAlign: 'center' as const,
-  },
-  cameraOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'space-between',
-  },
-  cameraTopBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingHorizontal: 16,
-  },
-  cameraCloseBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cameraTitle: {
-    fontSize: 17,
-    fontWeight: '700' as const,
-    color: '#FFF',
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  cameraCrosshair: {
-    width: 240,
-    height: 240,
-    alignSelf: 'center',
-    position: 'relative',
-  },
-  crosshairCornerTL: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 40,
-    height: 40,
-    borderTopWidth: 4,
-    borderLeftWidth: 4,
-    borderColor: '#FFF',
-    borderTopLeftRadius: 12,
-  },
-  crosshairCornerTR: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 40,
-    height: 40,
-    borderTopWidth: 4,
-    borderRightWidth: 4,
-    borderColor: '#FFF',
-    borderTopRightRadius: 12,
-  },
-  crosshairCornerBL: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    width: 40,
-    height: 40,
-    borderBottomWidth: 4,
-    borderLeftWidth: 4,
-    borderColor: '#FFF',
-    borderBottomLeftRadius: 12,
-  },
-  crosshairCornerBR: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 40,
-    height: 40,
-    borderBottomWidth: 4,
-    borderRightWidth: 4,
-    borderColor: '#FFF',
-    borderBottomRightRadius: 12,
-  },
-  cameraBottomBar: {
-    alignItems: 'center',
-    paddingBottom: Platform.OS === 'ios' ? 50 : 30,
-    gap: 16,
-  },
-  cameraHint: {
-    fontSize: 14,
-    fontWeight: '500' as const,
-    color: '#FFF',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  cameraManualBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1.5,
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  cameraManualText: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: '#FFF',
-  },
-  cameraPermission: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000',
-    padding: 24,
-  },
-  cameraPermissionCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    padding: 32,
-    alignItems: 'center',
-    gap: 12,
-    maxWidth: 320,
-    width: '100%',
-  },
-  cameraPermTitle: {
-    fontSize: 18,
-    fontWeight: '800' as const,
-    color: '#1E293B',
-    marginTop: 8,
-  },
-  cameraPermDesc: {
-    fontSize: 14,
-    color: '#64748B',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  cameraPermBtn: {
-    width: '100%',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  cameraPermBtnText: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-    color: '#FFF',
-  },
-  cameraPermSkip: {
-    paddingVertical: 8,
-  },
-  cameraPermSkipText: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: '#64748B',
-  },
-  openCameraBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginHorizontal: 20,
-    marginBottom: 8,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  openCameraBtnText: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-  },
+  container: { flex: 1, backgroundColor: FT.bg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, gap: 6 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
+  title: { fontSize: 22, fontWeight: '800', color: FT.text },
+  subtitle: { fontSize: 13, color: FT.textSec, marginTop: 2 },
+  progressPill: { alignItems: 'center', backgroundColor: FT.surface, borderRadius: 14, borderWidth: 1, borderColor: FT.border, paddingHorizontal: 14, paddingVertical: 8 },
+  progressPct: { fontSize: 18, fontWeight: '800', color: FT.brand },
+  progressSub: { fontSize: 11, color: FT.textMuted },
+  teamRow: { maxHeight: 64, flexGrow: 0 },
+  teamRowContent: { paddingHorizontal: 16, gap: 10, paddingBottom: 4 },
+  teamChip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: FT.surface, borderRadius: 12, borderWidth: 1, borderColor: FT.border, paddingHorizontal: 10, paddingVertical: 8 },
+  avatar: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  avatarTxt: { fontSize: 11, fontWeight: '800' },
+  teamName: { fontSize: 13, fontWeight: '700', color: FT.text },
+  teamLoad: { fontSize: 11, color: FT.textMuted },
+  filterRow: { maxHeight: 48, flexGrow: 0 },
+  filterRowContent: { paddingHorizontal: 16, gap: 8, paddingVertical: 6 },
+  filterChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: FT.surface, borderRadius: FT.chipRadius, borderWidth: 1, borderColor: FT.border, paddingHorizontal: 12, paddingVertical: 7 },
+  filterChipActive: { backgroundColor: FT.brand, borderColor: FT.brand },
+  filterChipText: { fontSize: 13, fontWeight: '600', color: FT.textSec },
+  filterChipTextActive: { color: '#FFFFFF' },
+  filterBadge: { minWidth: 18, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 9, backgroundColor: FT.surfaceHover, alignItems: 'center' },
+  filterBadgeActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
+  filterBadgeText: { fontSize: 11, fontWeight: '700', color: FT.textSec },
+  filterBadgeTextActive: { color: '#FFFFFF' },
+  list: { padding: 16, paddingTop: 6, gap: 12 },
+  card: { backgroundColor: FT.surface, borderRadius: FT.cardRadius, borderWidth: 1, borderColor: FT.border, padding: 14, ...FT.shadowLight },
+  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  roomNumber: { fontSize: 17, fontWeight: '800', color: FT.text },
+  typeTag: { fontSize: 11, color: FT.textSec, backgroundColor: FT.surfaceAlt, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  statusBadgeText: { fontSize: 11, fontWeight: '700' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  prioDot: { width: 7, height: 7, borderRadius: 4 },
+  prioText: { fontSize: 11, fontWeight: '700' },
+  notes: { fontSize: 13, color: FT.textSec, marginTop: 8, lineHeight: 18 },
+  assigneeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  assigneeDot: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  assigneeInitial: { fontSize: 11, fontWeight: '800' },
+  assigneeName: { fontSize: 13, fontWeight: '600', color: FT.text },
+  actions: { flexDirection: 'row', gap: 8, marginTop: 14 },
+  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: FT.surfaceAlt, borderRadius: 10, paddingVertical: 10, borderWidth: 1, borderColor: FT.border },
+  actionBtnIcon: { flex: 0, width: 42 },
+  actionBtnActive: { backgroundColor: FT.brand, borderColor: FT.brand },
+  actionLabel: { fontSize: 12, fontWeight: '700', color: FT.textSec },
+  actionLabelActive: { color: '#FFFFFF' },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: FT.text },
+  emptySub: { fontSize: 13, color: FT.textSec, textAlign: 'center' },
 });

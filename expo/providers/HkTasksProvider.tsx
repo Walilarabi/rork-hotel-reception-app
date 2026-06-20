@@ -4,11 +4,13 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useAuth } from '@/providers/AuthProvider';
 import {
   listHkTasks,
+  listHkStaff,
   startHkTask,
   completeHkTask,
   validateHkTask,
   redoHkTask,
   type HkTaskRow,
+  type HkStaffRow,
 } from '@/lib/db/housekeeping';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
@@ -17,23 +19,27 @@ function todayISO(): string {
 }
 
 /**
- * Tâches ménage RÉELLES (Supabase Check-in), scopées à l'hôtel de
- * l'utilisateur connecté. Remplace la donnée mock pour le module ménage.
+ * Données ménage RÉELLES (Supabase Check-in), scopées à l'hôtel de
+ * l'utilisateur connecté : tâches du jour (hk_tasks) + équipe d'étage
+ * (hk_staff). Remplace la donnée mock pour le module ménage.
  */
 export const [HkTasksProvider, useHkTasks] = createContextHook(() => {
   const { currentUser } = useAuth();
   const queryClient = useQueryClient();
 
   const hotelId = currentUser?.hotelId ?? null;
-  // La femme de chambre ne voit que ses chambres ; les superviseurs voient tout.
-  const assignedTo = currentUser?.role === 'femme_de_chambre' ? currentUser?.id : undefined;
-
-  const queryKey = useMemo(() => ['hk-tasks', hotelId, assignedTo ?? 'all'], [hotelId, assignedTo]);
+  const enabled = Boolean(hotelId) && isSupabaseConfigured;
 
   const tasksQuery = useQuery({
-    queryKey,
-    enabled: Boolean(hotelId) && isSupabaseConfigured,
-    queryFn: () => listHkTasks({ hotelId: hotelId as string, date: todayISO(), assignedTo }),
+    queryKey: ['hk-tasks', hotelId],
+    enabled,
+    queryFn: () => listHkTasks({ hotelId: hotelId as string, date: todayISO() }),
+  });
+
+  const staffQuery = useQuery({
+    queryKey: ['hk-staff', hotelId],
+    enabled,
+    queryFn: () => listHkStaff(hotelId as string),
   });
 
   const invalidate = useCallback(() => {
@@ -51,8 +57,10 @@ export const [HkTasksProvider, useHkTasks] = createContextHook(() => {
   return useMemo(
     () => ({
       tasks: (tasksQuery.data ?? []) as HkTaskRow[],
-      isLoading: tasksQuery.isLoading,
+      staff: (staffQuery.data ?? []) as HkStaffRow[],
+      isLoading: tasksQuery.isLoading || staffQuery.isLoading,
       isError: tasksQuery.isError,
+      isConfigured: enabled,
       refetch: tasksQuery.refetch,
       hotelId,
       startTask: startMutation.mutate,
@@ -60,6 +68,6 @@ export const [HkTasksProvider, useHkTasks] = createContextHook(() => {
       validateTask: validateMutation.mutate,
       redoTask: redoMutation.mutate,
     }),
-    [tasksQuery.data, tasksQuery.isLoading, tasksQuery.isError, tasksQuery.refetch, hotelId, startMutation.mutate, completeMutation.mutate, validateMutation.mutate, redoMutation.mutate],
+    [tasksQuery.data, tasksQuery.isLoading, tasksQuery.isError, tasksQuery.refetch, staffQuery.data, staffQuery.isLoading, enabled, hotelId, startMutation.mutate, completeMutation.mutate, validateMutation.mutate, redoMutation.mutate],
   );
 });
